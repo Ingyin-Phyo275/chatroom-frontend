@@ -128,7 +128,7 @@ export default function ChatRoom({ user }: ChatRoomProps) {
   };
 
   return (
-    <div className="flex flex-col h-[600px] max-sm:h-[600px] max-md:h-[730px]">
+    <div className="flex flex-col h-[calc(100vh-4rem)]">
       {/* Header */}
       {/* <div className="flex items-center justify-between p-4 border-b dark:border-slate-700 flex-shrink-0">
         <div className="flex items-center gap-3">
@@ -200,7 +200,7 @@ export default function ChatRoom({ user }: ChatRoomProps) {
                   : "bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-100 rounded-bl-none"
               }`}
             >
-              <div className="text-xs font-medium">{m.user}</div>
+              {/* <div className="text-xs font-medium">{m.user}</div> */}
               <div className="mt-1 text-sm">
                 {m.attachment ? (
                   <>
