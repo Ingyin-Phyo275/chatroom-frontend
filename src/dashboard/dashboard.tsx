@@ -7,9 +7,10 @@ import {
 } from "@/components/ui/sidebar";
 import { useState } from "react";
 import type { ChatUserType } from "@/dto/UserTypes";
-import { Info, Phone, Video } from "lucide-react";
+import { ArrowLeft, Info, Phone, Video } from "lucide-react";
 import { Button } from "../components/ui/button";
-
+import "../App.css";
+import ChatInfoPanel from "@/components/chat-info-panel";
 export default function Dashboard() {
   const [selectedUser, setSelectedUser] = useState<ChatUserType | null>(null);
   const [showInfo, setShowInfo] = useState(false); // <-- controls info panel
@@ -38,12 +39,12 @@ export default function Dashboard() {
               <div className="flex items-center gap-2">
                 <SidebarTrigger />
               </div>
-
+              
               {/* Center: User avatar + name + status */}
               {selectedUser && (
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 max-lg:hidden">
                   <div
-                    className={`relative w-10 h-10 ${
+                    className={` relative w-10 h-10 ${
                       selectedUser.status === "online"
                         ? "ring-2 ring-green-500"
                         : ""
@@ -64,9 +65,7 @@ export default function Dashboard() {
                           : "text-gray-400 dark:text-gray-300"
                       }`}
                     >
-                      {selectedUser.status === "online"
-                        ? "Online"
-                        : "Offline"}
+                      {selectedUser.status === "online" ? "Online" : "Offline"}
                     </span>
                   </div>
                 </div>
@@ -93,9 +92,13 @@ export default function Dashboard() {
             </header>
 
             {/* Chat + Info layout */}
-            <div className="flex-1 flex">
-              {/* Chat Room */}
-              <div className={`flex-1 ${showInfo ? "border-r" : ""}`}>
+            <div className="flex-1 flex border-l h-[calc(100vh-4rem)]">
+              {/* Chat Room (desktop/tablet: normal, mobile: hidden when info is open) */}
+              <div
+                className={`flex-1 border-r lg:block ${
+                  showInfo ? "hidden lg:block" : "block"
+                }`}
+              >
                 {selectedUser ? (
                   <ChatRoom user={selectedUser} />
                 ) : (
@@ -105,34 +108,24 @@ export default function Dashboard() {
                 )}
               </div>
 
-              {/* Info Panel (new column) */}
+              {/* Info Panel (desktop: side panel, mobile: replaces chat) */}
               {showInfo && selectedUser && (
-                <div className="w-80 border-l bg-gray-50 dark:bg-slate-800 p-4">
-                  <h2 className="font-semibold text-lg mb-2 text-center">User Info</h2>
-                  <div className="flex flex-col items-center">
-                    <img
-                      src={selectedUser.avatar_url}
-                      alt={selectedUser.username}
-                      className="w-20 h-20 rounded-full object-cover mb-3"
-                    />
-                    <p className="font-medium">{selectedUser.username}</p>
-                    <p
-                      className={`text-sm ${
-                        selectedUser.status === "online"
-                          ? "text-green-500"
-                          : "text-gray-400 dark:text-gray-300"
-                      }`}
+                <div
+                  className={`h-[calc(100vh-4rem)] bg-gray-50 dark:bg-slate-800 p-4 w-full lg:w-80 lg:border-l`} // full width on mobile, sidebar on desktop
+                >
+                  {/* Back button for mobile */}
+                  <div className="flex items-center mb-4 lg:hidden">
+                    <Button
+                      variant="ghost"
+                      onClick={() => setShowInfo(false)}
+                      className="mr-2"
                     >
-                      {selectedUser.status === "online"
-                        ? "Online"
-                        : "Offline"}
-                    </p>
+                      <ArrowLeft />
+                    </Button>
                   </div>
-                  {/* Additional details */}
-                  <div className="mt-4 text-sm text-gray-600 dark:text-gray-300">
-                    <p>Email: {selectedUser.username ?? "N/A"}</p>
-                    <p>Joined: {selectedUser.tabs ?? "Unknown"}</p>
-                  </div>
+
+                  {/* Info content */}
+                  <ChatInfoPanel selectedUser={selectedUser} />
                 </div>
               )}
             </div>

@@ -1,0 +1,6 @@
+/* in globals.css or tailwind.css */
+@media (min-width: 820px) and (max-width: 1180px) {
+  .hide-820-1180 {
+    display: none;
+  }
+}

@@ -1,5 +1,6 @@
 import type { ChatUserType } from "@/dto/UserTypes";
 import * as Avatar from "@radix-ui/react-avatar";
+import ChatAction from "./chat-action";
 
 interface ChatUsersProps {
   users: ChatUserType[];
@@ -15,18 +16,20 @@ export default function ChatUsers({
   const filteredUsers =
     tabs === "All" ? users : users.filter((u) => u.tabs === tabs);
 
-    const handleClick = async (user: ChatUserType) => {
-      onSelectUser(user);
-    }
+  const handleClick = async (user: ChatUserType) => {
+    onSelectUser(user);
+  };
+
   return (
     <div className="flex flex-col h-full">
       <div className="flex-1 overflow-auto">
         {filteredUsers.map((user) => (
           <div
             key={user.id}
-            onClick={() => handleClick(user)}
+            onClick={() => handleClick(user)} // row click triggers chat open
             className="flex items-center gap-3 px-4 py-3 border-b dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer"
           >
+            {/* Avatar */}
             <div
               className={`relative w-10 h-10 ${
                 user.status === "online" ? "ring-2 ring-green-500" : ""
@@ -43,6 +46,8 @@ export default function ChatUsers({
                 </Avatar.Fallback>
               </Avatar.Root>
             </div>
+
+            {/* Username and status */}
             <div className="flex flex-col">
               <span className="font-medium">{user.username}</span>
               <span
@@ -54,6 +59,11 @@ export default function ChatUsers({
               >
                 {user.status === "online" ? "Online" : "Offline"}
               </span>
+            </div>
+
+            {/* Ellipsis dropdown */}
+            <div className="ml-auto">
+                <ChatAction user={user} />
             </div>
           </div>
         ))}
