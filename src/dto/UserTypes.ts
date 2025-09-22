@@ -4,5 +4,6 @@ export type ChatUserType = {
   username: string;
   status: string;
   tabs?: string;
+  is_group?: boolean;
   avatar_url?: string
 };

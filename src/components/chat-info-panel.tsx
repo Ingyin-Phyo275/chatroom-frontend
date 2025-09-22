@@ -54,7 +54,7 @@ export default function ChatInfoPanel({ selectedUser }: ChatInfoProps) {
         />
         <p className="font-medium">{selectedUser.username}</p>
         <div className="flex flex-row gap-2 mt-4">
-          {selectedUser.tabs === "Group" ? (
+          {selectedUser.is_group === true ? (
             <div className="flex flex-col">
               <Button variant={"ghost"} className="rounded-full" size={"icon"}>
                 <UserPlus className="w-4 h-4" />
@@ -79,7 +79,7 @@ export default function ChatInfoPanel({ selectedUser }: ChatInfoProps) {
       </div>
 
 {
-  selectedUser.tabs === "Group" && <ChatMembersCard chatMembers={chatMembers} />
+  selectedUser.is_group === true && <ChatMembersCard chatMembers={chatMembers} />
 }
     </>
   );
