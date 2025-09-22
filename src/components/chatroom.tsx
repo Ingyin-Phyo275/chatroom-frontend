@@ -66,7 +66,8 @@ export default function ChatRoom({ user }: ChatRoomProps) {
       listRef.current.scrollTop = listRef.current.scrollHeight;
   }, [messages]);
 
-  function sendMessage(attachment?: { type: string; file: File }) {
+  function 
+  sendMessage(attachment?: { type: string; file: File }) {
     if (!text.trim() && !attachment) return;
 
     const newMsg: Message = {
@@ -129,43 +130,6 @@ export default function ChatRoom({ user }: ChatRoomProps) {
 
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)]">
-      {/* Header */}
-      {/* <div className="flex items-center justify-between p-4 border-b dark:border-slate-700 flex-shrink-0">
-        <div className="flex items-center gap-3">
-          <div
-            className={`relative w-10 h-10 ${
-              user.status === "online" ? "ring-2 ring-green-500" : ""
-            } rounded-full`}
-          >
-            <Avatar.Root className="w-10 h-10 rounded-full overflow-hidden">
-              <Avatar.Image
-                src={user.avatar_url}
-                alt={user.username}
-                className="w-full h-full rounded-full object-cover"
-              />
-              <Avatar.Fallback className="w-full h-full rounded-full flex items-center justify-center bg-gray-500 text-white font-semibold">
-                {user.username.slice(0, 2).toUpperCase()}
-              </Avatar.Fallback>
-            </Avatar.Root>
-          </div>
-          <div className="flex flex-col">
-            <span className="font-medium">{user.username}</span>
-            <span
-              className={`text-xs ${
-                user.status === "online"
-                  ? "text-green-500"
-                  : "text-gray-400 dark:text-gray-300"
-              }`}
-            >
-              {user.status === "online" ? "Online" : "Offline"}
-            </span>
-          </div>
-        </div>
-        <button className="p-2 rounded hover:bg-slate-200 dark:hover:bg-slate-700">
-          <Phone className="w-5 h-5 text-primary" />
-        </button>
-      </div> */}
-
       {/* Messages */}
       <div ref={listRef} className="flex-1 overflow-auto p-4 space-y-3">
         {messages.map((m) => (

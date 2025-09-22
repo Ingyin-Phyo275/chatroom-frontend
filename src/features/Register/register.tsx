@@ -27,6 +27,7 @@ const formSchema = z.object({
     .min(4, "Username must be at least 4 characters")
     .max(50, "Username cannot exceed 50 characters"),
   email: z.string().email("Invalid email address"),
+  phone: z.string().max(11, "Phone number cannot exceed 11 characters"),
   password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
@@ -37,6 +38,7 @@ export default function Register() {
     defaultValues: {
       username: "",
       email: "",
+      phone: "",
       password: "",
     },
   });
@@ -45,7 +47,6 @@ export default function Register() {
     const response = registerMutation(values);
     toast.success(response);
   }
-
   return (
     <div className="bg-muted flex min-h-screen items-center justify-center p-6">
       <Card className="w-full max-w-md shadow-lg">
@@ -81,6 +82,22 @@ export default function Register() {
                       <Input
                         type="email"
                         placeholder="example@email.com"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+               <FormField
+                control={form.control}
+                name="phone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Phone</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="0987654321"
                         {...field}
                       />
                     </FormControl>

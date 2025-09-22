@@ -7,10 +7,10 @@ interface ChatMembersCardProps {
 export default function ChatMembersCard({ chatMembers }: ChatMembersCardProps) {
 
 return (
-    <Card className="w-full max-w-md mx-auto mt-4">
+    <Card className="w-full max-w-md mx-auto mt-4 bg-secondary">
       {/* Card Header */}
       <CardHeader>
-        <CardTitle className="text-lg font-semibold">All Chat Members</CardTitle>
+        <CardTitle className="text-lg font-semibold">All Members</CardTitle>
       </CardHeader>
 
       {/* Card Content - scrollable with 1/3 viewport height */}
@@ -21,7 +21,7 @@ return (
         {chatMembers.map((member: ChatUserType) => (
           <div
             key={member.id}
-            className="flex items-center gap-3 p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md cursor-pointer"
+            className="flex items-center gap-3 p-2 border-b dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md cursor-pointer"
           >
             {/* Avatar */}
             <img
