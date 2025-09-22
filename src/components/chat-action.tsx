@@ -5,7 +5,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { ChatUserType } from "@/dto/UserTypes";
-import { EllipsisVertical } from "lucide-react";
+import { Archive, EllipsisVertical, Pin, Trash } from "lucide-react";
 interface ChatActionProps {
     user: ChatUserType
 }
@@ -24,17 +24,17 @@ export default function ChatAction({user}: ChatActionProps) {
 
         <DropdownMenuContent className="w-40">
           <DropdownMenuItem onClick={() => alert(`Pin chat: ${user.username}`)}>
-            Pin chat
+           <Pin className="w-4 h-4 mr-2" /> Pin 
           </DropdownMenuItem>
           <DropdownMenuItem
             onClick={() => alert(`Delete chat: ${user.username}`)}
           >
-            Delete chat
+            <Trash className="w-4 h-4 mr-2" /> Delete
           </DropdownMenuItem>
           <DropdownMenuItem
             onClick={() => alert(`Archive chat: ${user.username}`)}
           >
-            Archive
+            <Archive className="w-4 h-4 mr-2" /> Archive
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

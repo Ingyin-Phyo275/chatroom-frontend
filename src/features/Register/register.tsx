@@ -19,7 +19,8 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { toast } from "sonner";
-import { registerUser } from "@/composables/Commands/registerMutation";
+import { useRegisterUser } from "@/composables/Commands/registerMutation";
+import { useNavigate } from "react-router-dom";
 
 const formSchema = z.object({
   username: z
@@ -27,26 +28,34 @@ const formSchema = z.object({
     .min(4, "Username must be at least 4 characters")
     .max(50, "Username cannot exceed 50 characters"),
   email: z.string().email("Invalid email address"),
-  phone: z.string().max(11, "Phone number cannot exceed 11 characters"),
+  phone_no: z.string().min(7).max(11, "Phone number cannot exceed 11 characters"),
   password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
 export default function Register() {
-  const { registerMutation } = registerUser();
+  const { registerMutation } = useRegisterUser();
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       username: "",
       email: "",
-      phone: "",
+      phone_no: "",
       password: "",
     },
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    const response = registerMutation(values);
-    toast.success(response);
+  const navigate = useNavigate();
+
+async function onSubmit(values: z.infer<typeof formSchema>) {
+  try {
+    await registerMutation(values);
+    navigate("/login");
+
+  } catch (error: any) {
+    toast.error(error);
   }
+}
+
   return (
     <div className="bg-muted flex min-h-screen items-center justify-center p-6">
       <Card className="w-full max-w-md shadow-lg">
@@ -91,7 +100,7 @@ export default function Register() {
               />
                <FormField
                 control={form.control}
-                name="phone"
+                name="phone_no"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Phone</FormLabel>

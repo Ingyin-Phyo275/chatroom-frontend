@@ -4,8 +4,10 @@ import { AxiosError } from "axios";
 
 export const register = async (data: UserRegister) => {
     try{
-        const response = await axiosInstance.post("/auth/register", data);
-        return response.data
+        const response = await axiosInstance.post("/auth/create-user", {userData: data});
+        // console.log("response data", response.data);
+        // console.log("response status", response.status);
+        return response
     }catch(error){
         if (error instanceof AxiosError) {
       throw (
