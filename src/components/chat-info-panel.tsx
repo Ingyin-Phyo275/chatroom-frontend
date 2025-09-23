@@ -56,21 +56,21 @@ export default function ChatInfoPanel({ selectedUser }: ChatInfoProps) {
         <div className="flex flex-row gap-2 mt-4">
           {selectedUser.is_group === true ? (
             <div className="flex flex-col">
-              <Button variant={"ghost"} className="rounded-full" size={"icon"}>
+              <Button variant={"ghost"} className="rounded-full" size={"icon"} onClick={() => alert("Add")}>
                 <UserPlus className="w-4 h-4" />
               </Button>
               <p className="text-xs text-center">Add</p>
             </div>
           ) : (
             <div className="flex flex-col">
-              <Button variant={"ghost"} className="rounded-full" size={"icon"}>
+              <Button variant={"ghost"} className="rounded-full" size={"icon"} onClick={() => alert("Profile")}>
                 <Contact className="w-4 h-4" />
               </Button>
               <p className="text-xs text-center">Profile</p>
             </div>
           )}
           <div className="flex flex-col">
-            <Button variant={"ghost"} className=" rounded-full" size={"icon"}>
+            <Button variant={"ghost"} className=" rounded-full" size={"icon"} onClick={() => alert("Muted")}>
               <Bell className="w-4 h-4" />
             </Button>
             <p className="text-xs text-center">Mute</p>
@@ -78,9 +78,9 @@ export default function ChatInfoPanel({ selectedUser }: ChatInfoProps) {
         </div>
       </div>
 
-{
-  selectedUser.is_group === true && <ChatMembersCard chatMembers={chatMembers} />
-}
+      {
+        selectedUser.is_group === true && <ChatMembersCard chatMembers={chatMembers} />
+      }
     </>
   );
 }

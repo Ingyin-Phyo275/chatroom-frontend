@@ -61,6 +61,7 @@ export function LoginForm({
 
                 loginStore({
                     user: {
+                        id: res.data.id,
                         name: res.data.name,
                         email: res.data.email,
                         avatar: res.data.avatar || "",

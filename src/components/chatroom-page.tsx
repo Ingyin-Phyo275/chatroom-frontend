@@ -5,12 +5,14 @@ import { SidebarTrigger } from "./ui/sidebar"
 import { useState } from "react"
 import ChatRoom from "./chatroom"
 import ChatInfoPanel from "./chat-info-panel"
+import type { loginResponse } from "../dto/response/LoginResponse"
 
 type chatroomPageProps = {
     selectedUser: ChatUserType,
+    loginUser: loginResponse
 
 }
-export default function ChatroomPage({ selectedUser }: chatroomPageProps) {
+export default function ChatroomPage({ selectedUser, loginUser }: chatroomPageProps) {
     const [showInfo, setShowInfo] = useState(false);
     return (
         <>
@@ -77,7 +79,7 @@ export default function ChatroomPage({ selectedUser }: chatroomPageProps) {
                         }`}
                 >
                     {selectedUser ? (
-                        <ChatRoom user={selectedUser} />
+                        <ChatRoom user={selectedUser} loginUser={loginUser} />
                     ) : (
                         <div className="flex h-full items-center justify-center text-gray-400">
                             Select a user to start chatting
@@ -87,16 +89,10 @@ export default function ChatroomPage({ selectedUser }: chatroomPageProps) {
 
                 {/*Show Info Panel (desktop: side panel, mobile: replaces chat) */}
                 {showInfo && selectedUser && (
-                    <div
-                        className={`h-[calc(100vh-4rem)] bg-gray-50 dark:bg-slate-800 p-4 w-full lg:w-80 lg:border-l`} // full width on mobile, sidebar on desktop
-                    >
+                    <div className={`h-[calc(100vh-4rem)] bg-gray-50 dark:bg-slate-800 p-4 w-full lg:w-80 lg:border-l`}>
                         {/* Back button for mobile */}
                         <div className="flex items-center mb-4 lg:hidden">
-                            <Button
-                                variant="ghost"
-                                onClick={() => setShowInfo(false)}
-                                className="mr-2"
-                            >
+                            <Button variant="ghost" onClick={() => setShowInfo(false)} className="mr-2">
                                 <ArrowLeft />
                             </Button>
                         </div>

@@ -1,6 +1,7 @@
 import type { ChatUserType } from "@/dto/UserTypes";
 import * as Avatar from "@radix-ui/react-avatar";
 import ChatAction from "./chat-action";
+import { Button } from "./ui/button";
 
 interface ChatUsersProps {
   users: ChatUserType[];
@@ -14,14 +15,38 @@ export default function ChatUsers({
   onSelectUser,
 }: ChatUsersProps) {
   const filteredUsers =
-    tabs === "All" ? users : users.filter((u) => u.tabs === tabs);
+    tabs === "Group"
+      ? users.filter((user) => user.is_group)
+      : tabs === "Personal"
+        ? users.filter((user) => !user.is_group)
+        : users;
 
   const handleClick = async (user: ChatUserType) => {
     onSelectUser(user);
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full w-full">
+{tabs === "Group" && (
+  <div className="flex flex-col items-center justify-center p-4 space-y-6">
+    {/* Create Group Button */}
+    <Button className="bg-secondary w-3/4 py-2 rounded-lg shadow hover:bg-secondary/90">
+      Create Group
+    </Button>
+
+    {/* Divider with Label */}
+    <div className="relative w-full text-center">
+      <div className="absolute inset-0 flex items-center">
+        <div className="w-full border-t border-border" />
+      </div>
+      <span className="relative z-10 px-3 bg-background text-sm text-muted-foreground">
+        Group Lists
+      </span>
+    </div>
+  </div>
+)}
+
+
       <div className="flex-1 overflow-auto">
         {filteredUsers.map((user) => (
           <div
@@ -31,9 +56,8 @@ export default function ChatUsers({
           >
             {/* Avatar */}
             <div
-              className={`relative w-10 h-10 ${
-                user.status === "online" ? "ring-2 ring-green-500" : ""
-              } rounded-full`}
+              className={`relative w-10 h-10 ${user.status === "online" ? "ring-2 ring-green-500" : ""
+                } rounded-full`}
             >
               <Avatar.Root className="w-10 h-10 rounded-full overflow-hidden">
                 <Avatar.Image
@@ -51,11 +75,10 @@ export default function ChatUsers({
             <div className="flex flex-col">
               <span className="font-medium">{user.username}</span>
               <span
-                className={`text-xs ${
-                  user.status === "online"
+                className={`text-xs ${user.status === "online"
                     ? "text-green-500"
                     : "text-gray-400 dark:text-gray-300"
-                }`}
+                  }`}
               >
                 {user.status === "online" ? "Online" : "Offline"}
               </span>
@@ -63,7 +86,7 @@ export default function ChatUsers({
 
             {/* Ellipsis dropdown */}
             <div className="ml-auto">
-                <ChatAction user={user} />
+              <ChatAction user={user} />
             </div>
           </div>
         ))}

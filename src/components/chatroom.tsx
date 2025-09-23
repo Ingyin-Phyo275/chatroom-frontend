@@ -15,6 +15,8 @@ import type { ChatUserType } from "@/dto/UserTypes";
 import { Button } from "./ui/button";
 import * as Avatar from "@radix-ui/react-avatar";
 import AudioMessage from "./AudioPlayer";
+import { socket } from "../socket/socket"; // adjust path as needed
+import type { loginResponse } from "../dto/response/LoginResponse";
 
 // --- Hook to persist input/textarea per user ---
 function useUserDraft(userId: string, key: string, initialValue = "") {
@@ -40,6 +42,9 @@ function useUserDraft(userId: string, key: string, initialValue = "") {
     setValue("");
   };
 
+
+
+
   return { value, setValue, clear };
 }
 
@@ -57,9 +62,10 @@ type Message = {
 
 interface ChatRoomProps {
   user: ChatUserType;
+  loginUser: loginResponse
 }
 
-export default function ChatRoom({ user }: ChatRoomProps) {
+export default function ChatRoom({ user, loginUser }: ChatRoomProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
   const [pendingAttachments, setPendingAttachments] = useState<Attachment[]>([]);
@@ -73,33 +79,45 @@ export default function ChatRoom({ user }: ChatRoomProps) {
   const audioInputRef = useRef<HTMLInputElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
+
   // --- Use hook for message input draft ---
   const { value: text, setValue: setText, clear: clearText } = useUserDraft(user.id, "pendingMessage");
-
   // Initialize messages when user changes
-useEffect(() => {
-  setMessages([
-    {
-      id: "1",
-      user: user.username,
-      text: `Hi! I am ${user.username}`,
-      ts: new Date().toISOString(),
-      delivered: true,
-      read: true,
-    },
-    {
-      id: "2",
-      user: username,
-      text: "Hello!",
-      ts: new Date().toISOString(),
-      delivered: true,
-      read: false,
-    },
-  ]);
+  useEffect(() => {
+    setMessages([
+      {
+        id: "1",
+        user: user.username,
+        text: `Hi! I am ${user.username}`,
+        ts: new Date().toISOString(),
+        delivered: true,
+        read: true,
+      },
+      {
+        id: "2",
+        user: username,
+        text: "Hello!",
+        ts: new Date().toISOString(),
+        delivered: true,
+        read: false,
+      },
+    ]);
 
-  setPendingAttachments([]); // clear attachments
-}, [user]);
+    setPendingAttachments([]); // clear attachments
+  }, [user]);
 
+  useEffect(() => {
+
+    const handleIncomingMessage = (msg: Message) => {
+      setMessages(prev => [...prev, msg]);
+    };
+
+    socket.on("receiveMessage", handleIncomingMessage);
+
+    return () => {
+      socket.off("receiveMessage", handleIncomingMessage);
+    };
+  }, [user.id]);
 
   // Scroll to bottom when messages update
   useEffect(() => {
@@ -107,40 +125,63 @@ useEffect(() => {
   }, [messages]);
 
   // --- Sending a message ---
-  function sendMessage() {
-    if (!text.trim() && !pendingAttachments.length) return;
+  // function sendMessage() {
+  //   if (!text.trim() && !pendingAttachments.length) return;
 
-    const newMsg: Message = {
+  //   const newMsg: Message = {
+  //     id: Date.now().toString(),
+  //     user: username,
+  //     text: text.trim(),
+  //     ts: new Date().toISOString(),
+  //     delivered: true,
+  //     read: false,
+  //     attachments: pendingAttachments.length ? pendingAttachments : undefined,
+  //   };
+
+  //   setMessages((prev) => [...prev, newMsg]);
+  //   clearText(); // clear draft
+  //   setPendingAttachments([]);
+  //   setShowAttachmentMenu(false);
+
+  //   // simulate reply
+  //   setTimeout(() => {
+  //     const reply: Message = {
+  //       id: Date.now().toString(),
+  //       user: user.username,
+  //       text: `Reply to: ${newMsg.text || newMsg.attachments?.[0]?.type}`,
+  //       ts: new Date().toISOString(),
+  //       delivered: true,
+  //       read: true,
+  //     };
+  //     setMessages((prev) => [...prev, reply]);
+  //     setMessages((prev) =>
+  //       prev.map((m) => (m.id === newMsg.id ? { ...m, read: true } : m))
+  //     );
+  //   }, 1000);
+  // }
+
+  const sendMessage = () => {
+    if (!text.trim()) return;
+
+    const newMsg = {
       id: Date.now().toString(),
-      user: username,
+      user: "You",
       text: text.trim(),
       ts: new Date().toISOString(),
-      delivered: true,
-      read: false,
-      attachments: pendingAttachments.length ? pendingAttachments : undefined,
     };
 
     setMessages((prev) => [...prev, newMsg]);
-    clearText(); // clear draft
-    setPendingAttachments([]);
-    setShowAttachmentMenu(false);
+    clearText();
 
-    // simulate reply
-    setTimeout(() => {
-      const reply: Message = {
-        id: Date.now().toString(),
-        user: user.username,
-        text: `Reply to: ${newMsg.text || newMsg.attachments?.[0]?.type}`,
-        ts: new Date().toISOString(),
-        delivered: true,
-        read: true,
-      };
-      setMessages((prev) => [...prev, reply]);
-      setMessages((prev) =>
-        prev.map((m) => (m.id === newMsg.id ? { ...m, read: true } : m))
-      );
-    }, 1000);
-  }
+
+    socket.emit("chat-message", {
+      chatroomId: 1,
+      userId: loginUser.user.id,
+      content: newMsg.text,
+    });
+  };
+
+
 
   const handleAttachmentClick = (type: string) => {
     switch (type) {
@@ -184,11 +225,10 @@ useEffect(() => {
               </div>
             )}
             <div
-              className={`max-w-[70%] p-2 rounded-lg relative ${
-                m.user === username
+              className={`max-w-[70%] p-2 rounded-lg relative ${m.user === username
                   ? "bg-primary text-white rounded-br-none"
                   : "bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-100 rounded-bl-none"
-              }`}
+                }`}
             >
               <div className="mt-1 text-sm space-y-2">
                 {m.attachments?.length ? (
