@@ -7,14 +7,13 @@ interface ChatMembersCardProps {
 export default function ChatMembersCard({ chatMembers }: ChatMembersCardProps) {
 
   return (
-
-    <Tabs defaultValue="account">
+    <Tabs defaultValue="all">
       <Card className="w-full max-w-md mx-auto mt-4 bg-secondary">
         <TabsList className="flex justify-center items-center mx-auto">
-          <TabsTrigger value="account">All</TabsTrigger>
-          <TabsTrigger value="password">Admins</TabsTrigger>
+          <TabsTrigger value="all">All</TabsTrigger>
+          <TabsTrigger value="admins">Admins</TabsTrigger>
         </TabsList>
-        <TabsContent value="account">
+        <TabsContent value="all">
           {/* Card Content - scrollable with 1/3 viewport height */}
           <CardContent
             className="flex flex-col gap-3 overflow-y-auto"
@@ -45,7 +44,7 @@ export default function ChatMembersCard({ chatMembers }: ChatMembersCardProps) {
             ))}
           </CardContent>
         </TabsContent>
-        <TabsContent value="password">
+        <TabsContent value="admins">
           {/* Card Content - scrollable with 1/3 viewport height */}
           <CardContent
             className="flex flex-col gap-3 overflow-y-auto"

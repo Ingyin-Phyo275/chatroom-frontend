@@ -5,8 +5,8 @@ import Login from './features/Login/login';
 import useAuthStore from './store/authStore';
 
 function App() {
-  // const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const isAuthenticated = true;
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  // const isAuthenticated = true;
 
   return (
     <>

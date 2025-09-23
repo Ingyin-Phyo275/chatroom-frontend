@@ -23,9 +23,10 @@ import { z } from "zod";
 import { useLogin } from "../composables/Commands/loginMutation";
 import useAuthStore from "../store/authStore";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
 const formSchema = z.object({
-    email: z.string().min(1, {
+    emailOrPhone: z.string().min(1, {
         message: "Email is required.",
     }),
     password: z.string().min(6, {
@@ -41,7 +42,7 @@ export function LoginForm({
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
         defaultValues: {
-            email: "",
+            emailOrPhone: "",
             password: "",
         },
     });
@@ -49,22 +50,33 @@ export function LoginForm({
     const { loginMutation } = useLogin();
     const { loginStore } = useAuthStore();
     const navigate = useNavigate();
-    const login = async (values: z.infer<typeof formSchema>) => {
-        try {
-            const loginData = {
-                email: values.email,
-                password: values.password,
-            };
 
-            const res = await loginMutation(loginData);
-            if(res.success){
-                loginStore(res.data);
-                navigate("/");
+    async function onSubmit(values: z.infer<typeof formSchema>) {
+        try {
+            const res = await loginMutation(values);
+            console.log("data in form", res);
+
+            if (res.status === true) {
+                console.log("user", res)
+
+                loginStore({
+                    user: {
+                        name: res.data.name,
+                        email: res.data.email,
+                        avatar: res.data.avatar || "",
+                        phone_no: res.data.phone_no,
+                        status: res.data.status,
+                    },
+                    token: res.token.access, 
+                });
+                navigate("/dashboard");
+            } else {
+                toast.error(res.message || "Login failed");
             }
-        } catch (error: unknown) {
-            console.log(error);
+        } catch (error: any) {
+            toast.error(error.message || "Something went wrong");
         }
-    };
+    }
 
     const handleGoogleLogin = () => {
         window.location.href = `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/google/login`;
@@ -98,7 +110,7 @@ export function LoginForm({
                         </div>
                     </div>
                     <Form {...form}>
-                        <form onSubmit={form.handleSubmit(login)}>
+                        <form onSubmit={form.handleSubmit(onSubmit)}>
                             <div className="grid gap-6">
                                 <div className="after:border-border relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-t">
                                     <span className="bg-card text-muted-foreground relative z-10 px-2">
@@ -109,7 +121,7 @@ export function LoginForm({
                                     <div className="grid gap-3">
                                         <FormField
                                             control={form.control}
-                                            name="email"
+                                            name="emailOrPhone"
                                             render={({ field }) => (
                                                 <FormItem>
                                                     <FormLabel htmlFor="email">Email</FormLabel>

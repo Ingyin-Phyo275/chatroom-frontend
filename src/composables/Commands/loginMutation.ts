@@ -10,7 +10,8 @@ export const useLogin = () => {
             if(response.status === 200 && response.data.status === 200) {
                 toast.success(response.data.message || "Login successful");
             }
-            return response.data;
+            console.log("response data in mutation", response)
+            return response;
         },
         onSuccess: () => {
             toast.success("Login successful");

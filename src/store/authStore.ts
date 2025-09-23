@@ -1,8 +1,16 @@
 // store/authStore.ts
 import { create } from 'zustand';
 
-interface User {
+interface UserDetails {
   name: string;
+  email: string;
+  avatar?: string;
+  phone_no?: string;
+  status?: boolean;
+}
+
+interface User {
+  user: UserDetails;
   token: string;
 }
 
@@ -17,7 +25,6 @@ const useAuthStore = create<AuthState>((set) => {
   const initialUserStr = localStorage.getItem('user');
   const initialUser: User | null = initialUserStr ? JSON.parse(initialUserStr) : null;
 
-  // Listen for localStorage changes from other tabs
   window.addEventListener('storage', (event) => {
     if (event.key === 'user') {
       const newUser = event.newValue ? JSON.parse(event.newValue) : null;

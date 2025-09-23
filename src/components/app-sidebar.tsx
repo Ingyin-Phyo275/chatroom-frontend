@@ -11,13 +11,13 @@ import {
 import ChatUsers from "./chatusers";
 import type { ChatUserType } from "@/dto/UserTypes";
 
-const data = {
-  user: {
-    name: "shadcn",
-    email: "m@example.com",
-    avatar: "/avatars/shadcn.jpg",
-  },
-};
+// const data = {
+//   user: {
+//     name: "shadcn",
+//     email: "m@example.com",
+//     avatar: "/avatars/shadcn.jpg",
+//   },
+// };
 
 export function AppSidebar({
   selectedUser,
@@ -31,6 +31,25 @@ export function AppSidebar({
 } & React.ComponentProps<typeof Sidebar>) {
   const [tabs, setTabs] = React.useState("All");
   const tabList = ["All", "Personal", "Group", "Contacts"];
+
+  const loginUserString = localStorage.getItem("user");
+  let loginUser: {
+    name: string;
+    email: string;
+    phone_no?: string;
+    avatar?: string;
+    status?: boolean;
+  } | null = null;
+
+  if (loginUserString) {
+    try {
+      const parsed = JSON.parse(loginUserString);
+      loginUser = parsed.user ?? null;
+    } catch (error) {
+      console.error("Failed to parse user from localStorage", error);
+    }
+  }
+
   return (
     <Sidebar variant="inset" {...props}>
       <SidebarHeader className="flex items-center justify-center w-full">
@@ -45,11 +64,10 @@ export function AppSidebar({
                     e.preventDefault();
                     setTabs(tab);
                   }}
-                  className={`inline-block p-2 border-b-2 rounded-t-lg cursor-pointer ${
-                    tabs === tab
+                  className={`inline-block p-2 border-b-2 rounded-t-lg cursor-pointer ${tabs === tab
                       ? "border-primary text-primary dark:text-blue-500 dark:border-blue-500"
                       : "border-transparent hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-300"
-                  }`}
+                    }`}
                 >
                   {tab}
                 </a>
@@ -62,16 +80,16 @@ export function AppSidebar({
         <ChatUsers
           users={users}
           tabs={tabs}
-          onSelectUser={onSelectUser} // now updates Dashboard state
+          onSelectUser={onSelectUser}
         />
         {/* <NavMain items={data.navMain} />
         <NavProjects projects={data.projects} />
         <NavSecondary items={data.navSecondary} className="mt-auto" /> */}
       </SidebarContent>
       <SidebarFooter className="bg-primary-foreground rounded-2xl">
-        <NavUser user={data.user} />
+        {loginUser && <NavUser user={loginUser} />}
       </SidebarFooter>
+
     </Sidebar>
   );
 }
- 
