@@ -13,7 +13,7 @@ createRoot(document.getElementById('root')!).render(
   <QueryClientProvider client={queryClient}>
     <StrictMode>
       {/* Wrap your entire app in ThemeProvider */}
-      <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
+      <ThemeProvider defaultTheme="light" storageKey="vite-ui-theme">
         <RouterProvider router={router} />
         <Toaster richColors position="top-right" theme='dark'/>
       </ThemeProvider>

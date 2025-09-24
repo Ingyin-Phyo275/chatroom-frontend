@@ -1,6 +1,7 @@
+import type { loginResponse } from "./LoginResponse";
+
 export interface ChatRoomMembers {
-    chatrooom_id: string;
-    user_id: string;
-    role: string;
-    joined_at: string
+    id: number,
+    user: loginResponse,
+    role: string
 }

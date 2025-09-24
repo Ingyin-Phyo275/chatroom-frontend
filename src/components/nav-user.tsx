@@ -8,7 +8,6 @@ import {
   LogOut,
   Sparkles,
 } from "lucide-react"
-
 import {
   Avatar,
   AvatarFallback,
@@ -59,7 +58,7 @@ export function NavUser({
                 <AvatarImage src={user.avatar} alt={user.name} />
                 <AvatarFallback className="rounded-lg">{(user.name).slice(0,2).toUpperCase()}</AvatarFallback>
               </Avatar>
-              <div className="grid flex-1 text-left text-sm leading-tight">
+              <div className="grid flex-1 text-left text-sm leading-tight text-primary-foreground">
                 <span className="truncate font-medium">{user.name}</span>
                 <span className="truncate text-xs">{user.email}</span>
               </div>

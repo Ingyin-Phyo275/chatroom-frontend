@@ -9,7 +9,7 @@ export const register = async (data: UserRegister) => {
         // console.log("response status", response.status);
         return response
     }catch(error){
-        if (error instanceof AxiosError) {
+      if (error instanceof AxiosError) {
       throw (
         error.response?.data?.message ||
         "An error occurred while account register"

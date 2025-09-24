@@ -1,57 +1,113 @@
 import type { ChatUserType } from "@/dto/UserTypes";
 import * as Avatar from "@radix-ui/react-avatar";
 import ChatAction from "./chat-action";
-import { Button } from "./ui/button";
+import { SearchIcon } from "lucide-react";
+import { Input } from "./ui/input";
+import React, { useState } from "react";
+import type { UserListResponse } from "../dto/response/UserListResponse";
+import type { GroupChatResponse } from "../dto/response/ChatRoom";
+import { getChatroomDetails } from "../http/api/getChatroomDetails";
 
 interface ChatUsersProps {
   users: ChatUserType[];
+  contact: UserListResponse[];
+  groupsChats: GroupChatResponse[];
   tabs: string;
   onSelectUser: (user: ChatUserType) => void;
 }
 
 export default function ChatUsers({
   users,
+  contact,
   tabs,
+  groupsChats,
   onSelectUser,
 }: ChatUsersProps) {
-  const filteredUsers =
-    tabs === "Group"
-      ? users.filter((user) => user.is_group)
-      : tabs === "Personal"
-        ? users.filter((user) => !user.is_group)
-        : users;
+  const [searchTerm, setSearchTerm] = React.useState("");
+  const [filteredUsers, setFilteredUsers] = useState<ChatUserType[]>([]);
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
+  };
+
+  React.useEffect(() => {
+    if (tabs === "Contacts") {
+      const filteredContacts = contact.filter((c) =>
+        c.username.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+      setFilteredUsers(filteredContacts as unknown as ChatUserType[]);
+    } else if (tabs === "Group") {
+      const filteredGroups = groupsChats.filter((g) =>
+        g.name.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+
+      // Adapt GroupChatResponse -> ChatUserType shape
+      const mappedGroups: ChatUserType[] = filteredGroups.map((g) => ({
+        id: String(g.id),
+        username: g.name,
+        status: "online", // groups don’t have status → default
+        is_group: true,
+        tabs: "Group",
+        avatar_url: "", // default group avatar
+      }));
+
+      setFilteredUsers(mappedGroups);
+    } else {
+      // All / Personal from dummy users
+      const filtered = users
+        .filter((user) => {
+          if (tabs === "Personal") return !user.is_group;
+          return true; // "All"
+        })
+        .filter((user) =>
+          user.username.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+      setFilteredUsers(filtered);
+    }
+  }, [tabs, users, contact, groupsChats, searchTerm]);
 
   const handleClick = async (user: ChatUserType) => {
-    onSelectUser(user);
+    const group = groupsChats.find(g => String(g.id) === String(user.id));
+
+    if (group) {
+      try {
+        const response = await getChatroomDetails(group.id); // call API directly
+        console.log("chat room details", response);
+
+        onSelectUser({
+          ...user,
+          chatroomDetails: response,
+        } as ChatUserType & { chatroomDetails: any });
+      } catch (error) {
+        console.error("Failed to fetch group chatroom details:", error);
+      }
+    } else {
+      onSelectUser(user);
+    }
   };
+
+
 
   return (
     <div className="flex flex-col h-full w-full">
-{tabs === "Group" && (
-  <div className="flex flex-col items-center justify-center p-4 space-y-6">
-    {/* Create Group Button */}
-    <Button className="bg-secondary w-3/4 py-2 rounded-lg shadow hover:bg-secondary/90">
-      Create Group
-    </Button>
-
-    {/* Divider with Label */}
-    <div className="relative w-full text-center">
-      <div className="absolute inset-0 flex items-center">
-        <div className="w-full border-t border-border" />
+      {/* Search bar */}
+      <div className="relative flex items-center w-full">
+        <SearchIcon className="absolute left-3 h-4 w-4 text-muted-foreground" />
+        <Input
+          type="search"
+          placeholder="Search..."
+          value={searchTerm}
+          onChange={handleSearchChange}
+          className="pl-9 pr-3 w-full"
+        />
       </div>
-      <span className="relative z-10 px-3 bg-background text-sm text-muted-foreground">
-        Group Lists
-      </span>
-    </div>
-  </div>
-)}
 
-
+      {/* User / Group list */}
       <div className="flex-1 overflow-auto">
         {filteredUsers.map((user) => (
           <div
             key={user.id}
-            onClick={() => handleClick(user)} // row click triggers chat open
+            onClick={() => handleClick(user)}
             className="flex items-center gap-3 px-4 py-3 border-b dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer"
           >
             {/* Avatar */}
@@ -71,23 +127,27 @@ export default function ChatUsers({
               </Avatar.Root>
             </div>
 
-            {/* Username and status */}
+            {/* Name + status */}
             <div className="flex flex-col">
               <span className="font-medium">{user.username}</span>
-              <span
-                className={`text-xs ${user.status === "online"
-                    ? "text-green-500"
-                    : "text-gray-400 dark:text-gray-300"
-                  }`}
-              >
-                {user.status === "online" ? "Online" : "Offline"}
-              </span>
+              {!user.is_group && (
+                <span
+                  className={`text-xs ${user.status === "online"
+                      ? "text-green-500"
+                      : "text-gray-400 dark:text-gray-300"
+                    }`}
+                >
+                  {user.status === "online" ? "Online" : "Offline"}
+                </span>
+              )}
             </div>
 
-            {/* Ellipsis dropdown */}
+            {/* Actions (skip for group if not needed) */}
+
             <div className="ml-auto">
               <ChatAction user={user} />
             </div>
+
           </div>
         ))}
 

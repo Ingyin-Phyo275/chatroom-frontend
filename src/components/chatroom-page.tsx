@@ -6,14 +6,16 @@ import { useState } from "react"
 import ChatRoom from "./chatroom"
 import ChatInfoPanel from "./chat-info-panel"
 import type { loginResponse } from "../dto/response/LoginResponse"
+import * as Avatar from "@radix-ui/react-avatar";
 
 type chatroomPageProps = {
     selectedUser: ChatUserType,
     loginUser: loginResponse
-
 }
 export default function ChatroomPage({ selectedUser, loginUser }: chatroomPageProps) {
     const [showInfo, setShowInfo] = useState(false);
+    
+    console.log("chatroomPage selectedUser", selectedUser);
     return (
         <>
             <header className="flex sticky top-0 z-50 h-16 items-center justify-between px-4 border-b dark:border-slate-700">
@@ -25,26 +27,28 @@ export default function ChatroomPage({ selectedUser, loginUser }: chatroomPagePr
                 {/* Center: User avatar + name + status */}
                 {selectedUser && (
                     <div className="flex items-center gap-3 max-lg:hidden">
-                        <div
-                            className={` relative w-10 h-10 ${selectedUser.status === "online"
-                                ? "ring-2 ring-green-500"
-                                : ""
-                                } rounded-full`}
-                        >
-                            <img
-                                src={selectedUser.avatar_url}
-                                alt={selectedUser.username}
-                                className="w-10 h-10 rounded-full object-cover"
-                            />
+                        <div className={` relative w-10 h-10 ${selectedUser.status === "online"
+                            ? "ring-2 ring-green-500"
+                            : ""
+                            } rounded-full`}>
+                            <Avatar.Root className="w-10 h-10 rounded-full overflow-hidden">
+                                {selectedUser.avatar_url ? (
+                                    <Avatar.Image
+                                        src={selectedUser.avatar_url}
+                                        className="w-full h-full rounded-full object-cover"
+                                    />
+                                ) : null}
+                                <Avatar.Fallback className="w-full h-full rounded-full flex items-center justify-center bg-gray-500 text-white font-semibold">
+                                    {selectedUser.username.slice(0, 2).toUpperCase()}
+                                </Avatar.Fallback>
+                            </Avatar.Root>
                         </div>
                         <div className="flex flex-col">
                             <span className="font-medium">{selectedUser.username}</span>
-                            <span
-                                className={`text-xs ${selectedUser.status === "online"
-                                    ? "text-green-500"
-                                    : "text-gray-400 dark:text-gray-300"
-                                    }`}
-                            >
+                            <span className={`text-xs ${selectedUser.status === "online"
+                                ? "text-green-500"
+                                : "text-gray-400 dark:text-gray-300"
+                                }`}>
                                 {selectedUser.status === "online" ? "Online" : "Offline"}
                             </span>
                         </div>
@@ -74,10 +78,7 @@ export default function ChatroomPage({ selectedUser, loginUser }: chatroomPagePr
             {/* Chat + Info layout */}
             <div className="flex-1 flex border-l h-[calc(100vh-4rem)]">
                 {/* Chat Room (desktop/tablet: normal, mobile: hidden when info is open) */}
-                <div
-                    className={`flex-1 border-r lg:block ${showInfo ? "hidden lg:block" : "block"
-                        }`}
-                >
+                <div className={`flex-1 border-r lg:block ${showInfo ? "hidden lg:block" : "block"}`}>
                     {selectedUser ? (
                         <ChatRoom user={selectedUser} loginUser={loginUser} />
                     ) : (

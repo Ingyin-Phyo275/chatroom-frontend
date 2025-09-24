@@ -8,6 +8,7 @@ const axiosInstance = axios.create({
   timeout: 90000, // Optional: request timeout
   headers: {
     'Content-Type': 'application/json',
+    'Accept': 'application/json',
   },
 });
 
@@ -15,7 +16,8 @@ const axiosInstance = axios.create({
 axiosInstance.interceptors.request.use(
   (config) => {
     // e.g., Add token to headers
-    const token = localStorage.getItem('token');
+    const user = JSON.parse(localStorage.getItem('user')!);
+    const token = user?.token;
     if (token) {
       config.headers['Authorization'] = `Bearer ${token}`;
     }
