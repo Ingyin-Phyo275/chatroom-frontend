@@ -7,20 +7,20 @@ import { toast } from "sonner";
 import * as Avatar from "@radix-ui/react-avatar";
 import { addMembers } from "../http/api/addMember";
 import { useQueryClient } from "@tanstack/react-query";
+import { userListQuery } from "../composables/Queries/userListQuery";
 
 interface MemberAddFormProps {
-  contacts: UserListResponse[];
   action?: "add" | "create";
   chatroomId?: string;
 }
 
-export default function MemberAddForm({ contacts, action = "create", chatroomId }: MemberAddFormProps) {
+export default function MemberAddForm({  action = "create", chatroomId }: MemberAddFormProps) {
   const [groupName, setGroupName] = useState(""); // State for group name
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedContacts, setSelectedContacts] = useState<UserListResponse[]>([]);
-const queryClient = useQueryClient();
+  const queryClient = useQueryClient();
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value);
-
+const { userListData: contacts = [] } = userListQuery();
   const toggleContact = (contact: UserListResponse) => {
     setSelectedContacts(prev =>
       prev.find(c => c.id === contact.id)
@@ -48,7 +48,7 @@ const queryClient = useQueryClient();
     try {
       if (action === "add") {
         await addMembers({
-          chatroomId: chatroomId!,
+          chatroomId: Number( chatroomId!),
           userIds: selectedContacts.map(c => c.id),
         });
         toast.success(`Added ${selectedContacts.length} member(s)`);
@@ -59,7 +59,9 @@ const queryClient = useQueryClient();
         });
         toast.success(response.message || response.data?.message || "Group created");
       }
-      queryClient.invalidateQueries({ queryKey: ["chatroomDetails"] });
+
+      queryClient.invalidateQueries({ queryKey: ["chatroomDetails", chatroomId] });
+      queryClient.invalidateQueries({ queryKey: ["userList"] });
       // Reset form
       setGroupName("");
       setSelectedContacts([]);

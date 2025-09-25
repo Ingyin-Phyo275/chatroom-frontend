@@ -1,22 +1,25 @@
 import { io } from "socket.io-client";
 
-export const socket = io("http://192.168.0.96:7000");
+// Read token from localStorage
+    const user = JSON.parse(localStorage.getItem('user')!);
+    const token = user?.token;console.log("token", token)
+export const socket = io("http://192.168.0.96:7000", {
+  auth: { token }, // send JWT to backend for authentication
+});
 
-// Event: successfully connected
 socket.on("connect", () => {
+  
   console.log("✅ Socket connected! Socket ID:", socket.id);
 });
 
 socket.onAnyOutgoing((event, ...args) => {
-  console.log("Outgoing event:", event, "Payload:", args);
+  console.log("🟢 Outgoing event:", event, "Payload:", args);
 });
 
-// Event: failed connection
 socket.on("connect_error", (err) => {
   console.error("❌ Socket connection error:", err.message);
 });
 
-// Event: disconnected
 socket.on("disconnect", (reason) => {
   console.log("⚠️ Socket disconnected. Reason:", reason);
 });

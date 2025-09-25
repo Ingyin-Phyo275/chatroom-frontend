@@ -1,4 +1,4 @@
 export interface addMembersData {
-    chatroomId: string,
+    chatroomId: number,
     userIds: string[]
 }

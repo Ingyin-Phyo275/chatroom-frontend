@@ -7,25 +7,27 @@ import React, { useState } from "react";
 import type { UserListResponse } from "../dto/response/UserListResponse";
 import type { GroupChatResponse } from "../dto/response/ChatRoom";
 import { getChatroomDetails } from "../http/api/getChatroomDetails";
+import { useGroupChatList } from "../composables/Queries/useGroupChatList";
+import { userListQuery } from "../composables/Queries/userListQuery";
 
 interface ChatUsersProps {
   users: ChatUserType[];
-  contact: UserListResponse[];
-  groupsChats: GroupChatResponse[];
   tabs: string;
   onSelectUser: (user: ChatUserType) => void;
 }
 
 export default function ChatUsers({
   users,
-  contact,
   tabs,
-  groupsChats,
   onSelectUser,
 }: ChatUsersProps) {
   const [searchTerm, setSearchTerm] = React.useState("");
   const [filteredUsers, setFilteredUsers] = useState<ChatUserType[]>([]);
 
+  const { groupChatListQuery: groupChatList = [] as GroupChatResponse[]} =  useGroupChatList();//    console.log("group chat props", groupsChats);
+  const { userListData: contact =[] as UserListResponse[]}  = userListQuery();
+
+// console.log("grou chat list", groupChatList);
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
   };
@@ -37,12 +39,12 @@ export default function ChatUsers({
       );
       setFilteredUsers(filteredContacts as unknown as ChatUserType[]);
     } else if (tabs === "Group") {
-      const filteredGroups = groupsChats.filter((g) =>
+      const filteredGroups = groupChatList.filter((g: GroupChatResponse) =>
         g.name.toLowerCase().includes(searchTerm.toLowerCase())
       );
 
       // Adapt GroupChatResponse -> ChatUserType shape
-      const mappedGroups: ChatUserType[] = filteredGroups.map((g) => ({
+      const mappedGroups: ChatUserType[] = filteredGroups.map((g: GroupChatResponse) => ({
         id: String(g.id),
         username: g.name,
         status: "online", // groups don’t have status → default
@@ -64,10 +66,10 @@ export default function ChatUsers({
         );
       setFilteredUsers(filtered);
     }
-  }, [tabs, users, contact, groupsChats, searchTerm]);
+  }, [tabs, users, contact, groupChatList, searchTerm]);
 
   const handleClick = async (user: ChatUserType) => {
-    const group = groupsChats.find(g => String(g.id) === String(user.id));
+    const group = groupChatList.find((g:GroupChatResponse) => String(g.id) === String(user.id));
 
     if (group) {
       try {

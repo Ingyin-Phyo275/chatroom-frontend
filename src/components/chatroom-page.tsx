@@ -7,6 +7,7 @@ import ChatRoom from "./chatroom"
 import ChatInfoPanel from "./chat-info-panel"
 import type { loginResponse } from "../dto/response/LoginResponse"
 import * as Avatar from "@radix-ui/react-avatar";
+// import ChatRoom from "../chatroom"
 
 type chatroomPageProps = {
     selectedUser: ChatUserType,
@@ -15,7 +16,7 @@ type chatroomPageProps = {
 export default function ChatroomPage({ selectedUser, loginUser }: chatroomPageProps) {
     const [showInfo, setShowInfo] = useState(false);
     
-    console.log("chatroomPage selectedUser", selectedUser);
+    // console.log("chatroomPage selectedUser", selectedUser);
     return (
         <>
             <header className="flex sticky top-0 z-50 h-16 items-center justify-between px-4 border-b dark:border-slate-700">
@@ -80,7 +81,9 @@ export default function ChatroomPage({ selectedUser, loginUser }: chatroomPagePr
                 {/* Chat Room (desktop/tablet: normal, mobile: hidden when info is open) */}
                 <div className={`flex-1 border-r lg:block ${showInfo ? "hidden lg:block" : "block"}`}>
                     {selectedUser ? (
+                        // <ChatRoom user={selectedUser} loginUser={loginUser} />
                         <ChatRoom user={selectedUser} loginUser={loginUser} />
+
                     ) : (
                         <div className="flex h-full items-center justify-center text-gray-400">
                             Select a user to start chatting

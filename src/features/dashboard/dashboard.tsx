@@ -3,18 +3,16 @@ import {
   SidebarInset,
   SidebarProvider,
 } from "@/components/ui/sidebar";
-import {  useEffect, useState } from "react";
+import { useState } from "react";
 import type { ChatUserType } from "@/dto/UserTypes";
 import "../../App.css";
 
 import ChatroomPage from "../../components/chatroom-page";
 import type { loginResponse } from "../../dto/response/LoginResponse";
-import { userListQuery } from "../../composables/Queries/userListQuery";
-import { useGroupChatList } from "../../composables/Queries/useGroupChatList";
 export default function Dashboard() {
   const [selectedUser, setSelectedUser] = useState<ChatUserType | null>(null);
   const loginUser: loginResponse = JSON.parse(localStorage.getItem("user") || '{}');
-  
+
   //chat users
   const users = [
     { id: "1", username: "Jane", status: "online", is_group: true, tabs: "Group", avatar_url: "https://i.pinimg.com/736x/95/f1/3c/95f13c40ca7201d466c513057b551d3d.jpg" },
@@ -23,16 +21,7 @@ export default function Dashboard() {
     { id: "4", username: "Mike", status: "offline", is_group: true, tabs: "Group", avatar_url: "https://i.pinimg.com/736x/d7/d6/68/d7d668991c8fc952ef2b9a2a03b25479.jpg" },
   ];
 
-  const { userListData, isError, error} = userListQuery();
-   const { groupChatListQuery} =  useGroupChatList();
-  useEffect(() => {
-   
-    if (isError) {
-      console.error(error);
-    }
-  },[isError, error]);
-
-    // Join room when selectedUser changes
+  // Join room when selectedUser changes
   // useEffect(() => {
   //   if (!selectedUser) return;
 
@@ -66,19 +55,15 @@ export default function Dashboard() {
     >
       <div className="flex h-screen w-screen">
         {/* Sidebar */}
-<AppSidebar
-  selectedUser={selectedUser}
-  onSelectUser={setSelectedUser}
-  users={users}
-  contact={userListData ?? []}
-  groupsChats={groupChatListQuery ?? []}   // ✅ match AppSidebar props
-/>
-
-
+        <AppSidebar
+          selectedUser={selectedUser}
+          onSelectUser={setSelectedUser}
+          users={users}
+        />
         {/* Main content */}
         <div className="flex-1 flex flex-col max-h-screen">
           <SidebarInset>
-            <ChatroomPage selectedUser={selectedUser!} loginUser={loginUser}/>
+            <ChatroomPage selectedUser={selectedUser!} loginUser={loginUser} />
           </SidebarInset>
         </div>
       </div>

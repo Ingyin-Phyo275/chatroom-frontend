@@ -10,7 +10,6 @@ import {
 } from "@/components/ui/sidebar";
 import ChatUsers from "./chatusers";
 import type { ChatUserType } from "@/dto/UserTypes";
-import type { UserListResponse } from "../dto/response/UserListResponse";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,25 +20,21 @@ import MemberAddForm from "./member-add-form";
 import { Dialog, DialogClose, DialogContent, DialogHeader } from "./ui/dialog";
 import { DialogTitle } from "@radix-ui/react-dialog";
 import { CirclePlus } from "lucide-react";
-import type { GroupChatResponse } from "../dto/response/ChatRoom";
 export function AppSidebar({
   selectedUser,
   onSelectUser,
   users,
-  contact,
-  groupsChats,
   ...props
 }: {
   selectedUser: ChatUserType | null
   onSelectUser: (user: ChatUserType) => void
   users: ChatUserType[]
-  contact: UserListResponse[]
-  groupsChats: GroupChatResponse[]
 } & React.ComponentProps<typeof Sidebar>) {
   const [tabs, setTabs] = React.useState("Contacts");
   const tabList = ["Contacts", "All", "Personal", "Group"];
   const [isOpen, setIsOpen] = React.useState(false);
   const loginUserString = localStorage.getItem("user");
+  
   let loginUser: {
     name: string;
     email: string;
@@ -62,17 +57,8 @@ export function AppSidebar({
       <SidebarHeader className="flex items-center justify-center w-full mx-auto">
         <div className="border-b border-gray-200 dark:border-gray-700 text-sm w-full text-center">
           <div className=" flex items-center justify-between gap-5">
-
             <h1 className="text-2xl font-semibold">Chats</h1>
-            {/* <Button
-              variant="ghost"
-              size="icon"
-              className="bg-primary rounded-full"
-            >
-              <CirclePlus className="h-6 w-6 text-white" />
-            </Button> */}
-            {/* Dropdown Menu */}
- {/* Dropdown Menu */}
+      {/* Dropdown Menu */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button className=" bg-blue-500 text-white rounded-full hover:bg-blue-600 transition">
@@ -92,7 +78,7 @@ export function AppSidebar({
           </DialogHeader>
 
           <div className="mt-4">
-            <MemberAddForm contacts={contact} />
+            <MemberAddForm  />
           </div>
 
           <div className="mt-4 flex justify-end">
@@ -126,12 +112,11 @@ export function AppSidebar({
         </div>
       </SidebarHeader>
       <SidebarContent>
-        <ChatUsers groupsChats={groupsChats} contact={contact} users={users} tabs={tabs} onSelectUser={onSelectUser} />
+        <ChatUsers  users={users} tabs={tabs} onSelectUser={onSelectUser} />
       </SidebarContent>
       <SidebarFooter className="bg-primary rounded-2xl">
         {loginUser && <NavUser user={loginUser} />}
       </SidebarFooter>
-
     </Sidebar>
 
 

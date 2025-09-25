@@ -10,6 +10,8 @@ import {
 import { EllipsisVertical } from "lucide-react";
 import { Button } from "./ui/button";
 import { removeMembers } from "../http/api/removeMember";
+import {  Separator } from "@radix-ui/react-dropdown-menu";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface User {
   id: string;
@@ -30,15 +32,29 @@ interface ChatMembersCardProps {
 }
 
 export default function ChatMembersCard({ chatMembers, chatroomId }: ChatMembersCardProps) {
-  console.log("chatMembers", chatMembers);
+  // console.log("chatMembers", chatMembers);
+  const queryClient = useQueryClient();
 
-  const handleRemoveMember = (memberId: string) => {
-    const response = removeMembers({ chatroomId: chatroomId!, userIds: [memberId] });
+const handleRemoveMember = async (memberId: string) => {
+  try {
+    // Wait for the member to be removed
+    const response = await removeMembers({ 
+      chatroomId: Number(chatroomId!), 
+      userIds: [memberId] 
+    });
+
+    // Invalidate queries after successful removal
+    queryClient.invalidateQueries({ queryKey: ["chatroomDetails"] });
+    queryClient.invalidateQueries({ queryKey: ["groupChatList"] });
+
     console.log("Remove member", response);
-  };
+  } catch (error) {
+    console.error("Failed to remove member", error);
+  }
+};
 
   const adminMembers = chatMembers.filter((member) => member.role === "owner");
-
+  
   return (
     <Tabs defaultValue="all">
       <Card className="w-full max-w-md mx-auto mt-4 bg-secondary">
@@ -92,11 +108,14 @@ export default function ChatMembersCard({ chatMembers, chatroomId }: ChatMembers
                     </DropdownMenuTrigger>
                     <DropdownMenuContent className="w-40">
                       <DropdownMenuItem>
-                        <Button variant="link" onClick={() => handleRemoveMember(member.id)}>
+                        <Button variant="link" onClick={() => handleRemoveMember(member?.user?.id!)}>
                           Remove
                         </Button>
                       </DropdownMenuItem>
-                      <DropdownMenuItem>Set as admin</DropdownMenuItem>
+                     <Separator/>
+                      <DropdownMenuItem>
+                        <Button variant="link" onClick={() => handleRemoveMember(member?.user?.id!)}>Set as Admin</Button>
+                      </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>

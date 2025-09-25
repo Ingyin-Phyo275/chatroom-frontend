@@ -11,18 +11,18 @@ import {
 } from "@/components/ui/dropdown-menu";
 import MemberAddForm from "./member-add-form";
 import { Dialog, DialogClose, DialogContent, DialogHeader } from "./ui/dialog";
-import { userListQuery } from "../composables/Queries/userListQuery";
+import type { loginResponse } from "../dto/response/LoginResponse";
+import type { UserListResponse } from "../dto/response/UserListResponse";
 
 interface ChatInfoProps {
-  selectedUser: any;
+  selectedUser: loginResponse | UserListResponse | any;
 }
 
 export default function ChatInfoPanel({ selectedUser }: ChatInfoProps) {
-  const { userListData } = userListQuery();
   const [isOpen, setIsOpen] = useState(false);
 
   const members = selectedUser?.chatroomDetails?.[0]?.members;
-
+// console.log("selected user in chat info panel", selectedUser)
   return (
     <>
       <div className="flex flex-col items-center">
@@ -47,9 +47,17 @@ export default function ChatInfoPanel({ selectedUser }: ChatInfoProps) {
             <div className="flex flex-col items-center">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className="bg-blue-500 text-white rounded-full p-2 hover:bg-blue-600 transition">
-                    <CirclePlus className="h-6 w-6" />
-                  </button>
+                  <div className="flex flex-col items-center">
+                    <Button
+                      variant="ghost"
+                      className="rounded-full"
+                      size="icon"
+
+                    >
+                      <CirclePlus className="w-4 h-4" />
+                    </Button>
+                    <p className="text-xs text-center mt-1">Add</p>
+                  </div>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>
                   <DropdownMenuItem onClick={() => setIsOpen(true)}>
@@ -63,7 +71,6 @@ export default function ChatInfoPanel({ selectedUser }: ChatInfoProps) {
                   <DialogHeader title="Add Members" />
                   <div className="mt-4">
                     <MemberAddForm
-                      contacts={userListData ?? []}
                       action="add"
                       chatroomId={selectedUser?.id}
                     />
@@ -104,7 +111,7 @@ export default function ChatInfoPanel({ selectedUser }: ChatInfoProps) {
         </div>
       </div>
 
-      {selectedUser?.is_group && <ChatMembersCard chatMembers={members} chatroomId={selectedUser?.id}/>}
+      {selectedUser?.is_group && <ChatMembersCard chatMembers={members} chatroomId={selectedUser?.id} />}
     </>
   );
 }
