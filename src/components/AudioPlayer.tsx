@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Play, Pause } from "lucide-react";
 
 interface AudioMessageProps {
-  file: File;
+  file: File | string;
 }
 
 export default function AudioMessage({ file }: AudioMessageProps) {
@@ -58,7 +58,6 @@ export default function AudioMessage({ file }: AudioMessageProps) {
       <span className="text-xs text-gray-600 dark:text-gray-300">
         {formatTime(progress)} / {formatTime(duration)}
       </span>
-      <audio ref={audioRef} src={URL.createObjectURL(file)} className="hidden" />
-    </div>
+<audio ref={audioRef} src={typeof file === 'string' ? file : URL.createObjectURL(file)} className="hidden" />    </div>
   );
 }

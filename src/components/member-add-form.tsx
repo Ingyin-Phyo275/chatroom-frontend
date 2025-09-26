@@ -52,6 +52,8 @@ const { userListData: contacts = [] } = userListQuery();
           userIds: selectedContacts.map(c => c.id),
         });
         toast.success(`Added ${selectedContacts.length} member(s)`);
+        console.log("form update", chatroomId)
+queryClient.invalidateQueries({ queryKey: ["chatroomDetails", Number(chatroomId!)] });
       } else {
         const response = await createChatroom({
           name: groupName,

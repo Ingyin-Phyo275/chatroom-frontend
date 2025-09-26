@@ -32,41 +32,41 @@ export default function ChatUsers({
     setSearchTerm(e.target.value);
   };
 
-  React.useEffect(() => {
-    if (tabs === "Contacts") {
-      const filteredContacts = contact.filter((c) =>
-        c.username.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-      setFilteredUsers(filteredContacts as unknown as ChatUserType[]);
-    } else if (tabs === "Group") {
-      const filteredGroups = groupChatList.filter((g: GroupChatResponse) =>
-        g.name.toLowerCase().includes(searchTerm.toLowerCase())
-      );
+React.useEffect(() => {
+  let newFiltered: ChatUserType[] = [];
 
-      // Adapt GroupChatResponse -> ChatUserType shape
-      const mappedGroups: ChatUserType[] = filteredGroups.map((g: GroupChatResponse) => ({
+  if (tabs === "Contacts") {
+    newFiltered = contact.filter((c) =>
+      c.username.toLowerCase().includes(searchTerm.toLowerCase())
+    ) as unknown as ChatUserType[];
+  } else if (tabs === "Group") {
+    newFiltered = groupChatList
+      .filter((g: GroupChatResponse) =>
+        g.name.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+      .map((g: GroupChatResponse) => ({
         id: String(g.id),
         username: g.name,
-        status: "online", // groups don’t have status → default
+        status: "online",
         is_group: true,
         tabs: "Group",
-        avatar_url: "", // default group avatar
+        avatar_url: "",
       }));
+  } else {
+    newFiltered = users
+      .filter((user) => (tabs === "Personal" ? !user.is_group : true))
+      .filter((user) =>
+        user.username.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+  }
 
-      setFilteredUsers(mappedGroups);
-    } else {
-      // All / Personal from dummy users
-      const filtered = users
-        .filter((user) => {
-          if (tabs === "Personal") return !user.is_group;
-          return true; // "All"
-        })
-        .filter((user) =>
-          user.username.toLowerCase().includes(searchTerm.toLowerCase())
-        );
-      setFilteredUsers(filtered);
-    }
-  }, [tabs, users, contact, groupChatList, searchTerm]);
+  // Only update state if it’s different
+  setFilteredUsers((prev) => {
+    if (JSON.stringify(prev) === JSON.stringify(newFiltered)) return prev;
+    return newFiltered;
+  });
+}, [tabs, users, contact, groupChatList, searchTerm]);
+
 
   const handleClick = async (user: ChatUserType) => {
     const group = groupChatList.find((g:GroupChatResponse) => String(g.id) === String(user.id));
