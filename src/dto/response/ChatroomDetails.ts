@@ -1,18 +1,21 @@
 import type { ChatRoomMembers } from "./ChatRoomMembers";
-import type { loginResponse } from "./LoginResponse";
+
 export interface Message {
-    id: number,
-    sender: loginResponse,
-    content: string,
-    attachemnt_url: string,
-    is_delivered: boolean,
-    reads: string[],
-    is_pinned: boolean
+    id: string | number;
+    sender: { id: string | number, username: string };   // just the id, not full loginResponse
+    receiver?: { id: string | number, username: string }; // optional if group chat
+    content: string;
+    created_at: string;
+    attachment_url?: string | null;     // fix typo
+    is_delivered?: boolean;
+    is_pinned?: boolean;
+    reads?: string[];
 }
+
 export interface ChatroomDetails{
     id: number,
     name: string,
     is_group: boolean,
     members: ChatRoomMembers[],
-    message: Message[]
+    messages: Message[]
 }

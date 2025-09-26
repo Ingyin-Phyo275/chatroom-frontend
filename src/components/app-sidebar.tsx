@@ -114,11 +114,9 @@ export function AppSidebar({
       <SidebarContent>
         <ChatUsers  users={users} tabs={tabs} onSelectUser={onSelectUser} />
       </SidebarContent>
-      <SidebarFooter className="bg-primary rounded-2xl">
+      <SidebarFooter className="bg-primary rounded-2xl hover:bg-primary-foreground focus:bg-primary-foreground">
         {loginUser && <NavUser user={loginUser} />}
       </SidebarFooter>
     </Sidebar>
-
-
   );
 }

@@ -56,11 +56,11 @@ export default function ChatRoom({ user, loginUser }: ChatRoomProps) {
   }, [user, loginUser.user.id]);
 
 
-// useEffect(() => {
-//   socket.onAny((event, ...args) => {
-//     console.log("[SOCKET EVENT]", event, args);
-//   });
-// }, []);
+useEffect(() => {
+  socket.onAny((event, ...args) => {
+    console.log("[SOCKET EVENT] in privaet room", event, args);
+  });
+}, []);
 
   // --- Listen for incoming messages ---
 useEffect(() => {

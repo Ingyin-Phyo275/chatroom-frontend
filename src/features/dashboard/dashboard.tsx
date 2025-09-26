@@ -21,29 +21,6 @@ export default function Dashboard() {
     { id: "4", username: "Mike", status: "offline", is_group: true, tabs: "Group", avatar_url: "https://i.pinimg.com/736x/d7/d6/68/d7d668991c8fc952ef2b9a2a03b25479.jpg" },
   ];
 
-  // Join room when selectedUser changes
-  // useEffect(() => {
-  //   if (!selectedUser) return;
-
-  //   // Create a unique room ID (sorted so it’s the same for both users)
-  //   const roomId = [loginUser.user.id, selectedUser.id].sort().join("_");
-
-  //   console.log("Joining room:", roomId);
-
-  //   socket.emit("join_room", { roomId, userId: loginUser.user.id });
-
-  //   // Optional: listen for server confirmation
-  //   const handleRoomJoined = (data: any) => {
-  //     console.log("✅ Joined room:", data.roomId);
-  //   };
-
-  //   socket.on("room_joined", handleRoomJoined);
-
-  //   return () => {
-  //     socket.off("room_joined", handleRoomJoined);
-  //   };
-  // }, [selectedUser]);
-
   return (
     <SidebarProvider
       style={

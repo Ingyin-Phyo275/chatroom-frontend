@@ -20,6 +20,6 @@ socket.on("connect_error", (err) => {
   console.error("❌ Socket connection error:", err.message);
 });
 
-socket.on("disconnect", (reason) => {
-  console.log("⚠️ Socket disconnected. Reason:", reason);
+socket.on("disconnect", () => {
+  console.log("⚠️ Socket disconnected:");
 });

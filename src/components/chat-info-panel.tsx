@@ -1,8 +1,8 @@
+import { useEffect, useState } from "react";
 import { Button } from "./ui/button";
 import { Bell, Contact, CirclePlus } from "lucide-react";
 import ChatMembersCard from "./chat-member-card";
 import * as Avatar from "@radix-ui/react-avatar";
-import { useState } from "react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,16 +13,35 @@ import MemberAddForm from "./member-add-form";
 import { Dialog, DialogClose, DialogContent, DialogHeader } from "./ui/dialog";
 import type { loginResponse } from "../dto/response/LoginResponse";
 import type { UserListResponse } from "../dto/response/UserListResponse";
+import { getChatroomDetails } from "../http/api/getChatroomDetails";
+import type { ChatroomDetails } from "../dto/response/ChatroomDetails";
 
 interface ChatInfoProps {
   selectedUser: loginResponse | UserListResponse | any;
 }
 
+
 export default function ChatInfoPanel({ selectedUser }: ChatInfoProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [chatroom, setChatroom] = useState<ChatroomDetails | null>(null);
 
-  const members = selectedUser?.chatroomDetails?.[0]?.members;
-// console.log("selected user in chat info panel", selectedUser)
+  useEffect(() => {
+    const fetchChatroom = async () => {
+      if (!selectedUser?.id) return;
+      try {
+        const data = await getChatroomDetails(selectedUser.id);
+        setChatroom(data);
+        // console.log("selected user in chat info panel", data);
+      } catch (err) {
+        console.error("Failed to fetch chatroom details", err);
+      }
+    };
+
+    fetchChatroom();
+  }, [selectedUser?.id]);
+
+  const members: any = chatroom?.members ?? [];
+
   return (
     <>
       <div className="flex flex-col items-center">
@@ -52,7 +71,6 @@ export default function ChatInfoPanel({ selectedUser }: ChatInfoProps) {
                       variant="ghost"
                       className="rounded-full"
                       size="icon"
-
                     >
                       <CirclePlus className="w-4 h-4" />
                     </Button>
@@ -111,7 +129,9 @@ export default function ChatInfoPanel({ selectedUser }: ChatInfoProps) {
         </div>
       </div>
 
-      {selectedUser?.is_group && <ChatMembersCard chatMembers={members} chatroomId={selectedUser?.id} />}
+      {selectedUser?.is_group && (
+        <ChatMembersCard chatMembers={members} chatroomId={selectedUser?.id} />
+      )}
     </>
   );
 }

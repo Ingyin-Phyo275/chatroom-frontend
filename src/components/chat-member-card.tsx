@@ -35,23 +35,22 @@ export default function ChatMembersCard({ chatMembers, chatroomId }: ChatMembers
   // console.log("chatMembers", chatMembers);
   const queryClient = useQueryClient();
 
-const handleRemoveMember = async (memberId: string) => {
-  try {
-    // Wait for the member to be removed
-    const response = await removeMembers({ 
-      chatroomId: Number(chatroomId!), 
-      userIds: [memberId] 
-    });
+  const handleRemoveMember = async (memberId: string) => {
+    try {
+      // Wait for the member to be removed
+      const response = await removeMembers({ 
+        chatroomId: Number(chatroomId!), 
+        userIds: [memberId] 
+      });
 
-    // Invalidate queries after successful removal
-    queryClient.invalidateQueries({ queryKey: ["chatroomDetails"] });
-    queryClient.invalidateQueries({ queryKey: ["groupChatList"] });
-
-    console.log("Remove member", response);
-  } catch (error) {
-    console.error("Failed to remove member", error);
-  }
-};
+      // Invalidate queries after successful removal
+      // queryClient.invalidateQueries({ queryKey: ["chatroomDetails"] });
+      queryClient.invalidateQueries({ queryKey: ["groupChatList"] });
+      console.log("Remove member", response);
+    } catch (error) {
+      console.error("Failed to remove member", error);
+    }
+  };
 
   const adminMembers = chatMembers.filter((member) => member.role === "owner");
   

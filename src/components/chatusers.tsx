@@ -6,7 +6,6 @@ import { Input } from "./ui/input";
 import React, { useState } from "react";
 import type { UserListResponse } from "../dto/response/UserListResponse";
 import type { GroupChatResponse } from "../dto/response/ChatRoom";
-import { getChatroomDetails } from "../http/api/getChatroomDetails";
 import { useGroupChatList } from "../composables/Queries/useGroupChatList";
 import { userListQuery } from "../composables/Queries/userListQuery";
 
@@ -69,25 +68,8 @@ React.useEffect(() => {
 
 
   const handleClick = async (user: ChatUserType) => {
-    const group = groupChatList.find((g:GroupChatResponse) => String(g.id) === String(user.id));
-
-    if (group) {
-      try {
-        const response = await getChatroomDetails(group.id); // call API directly
-        console.log("chat room details", response);
-
-        onSelectUser({
-          ...user,
-          chatroomDetails: response,
-        } as ChatUserType & { chatroomDetails: any });
-      } catch (error) {
-        console.error("Failed to fetch group chatroom details:", error);
-      }
-    } else {
-      onSelectUser(user);
-    }
+    onSelectUser(user);
   };
-
 
 
   return (
@@ -143,8 +125,6 @@ React.useEffect(() => {
                 </span>
               )}
             </div>
-
-            {/* Actions (skip for group if not needed) */}
 
             <div className="ml-auto">
               <ChatAction user={user} />
