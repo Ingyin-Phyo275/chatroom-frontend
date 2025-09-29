@@ -5,7 +5,6 @@ import type { GroupChatResponse } from "../../dto/response/ChatRoom";
 export const getChatrooms = async () => {
     try{
         const response = await axiosInstance.get("/chatroom/get-all-chatrooms");
-        // console.log("chatroom response data", response.data);
         const returnData = response.data.data.map((chatroom: GroupChatResponse) => ({
             id: chatroom.id,
             name: chatroom.name,

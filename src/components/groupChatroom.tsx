@@ -35,7 +35,6 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
     const [pendingAttachments, setPendingAttachments] = useState<Attachment[]>([]);
     const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
     //   const [previewModal, setPreviewModal] = useState<{ type: string; url: string } | null>(null);
-
     const listRef = useRef<HTMLDivElement>(null);
     const imageInputRef = useRef<HTMLInputElement>(null);
     const videoInputRef = useRef<HTMLInputElement>(null);
@@ -71,9 +70,7 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
             }
         };
 
-
         fetchMessages();
-
         // Join socket room
         socket.emit("join", { userId: String(loginUser.user.id) });
 
@@ -88,9 +85,7 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
             }
         };
         
-
         socket.on("receive-message", handleNewMessage);
-
         return () => {
             socket.off("receive-message", handleNewMessage);
         };
@@ -103,7 +98,6 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
 
     const sendMessage = () => {
         if (!text.trim() && pendingAttachments.length === 0) return;
-
         const newMsg: GetAllMessage = {
             id: Date.now().toString(),
             sender: { id: loginUser.user.id, username: loginUser.user.name },

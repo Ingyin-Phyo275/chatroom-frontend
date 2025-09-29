@@ -125,11 +125,9 @@ React.useEffect(() => {
                 </span>
               )}
             </div>
-
             <div className="ml-auto">
               <ChatAction user={user} />
             </div>
-
           </div>
         ))}
 

@@ -9,17 +9,17 @@ export const socket = io("http://192.168.0.96:7000", {
 
 socket.on("connect", () => {
   
-  console.log("✅ Socket connected! Socket ID:", socket.id);
+  console.log("Socket connected! Socket ID:", socket.id);
 });
 
 socket.onAnyOutgoing((event, ...args) => {
-  console.log("🟢 Outgoing event:", event, "Payload:", args);
+  console.log("Outgoing event:", event, "Payload:", args);
 });
 
 socket.on("connect_error", (err) => {
-  console.error("❌ Socket connection error:", err.message);
+  console.error("Socket connection error:", err.message);
 });
 
 socket.on("disconnect", () => {
-  console.log("⚠️ Socket disconnected:");
+  console.log("Socket disconnected:");
 });

@@ -94,7 +94,6 @@ useEffect(() => {
     setMessages(filtered);
   };
 
-  
   socket.on("get-messages", handleAllMessages);
 
   // 4️ Handle new incoming messages in real-time
@@ -119,7 +118,6 @@ useEffect(() => {
   };
 
   socket.on("receive-message", handleNewMessage);
-
   return () => {
     socket.off("get-messages", handleAllMessages);
     socket.off("receive-message", handleNewMessage);
@@ -131,7 +129,6 @@ useEffect(() => {
   const sendMessage = () => {
     const trimmedText = text.trim();
     if (!trimmedText && pendingAttachments.length === 0) return;
-
     const newMsg: Message = {
       id: Date.now().toString(),
       sender: String(loginUser.user.id),
@@ -187,7 +184,6 @@ useEffect(() => {
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>, type: string) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
-
     const newAttachments: Attachment[] = Array.from(files).map((f) => ({ type, file: f }));
     setPendingAttachments((prev) => [...prev, ...newAttachments]);
     setShowAttachmentMenu(false);

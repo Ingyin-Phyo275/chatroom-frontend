@@ -10,7 +10,7 @@ import {
 import { EllipsisVertical } from "lucide-react";
 import { Button } from "./ui/button";
 import { removeMembers } from "../http/api/removeMember";
-import {  Separator } from "@radix-ui/react-dropdown-menu";
+import { Separator } from "@radix-ui/react-dropdown-menu";
 import { useQueryClient } from "@tanstack/react-query";
 
 interface User {
@@ -31,21 +31,37 @@ interface ChatMembersCardProps {
   chatroomId?: string
 }
 
-export default function ChatMembersCard({ chatMembers, chatroomId }: ChatMembersCardProps) {
-  // console.log("chatMembers", chatMembers);
-  const queryClient = useQueryClient();
+export function MemberAvatar({ member }: { member?: ChatMember }) {
+  return (
+    <Avatar.Root className="w-10 h-10 rounded-full overflow-hidden">
+      {member?.user?.avatar_url ? (
+        <Avatar.Image
+          src={member.user.avatar_url}
+          alt={member.user.username}
+          className="w-full h-full object-cover"
+          onError={(e) => (e.currentTarget.style.display = "none")}
+        />
+      ) : null}
+      <Avatar.Fallback className="w-full h-full flex items-center justify-center bg-gray-500 text-white font-semibold">
+        {member?.user?.username?.slice(0, 2).toUpperCase() || "U"}
+      </Avatar.Fallback>
+    </Avatar.Root>
+  );
+}
 
+export default function ChatMembersCard({ chatMembers, chatroomId }: ChatMembersCardProps) {
+  const queryClient = useQueryClient();
   const handleRemoveMember = async (memberId: string) => {
     try {
       // Wait for the member to be removed
-      const response = await removeMembers({ 
-        chatroomId: Number(chatroomId!), 
-        userIds: [memberId] 
+      const response = await removeMembers({
+        chatroomId: Number(chatroomId!),
+        userIds: [memberId]
       });
 
-      // Invalidate queries after successful removal
-      // queryClient.invalidateQueries({ queryKey: ["chatroomDetails"] });
-      queryClient.invalidateQueries({ queryKey: ["groupChatList"] });
+      console.log("Invalidating key:", ["chatroomDetails", String(chatroomId)]);
+      await queryClient.invalidateQueries({ queryKey: ["chatroomDetails", String(chatroomId)] });
+      await queryClient.refetchQueries({ queryKey: ["chatroomDetails", String(chatroomId)] });
       console.log("Remove member", response);
     } catch (error) {
       console.error("Failed to remove member", error);
@@ -53,7 +69,8 @@ export default function ChatMembersCard({ chatMembers, chatroomId }: ChatMembers
   };
 
   const adminMembers = chatMembers.filter((member) => member.role === "owner");
-  
+  const loginUser = JSON.parse(localStorage.getItem('user')!);
+
   return (
     <Tabs defaultValue="all">
       <Card className="w-full max-w-md mx-auto mt-4 bg-secondary">
@@ -75,23 +92,11 @@ export default function ChatMembersCard({ chatMembers, chatroomId }: ChatMembers
               >
                 {/* Left: Avatar + Name/Status */}
                 <div className="flex items-center gap-3">
-                  <Avatar.Root className="w-10 h-10 rounded-full overflow-hidden">
-                    {member.user?.avatar_url ? (
-                      <Avatar.Image
-                        src={member.user.avatar_url}
-                        alt={member.user.username}
-                        className="w-full h-full object-cover"
-                        onError={(e) => (e.currentTarget.style.display = "none")}
-                      />
-                    ) : null}
-                    <Avatar.Fallback className="w-full h-full flex items-center justify-center bg-gray-500 text-white font-semibold">
-                      {member.user?.username?.slice(0, 2).toUpperCase() || "U"}
-                    </Avatar.Fallback>
-                  </Avatar.Root>
-
+                  <MemberAvatar member={member} />
                   <div className="flex flex-col">
                     <p className="font-medium text-gray-900 dark:text-gray-100">
-                      {member.user?.username || "Unknown"}
+                      {member.user?.id === loginUser.user.id ? member.user?.username + " (You)" : member.user?.username}
+                      {/* {member.user?.username || "Unknown"} */}
                     </p>
                     <p className="text-xs text-gray-500 dark:text-gray-400 truncate max-w-xs">
                       {member.user?.status || "No status"}
@@ -111,7 +116,7 @@ export default function ChatMembersCard({ chatMembers, chatroomId }: ChatMembers
                           Remove
                         </Button>
                       </DropdownMenuItem>
-                     <Separator/>
+                      <Separator />
                       <DropdownMenuItem>
                         <Button variant="link" onClick={() => handleRemoveMember(member?.user?.id!)}>Set as Admin</Button>
                       </DropdownMenuItem>
@@ -135,24 +140,11 @@ export default function ChatMembersCard({ chatMembers, chatroomId }: ChatMembers
                 className="flex items-center gap-3 p-2 border-b dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md cursor-pointer"
               >
                 {/* Avatar */}
-                <Avatar.Root className="w-10 h-10 rounded-full overflow-hidden">
-                  {member.user?.avatar_url ? (
-                    <Avatar.Image
-                      src={member.user.avatar_url}
-                      alt={member.user.username}
-                      className="w-full h-full object-cover"
-                      onError={(e) => (e.currentTarget.style.display = "none")}
-                    />
-                  ) : null}
-                  <Avatar.Fallback className="w-full h-full flex items-center justify-center bg-gray-500 text-white font-semibold">
-                    {member.user?.username?.slice(0, 2).toUpperCase() || "U"}
-                  </Avatar.Fallback>
-                </Avatar.Root>
-
+                <MemberAvatar member={member} />
                 {/* Name and Status */}
                 <div className="flex flex-col">
                   <p className="font-medium text-gray-900 dark:text-gray-100">
-                    {member.user?.username || "Unknown"}
+                    {member.user?.id === loginUser.user.id ? member.user?.username + " (You)" : member.user?.username}
                   </p>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
                     {member.user?.status || "Unknown"}

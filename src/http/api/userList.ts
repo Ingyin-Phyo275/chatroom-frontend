@@ -19,9 +19,7 @@ export const userList = async () => {
             status: user.status,
             is_group: false
         }));
-
-        // console.log("response data", returnData);
-        return returnData;
+    return returnData;
     } catch (error: unknown) {
         if (axios.isAxiosError(error)) {
             throw (

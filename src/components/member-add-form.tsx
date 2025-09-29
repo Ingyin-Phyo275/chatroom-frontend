@@ -12,16 +12,16 @@ import { userListQuery } from "../composables/Queries/userListQuery";
 interface MemberAddFormProps {
   action?: "add" | "create";
   chatroomId?: string;
-  
+
 }
 
-export default function MemberAddForm({  action = "create", chatroomId }: MemberAddFormProps) {
+export default function MemberAddForm({ action = "create", chatroomId }: MemberAddFormProps) {
   const [groupName, setGroupName] = useState(""); // State for group name
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedContacts, setSelectedContacts] = useState<UserListResponse[]>([]);
   const queryClient = useQueryClient();
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value);
-const { userListData: contacts = [] } = userListQuery();
+  const { userListData: contacts = [] } = userListQuery();
   const toggleContact = (contact: UserListResponse) => {
     setSelectedContacts(prev =>
       prev.find(c => c.id === contact.id)
@@ -31,7 +31,6 @@ const { userListData: contacts = [] } = userListQuery();
   };
 
   const removeContact = (id: string) => setSelectedContacts(prev => prev.filter(c => c.id !== id));
-
   const filteredContacts = contacts.filter(contact =>
     contact.username.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -45,19 +44,18 @@ const { userListData: contacts = [] } = userListQuery();
       toast.error("Please select at least one member");
       return;
     }
-
     try {
       if (action === "add") {
         await addMembers({
-          chatroomId: Number( chatroomId!),
+          chatroomId: Number(chatroomId!),
           userIds: selectedContacts.map(c => c.id),
         });
         toast.success(`Added ${selectedContacts.length} member(s)`);
-        
-        // console.log("form update", chatroomId)
-        
-        queryClient.invalidateQueries({ queryKey: ["chatroomDetails", Number(chatroomId!)] });
 
+        // console.log("form update", chatroomId)
+        // console.log("Invalidating key:", ["chatroomDetails", String(chatroomId)]);
+        await queryClient.invalidateQueries({ queryKey: ["chatroomDetails", String(chatroomId)] });
+        await queryClient.refetchQueries({ queryKey: ["chatroomDetails", String(chatroomId)] });
       } else {
         const response = await createChatroom({
           name: groupName,

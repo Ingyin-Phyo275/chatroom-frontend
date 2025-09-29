@@ -16,7 +16,6 @@ type chatroomPageProps = {
 }
 export default function ChatroomPage({ selectedUser, loginUser }: chatroomPageProps) {
     const [showInfo, setShowInfo] = useState(false);
-
     return (
         <>
             <header className="flex sticky top-0 z-50 h-16 items-center justify-between px-4 border-b dark:border-slate-700">
@@ -91,8 +90,6 @@ export default function ChatroomPage({ selectedUser, loginUser }: chatroomPagePr
                             Select a user to start chatting
                         </div>
                     )}
-
-
                 </div>
 
                 {/*Show Info Panel (desktop: side panel, mobile: replaces chat) */}

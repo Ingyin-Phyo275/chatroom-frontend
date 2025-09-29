@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import {  useEffect, useState } from "react";
 import { Button } from "./ui/button";
 import { Bell, Contact, CirclePlus } from "lucide-react";
 import ChatMembersCard from "./chat-member-card";
@@ -13,33 +13,27 @@ import MemberAddForm from "./member-add-form";
 import { Dialog, DialogClose, DialogContent, DialogHeader } from "./ui/dialog";
 import type { loginResponse } from "../dto/response/LoginResponse";
 import type { UserListResponse } from "../dto/response/UserListResponse";
-import { getChatroomDetails } from "../http/api/getChatroomDetails";
 import type { ChatroomDetails } from "../dto/response/ChatroomDetails";
+import { useChatroomDetails } from "../composables/Queries/useChatroomDetails";
 
 interface ChatInfoProps {
   selectedUser: loginResponse | UserListResponse | any;
 }
-
-
 export default function ChatInfoPanel({ selectedUser }: ChatInfoProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [chatroom, setChatroom] = useState<ChatroomDetails | null>(null);
 
+  const { data, error, isLoading } = useChatroomDetails(selectedUser?.id);
+  console.log("ChatInfoPanel query key:", ["chatroomDetails", selectedUser?.id]);
+
   useEffect(() => {
-    const fetchChatroom = async () => {
-      if (!selectedUser?.id) return;
-      try {
-        const data = await getChatroomDetails(selectedUser.id);
-        setChatroom(data);
-        // console.log("selected user in chat info panel", data);
-      } catch (err) {
-        console.error("Failed to fetch chatroom details", err);
-      }
-    };
+    if (data) {
+      setChatroom(data);
+    }
+  }, [data]);
 
-    fetchChatroom();
-  }, [selectedUser?.id]);
-
+  if (isLoading) return <div>Loading...</div>;
+  if (error) return <div>Failed to fetch chatroom details</div>;
   const members: any = chatroom?.members ?? [];
 
   return (
@@ -58,9 +52,7 @@ export default function ChatInfoPanel({ selectedUser }: ChatInfoProps) {
             </Avatar.Fallback>
           )}
         </Avatar.Root>
-
         <p className="font-medium mt-2">{selectedUser?.username}</p>
-
         <div className="flex flex-row gap-4 mt-4">
           {selectedUser?.is_group ? (
             <div className="flex flex-col items-center">

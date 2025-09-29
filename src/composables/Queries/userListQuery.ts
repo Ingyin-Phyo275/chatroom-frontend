@@ -10,7 +10,6 @@ export const userListQuery = () => {
             return response;
         }
     });
-    // console.log("userListData", userListData)
     return {
         userListData: userListData.data,
         isLoading: userListData.isLoading,
