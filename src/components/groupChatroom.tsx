@@ -12,8 +12,6 @@ import AudioMessage from "./AudioPlayer";
 import { socket } from "../socket/socket";
 import { getChatroomDetails } from "../http/api/getChatroomDetails";
 import type { loginResponse } from "../dto/response/LoginResponse";
-import type { Message } from "../dto/response/ChatroomDetails";
-import type { GetAllMessage } from "../dto/response/GetAllMessage";
 
 type Attachment = { type: string; file: File; url?: string };
 
@@ -29,79 +27,101 @@ type Props = {
     loginUser: loginResponse;
 };
 
+export interface GetAllMessage {
+    id: number | string;
+    sender?: { id: number | string; username?: string };
+    chatroom?: { id: number | string; username?: string };
+    content?: string;
+    created_at?: string;
+    attachment_url?: string | null;
+    is_delivered?: boolean;
+    is_pinned?: boolean;
+    is_group?: boolean;
+}
+
 export default function GroupChatRoom({ user, loginUser }: Props) {
     const [messages, setMessages] = useState<GetAllMessage[]>([]);
     const [text, setText] = useState("");
     const [pendingAttachments, setPendingAttachments] = useState<Attachment[]>([]);
     const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
-    //   const [previewModal, setPreviewModal] = useState<{ type: string; url: string } | null>(null);
+
     const listRef = useRef<HTMLDivElement>(null);
     const imageInputRef = useRef<HTMLInputElement>(null);
     const videoInputRef = useRef<HTMLInputElement>(null);
     const audioInputRef = useRef<HTMLInputElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    useEffect(() => {
-        socket.onAny((event, ...args) => {
-            console.log("[SOCKET EVENT] in group chat", event, args);
-        });
-    }, []);
-    // Fetch chatroom messages 
+
     useEffect(() => {
         if (!user.id || !loginUser.user.id) return;
-        const fetchMessages = async () => {
-            try {
-                const chatroom = await getChatroomDetails(String(user.id));
+        socket.emit("join-room", {
+            chatroom_id: user.id,
+            user_id: loginUser.user.id,
+        });
+    }, [user.id, loginUser.user.id]);
 
-                const chatMessages: Message[] = chatroom.messages.map(m => ({
-                    id: m.id,
-                    sender: { id: m.sender.id, username: m.sender.username },
-                    receiver: m.receiver ? { id: m.receiver.id, username: m.receiver.username } : undefined,
-                    content: m.content ?? "",
-                    created_at: m.created_at ?? new Date().toISOString(),
-                    attachment_url: m.attachment_url ?? null,
-                    is_delivered: m.is_delivered ?? true,
-                    is_pinned: m.is_pinned ?? false,
-                    //   reads: m.reads?.map(r => r.id.toString()) ?? []
-                }));
-                setMessages(chatMessages);
-            } catch (err) {
-                console.error("Failed to fetch group messages:", err);
-            }
-        };
 
-        fetchMessages();
-        // Join socket room
-        socket.emit("join", { userId: String(loginUser.user.id) });
-
-        // Listen for new messages
+    useEffect(() => {
         const handleNewMessage = (msg: GetAllMessage) => {
+            console.log("🔥 Incoming message:", msg);
+
+            // Normalize IDs to string for safe comparison
+            const senderId = msg.sender?.id?.toString();
+            const chatroomId = msg.chatroom?.id?.toString();
+            const userId = user.id.toString();
+            const loginId = loginUser.user.id.toString();
+
             if (
-                msg.is_group ||
-                (msg.sender?.id === user.id && msg.receiver?.id === loginUser.user.id) ||
-                (msg.sender?.id === loginUser.user.id && msg.receiver?.id === user.id)
+                !msg.is_group ||
+                (senderId === userId && chatroomId === loginId) ||
+                (senderId === loginId && chatroomId === userId)
             ) {
+                console.log("📩 Passed filter, adding to UI:", msg);
                 setMessages((prev) => [...prev, msg]);
             }
         };
-        
+
         socket.on("receive-message", handleNewMessage);
         return () => {
             socket.off("receive-message", handleNewMessage);
         };
     }, [user.id, loginUser.user.id]);
 
-    // Scroll to bottom when messages change
+
+    useEffect(() => {
+        if (!user.id || !loginUser.user.id) return;
+        const fetchMessages = async () => {
+            try {
+                const chatroom = await getChatroomDetails(String(user.id));
+                const chatMessages: GetAllMessage[] = chatroom.messages.map((m: any) => ({
+                    id: m.id,
+                    sender: { id: m.sender.id, username: m.sender.username },
+                    chatroom: m.receiver ? { id: m.receiver.id, username: m.receiver.username } : undefined,
+                    content: m.content ?? "",
+                    created_at: m.created_at ?? new Date().toISOString(),
+                    attachment_url: m.attachment_url ?? null,
+                    is_delivered: m.is_delivered ?? true,
+                    is_pinned: m.is_pinned ?? false,
+                }));
+                setMessages(chatMessages);
+            } catch (err) {
+                console.error("Failed to fetch group messages:", err);
+            }
+        };
+        fetchMessages();
+    }, [user.id, loginUser.user.id]);
+
     useEffect(() => {
         if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight;
     }, [messages]);
 
     const sendMessage = () => {
         if (!text.trim() && pendingAttachments.length === 0) return;
+
         const newMsg: GetAllMessage = {
             id: Date.now().toString(),
             sender: { id: loginUser.user.id, username: loginUser.user.name },
-            receiver: { id: user.id, username: user.username },
+            chatroom: { id: user.id, username: user.username },
             content: text.trim(),
             created_at: new Date().toISOString(),
             attachment_url: null,
@@ -116,12 +136,13 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
 
         socket.emit("chat-message", {
             sender_id: newMsg.sender?.id,
-            receiver_id: newMsg.receiver?.id,
+            chatroom_id: newMsg.chatroom?.id,
             content: newMsg.content,
             attachment_url: newMsg.attachment_url,
             is_group: true,
         });
     };
+
 
     const handleAttachmentClick = (type: string) => {
         switch (type) {
@@ -140,6 +161,7 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
         setShowAttachmentMenu(false);
     };
 
+
     return (
         <div className="flex flex-col h-[calc(100vh-4rem)]">
             {/* Messages */}
@@ -151,12 +173,12 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
                             {!isOwn && (
                                 <Avatar.Root className="w-10 h-10 rounded-full overflow-hidden">
                                     <Avatar.Image
-                                        src={user.avatar_url || undefined}
-                                        alt={user.username}
+                                        src={(m.sender as any)?.avatar || undefined} // sender's avatar
+                                        alt={m.sender?.username || "User"}
                                         className="w-full h-full rounded-full object-cover"
                                     />
                                     <Avatar.Fallback className="w-full h-full rounded-full flex items-center justify-center bg-gray-500 text-white font-semibold">
-                                        {m.sender?.username.slice(0, 2).toUpperCase()}
+                                        {m.sender?.username ? m.sender.username.slice(0, 2).toUpperCase() : "U"}
                                     </Avatar.Fallback>
                                 </Avatar.Root>
                             )}
@@ -167,9 +189,15 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
                                         {m.attachment_url.match(/\.(jpeg|jpg|png|gif)$/i) && <img src={m.attachment_url} className="max-w-full max-h-60 rounded-lg" />}
                                         {m.attachment_url.match(/\.(mp4|webm)$/i) && <video src={m.attachment_url} controls className="max-w-full max-h-60 rounded-lg" />}
                                         {m.attachment_url.match(/\.(mp3|wav)$/i) && <AudioMessage file={m.attachment_url} />}
-                                        {!m.attachment_url.match(/\.(jpeg|jpg|png|gif|mp4|webm|mp3|wav)$/i) && <a href={m.attachment_url} target="_blank" rel="noopener noreferrer" className="text-blue-500 underline">Download file</a>}
+                                        {!m.attachment_url.match(/\.(jpeg|jpg|png|gif|mp4|webm|mp3|wav)$/i) && (
+                                            <a href={m.attachment_url} target="_blank" rel="noopener noreferrer" className="text-blue-500 underline">
+                                                Download file
+                                            </a>
+                                        )}
                                     </div>
-                                ) : m.content}
+                                ) : (
+                                    m.content
+                                )}
 
                                 <div className="text-xs text-slate-300 mt-1 flex justify-between">
                                     <span>{new Date(m.created_at!).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
@@ -200,7 +228,13 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
                 <input type="file" accept="audio/*" multiple className="hidden" ref={audioInputRef} onChange={(e) => handleFileSelect(e, "audio")} />
                 <input type="file" multiple className="hidden" ref={fileInputRef} onChange={(e) => handleFileSelect(e, "file")} />
 
-                <textarea value={text} onChange={(e) => setText(e.target.value)} placeholder="Type a message..." className="flex-1 rounded-2xl resize-none p-2 min-h-[44px] max-h-40 border focus:outline-none" onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }} />
+                <textarea
+                    value={text}
+                    onChange={(e) => setText(e.target.value)}
+                    placeholder="Type a message..."
+                    className="flex-1 rounded-2xl resize-none p-2 min-h-[44px] max-h-40 border focus:outline-none"
+                    onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
+                />
                 <button onClick={sendMessage} className="px-4 py-2 rounded-full bg-primary text-white"><Send /></button>
             </div>
         </div>

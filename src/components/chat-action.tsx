@@ -6,10 +6,23 @@ import {
 } from "@/components/ui/dropdown-menu";
 import type { ChatUserType } from "@/dto/UserTypes";
 import { Archive, EllipsisVertical, Pin, Trash } from "lucide-react";
+import { toast } from "sonner";
+import { deleteChat } from "../http/api/deleteChat";
 interface ChatActionProps {
     user: ChatUserType
 }
 export default function ChatAction({user}: ChatActionProps) {
+  const loginUser = JSON.parse(localStorage.getItem('user')!);
+  const handleDelete = async () => {
+    try{
+      const chatId = user?.id;
+      const loginUserId = loginUser?.user?.id;
+      const response = await deleteChat({chatId, userId: loginUserId});
+      console.log("response", response);
+    }catch(error){
+      toast.error("Error while deleting chat!");
+    }
+  }
   return (
     <div>
       <DropdownMenu>
@@ -23,11 +36,11 @@ export default function ChatAction({user}: ChatActionProps) {
         </DropdownMenuTrigger>
 
         <DropdownMenuContent className="w-40">
-          <DropdownMenuItem onClick={() => alert(`Pin chat: ${user.username}`)}>
+          <DropdownMenuItem onClick={() => alert(`Pin chat: ${user.id}- ${loginUser.user.id}`)}>
            <Pin className="w-4 h-4 mr-2" /> Pin 
           </DropdownMenuItem>
           <DropdownMenuItem
-            onClick={() => alert(`Delete chat: ${user.username}`)}
+            onClick={() => handleDelete()}
           >
             <Trash className="w-4 h-4 mr-2" /> Delete
           </DropdownMenuItem>

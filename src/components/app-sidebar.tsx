@@ -20,18 +20,17 @@ import MemberAddForm from "./member-add-form";
 import { Dialog, DialogClose, DialogContent, DialogHeader } from "./ui/dialog";
 import { DialogTitle } from "@radix-ui/react-dialog";
 import { CirclePlus } from "lucide-react";
+
 export function AppSidebar({
   selectedUser,
   onSelectUser,
-  users,
   ...props
 }: {
   selectedUser: ChatUserType | null
   onSelectUser: (user: ChatUserType) => void
-  users: ChatUserType[]
 } & React.ComponentProps<typeof Sidebar>) {
   const [tabs, setTabs] = React.useState("Contacts");
-  const tabList = ["Contacts", "All", "Personal", "Group"];
+  const tabList = ["Contacts",  "Personal", "Group"];
   const [isOpen, setIsOpen] = React.useState(false);
   const loginUserString = localStorage.getItem("user");
   
@@ -51,6 +50,7 @@ export function AppSidebar({
       console.error("Failed to parse user from localStorage", error);
     }
   }
+
 
   return (
     <Sidebar variant="inset" {...props}>
@@ -112,7 +112,7 @@ export function AppSidebar({
         </div>
       </SidebarHeader>
       <SidebarContent>
-        <ChatUsers  users={users} tabs={tabs} onSelectUser={onSelectUser} />
+        <ChatUsers  tabs={tabs} onSelectUser={onSelectUser} />
       </SidebarContent>
       <SidebarFooter className="bg-primary rounded-2xl hover:bg-primary">
         {loginUser && <NavUser user={loginUser} />}

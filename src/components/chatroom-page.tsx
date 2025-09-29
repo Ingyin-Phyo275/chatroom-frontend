@@ -83,6 +83,7 @@ export default function ChatroomPage({ selectedUser, loginUser }: chatroomPagePr
                         selectedUser.is_group ? (
                             <GroupChatroom user={selectedUser} loginUser={loginUser} />
                         ) : (
+                            
                             <ChatRoom user={selectedUser} loginUser={loginUser} />
                         )
                     ) : (

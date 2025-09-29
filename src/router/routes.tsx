@@ -4,6 +4,7 @@ import Register from "@/features/Register/register";
 import Dashboard from "@/features/dashboard/dashboard";
 import { createBrowserRouter } from "react-router-dom";
 import { ProtectedRoute, PublicRoute } from "./guard";
+import { AudioCall } from "../components/AudioCall";
 
 const router = createBrowserRouter([
   {
@@ -35,6 +36,14 @@ const router = createBrowserRouter([
     element: (
       <ProtectedRoute>
         <App />
+      </ProtectedRoute>
+    ),
+  },
+    {
+    path: "/audio-call",
+    element: (
+      <ProtectedRoute>
+        <AudioCall />
       </ProtectedRoute>
     ),
   },

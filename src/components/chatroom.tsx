@@ -16,6 +16,7 @@ import * as Avatar from "@radix-ui/react-avatar";
 import AudioMessage from "./AudioPlayer";
 import { socket } from "../socket/socket";
 import type { loginResponse } from "../dto/response/LoginResponse";
+import { formatMessageDate } from "../hooks/helper";
 
 type Attachment = { type: string; file: File; url?: string };
 
@@ -27,7 +28,7 @@ type Message = {
   created_at: string;
   is_delivered?: boolean;
   is_pinned?: boolean;
-  attachment_url?: string | null; // backend sends URL, not File[]
+  attachment_url?: string | null;
 };
 
 interface ChatRoomProps {
@@ -55,75 +56,68 @@ export default function ChatRoom({ user, loginUser }: ChatRoomProps) {
     setText("");
   }, [user, loginUser.user.id]);
 
-
-useEffect(() => {
-  socket.onAny((event, ...args) => {
-    console.log("[SOCKET EVENT] in privaet room", event, args);
-  });
-}, []);
+  useEffect(() => {
+    socket.onAny((event, ...args) => {
+      console.log("[SOCKET EVENT] in private room", event, args);
+    });
+  }, []);
 
   // --- Listen for incoming messages ---
-useEffect(() => {
-  if (!socket) return;
+  useEffect(() => {
+    if (!socket) return;
 
-  // 1️ Join the room
-  socket.emit("join", { userId: loginUser.user.id });
+    socket.emit("join", { userId: loginUser.user.id });
+    socket.emit("request-messages", { userId: loginUser.user.id });
 
-  // 2 Request previous messages
-  socket.emit("request-messages", { userId: loginUser.user.id });
+    const handleAllMessages = (msgs: any[]) => {
+      const transformed = msgs.flat().map(msg => ({
+        id: String(msg.id),
+        sender: String(msg.sender?.id),
+        receiver: String(msg.receiver?.id),
+        content: msg.content || "",
+        created_at: msg.created_at || new Date().toISOString(),
+        attachment_url: msg.attachment_url || null,
+        is_delivered: msg.is_delivered ?? true,
+        is_pinned: msg.is_pinned ?? false,
+      }));
 
-  // 3 Handle message history
-  const handleAllMessages = (msgs: any[]) => {
-    const transformed = msgs.flat().map(msg => ({
-      id: String(msg.id),
-      sender: String(msg.sender?.id),
-      receiver: String(msg.receiver?.id),
-      content: msg.content || "",
-      created_at: msg.created_at || new Date().toISOString(),
-      attachment_url: msg.attachment_url || null,
-      is_delivered: msg.is_delivered ?? true,
-      is_pinned: msg.is_pinned ?? false,
-    }));
+      const filtered = transformed.filter(
+        m =>
+          (m.sender === String(loginUser.user.id) && m.receiver === String(user.id)) ||
+          (m.sender === String(user.id) && m.receiver === String(loginUser.user.id))
+      );
 
-    const filtered = transformed.filter(
-      m =>
-        (m.sender === String(loginUser.user.id) && m.receiver === String(user.id)) ||
-        (m.sender === String(user.id) && m.receiver === String(loginUser.user.id))
-    );
-
-    setMessages(filtered);
-  };
-
-  socket.on("get-messages", handleAllMessages);
-
-  // 4️ Handle new incoming messages in real-time
-  const handleNewMessage = (msg: any) => {
-    const newMsg = {
-      id: String(msg.id),
-      sender: String(msg.sender?.id),
-      receiver: String(msg.receiver?.id),
-      content: msg.content || "",
-      created_at: msg.created_at || new Date().toISOString(),
-      attachment_url: msg.attachment_url || null,
-      is_delivered: msg.is_delivered ?? true,
-      is_pinned: msg.is_pinned ?? false,
+      setMessages(filtered);
     };
 
-    if (
-      (newMsg.sender === String(user.id) && newMsg.receiver === String(loginUser.user.id)) ||
-      (newMsg.sender === String(loginUser.user.id) && newMsg.receiver === String(user.id))
-    ) {
-      setMessages(prev => [...prev, newMsg]);
-    }
-  };
+    socket.on("get-messages", handleAllMessages);
 
-  socket.on("receive-message", handleNewMessage);
-  return () => {
-    socket.off("get-messages", handleAllMessages);
-    socket.off("receive-message", handleNewMessage);
-  };
-}, [loginUser.user.id, user.id]);
+    const handleNewMessage = (msg: any) => {
+      const newMsg = {
+        id: String(msg.id),
+        sender: String(msg.sender?.id),
+        receiver: String(msg.receiver?.id),
+        content: msg.content || "",
+        created_at: msg.created_at || new Date().toISOString(),
+        attachment_url: msg.attachment_url || null,
+        is_delivered: msg.is_delivered ?? true,
+        is_pinned: msg.is_pinned ?? false,
+      };
 
+      if (
+        (newMsg.sender === String(user.id) && newMsg.receiver === String(loginUser.user.id)) ||
+        (newMsg.sender === String(loginUser.user.id) && newMsg.receiver === String(user.id))
+      ) {
+        setMessages(prev => [...prev, newMsg]);
+      }
+    };
+
+    socket.on("receive-message", handleNewMessage);
+    return () => {
+      socket.off("get-messages", handleAllMessages);
+      socket.off("receive-message", handleNewMessage);
+    };
+  }, [loginUser.user.id, user.id]);
 
   // --- Send message ---
   const sendMessage = () => {
@@ -140,12 +134,10 @@ useEffect(() => {
       is_pinned: false,
     };
 
-    // Update local state instantly
-    setMessages((prev) => [...prev, newMsg]);
+    setMessages(prev => [...prev, newMsg]);
     setText("");
     setPendingAttachments([]);
 
-    // Emit to backend
     const payload = {
       sender_id: newMsg.sender,
       receiver_id: newMsg.receiver,
@@ -153,7 +145,6 @@ useEffect(() => {
       attachment_url: newMsg.attachment_url,
     };
 
-    console.log("socket payload", payload);
     socket.emit("send-message", payload);
   };
 
@@ -189,99 +180,117 @@ useEffect(() => {
     setShowAttachmentMenu(false);
   };
 
+  const groupedMessages = messages.reduce((groups: Record<string, Message[]>, msg) => {
+    const day = new Date(msg.created_at).toDateString();
+    if (!groups[day]) groups[day] = [];
+    groups[day].push(msg);
+    return groups;
+  }, {});
+
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)]">
       {/* Messages */}
-      <div ref={listRef} className="flex-1 overflow-auto p-4 space-y-3">
-        {messages.map((m) => {
-          const isOwn = m.sender === String(loginUser.user.id);
-          return (
-            <div key={m.id} className={`flex ${isOwn ? "justify-end" : "justify-start"} gap-3`}>
-              {!isOwn && (
-                <div
-                  className={`relative w-10 h-10 ${user.status === "online" ? "ring-2 ring-green-500" : ""
-                    } rounded-full`}
-                >
-                  <Avatar.Root className="w-10 h-10 rounded-full overflow-hidden">
-                    <Avatar.Image
-                      src={user.avatar_url}
-                      alt={user.username}
-                      className="w-full h-full rounded-full object-cover"
-                    />
-                    <Avatar.Fallback className="w-full h-full rounded-full flex items-center justify-center bg-gray-500 text-white font-semibold">
-                      {user.username.slice(0, 2).toUpperCase()}
-                    </Avatar.Fallback>
-                  </Avatar.Root>
-                </div>
-              )}
-
-              <div
-                className={`max-w-[70%] p-2 rounded-lg relative ${isOwn
-                    ? "bg-primary text-white rounded-br-none"
-                    : "bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-100 rounded-bl-none"
-                  }`}
-              >
-                <div className="mt-1 text-sm space-y-2">
-                  {/* Render attachments if exist */}
-                  {m.attachment_url ? (
-                    <div>
-                      {m.attachment_url.match(/\.(jpeg|jpg|png|gif)$/i) && (
-                        <img
-                          src={m.attachment_url}
-                          alt="attachment"
-                          className="max-w-full max-h-60 rounded-lg"
-                        />
-                      )}
-                      {m.attachment_url.match(/\.(mp4|webm)$/i) && (
-                        <video
-                          src={m.attachment_url}
-                          controls
-                          className="max-w-full max-h-60 rounded-lg"
-                        />
-                      )}
-                      {m.attachment_url.match(/\.(mp3|wav)$/i) && (
-                        <AudioMessage file={m.attachment_url} />
-                      )}
-                      {!m.attachment_url.match(
-                        /\.(jpeg|jpg|png|gif|mp4|webm|mp3|wav)$/i
-                      ) && (
-                          <a
-                            href={m.attachment_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-500 underline"
-                          >
-                            Download file
-                          </a>
-                        )}
-                    </div>
-                  ) : (
-                    m.content
-                  )}
-                </div>
-
-                <div className="flex justify-between items-center mt-1 text-xs text-slate-300">
-                  <span>
-                    {new Date(m.created_at).toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </span>
-                  {isOwn && (
-                    <span className="ml-2 flex items-center gap-0.5">
-                      {m.is_delivered  && (
-                        <CheckCheck className="w-3 h-3 text-white" />
-                      )}
-                      {/* {m.is_pinned && (
-                        <CheckCheck className="w-3 h-3 text-white" />
-                      )} */}
-                    </span>
-                  )}
-                </div>
-              </div>
+      <div ref={listRef} className="flex-1 overflow-auto p-4 space-y-6">
+        {Object.keys(groupedMessages).map((day) => (
+          <div key={day} className="space-y-3">
+            {/* Date Divider */}
+            <div className="flex justify-center">
+              <span className="px-3 py-1 text-xs rounded-full bg-slate-300/70 dark:bg-slate-600/70">
+                {formatMessageDate(groupedMessages[day][0].created_at)}
+              </span>
             </div>
-          );
-        })}
+
+            {/* Messages of this day */}
+            {groupedMessages[day].map((m) => {
+              const isOwn = m.sender === String(loginUser.user.id);
+              return (
+                <div key={m.id} className={`flex ${isOwn ? "justify-end" : "justify-start"} gap-3`}>
+                  {!isOwn && (
+                    <div
+                      className={`relative w-10 h-10 ${
+                        user.status === "online" ? "ring-2 ring-green-500" : ""
+                      } rounded-full`}
+                    >
+                      <Avatar.Root className="w-10 h-10 rounded-full overflow-hidden">
+                        <Avatar.Image
+                          src={user.avatar_url}
+                          alt={user.username}
+                          className="w-full h-full rounded-full object-cover"
+                        />
+                        <Avatar.Fallback className="w-full h-full rounded-full flex items-center justify-center bg-gray-500 text-white font-semibold">
+                          {user.username.slice(0, 2).toUpperCase()}
+                        </Avatar.Fallback>
+                      </Avatar.Root>
+                    </div>
+                  )}
+
+                  <div
+                    className={`max-w-[70%] p-2 rounded-lg relative ${
+                      isOwn
+                        ? "bg-primary text-white rounded-br-none"
+                        : "bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-100 rounded-bl-none"
+                    }`}
+                  >
+                    <div className="mt-1 text-sm space-y-2">
+                      {m.attachment_url ? (
+                        <div>
+                          {m.attachment_url.match(/\.(jpeg|jpg|png|gif)$/i) && (
+                            <img
+                              src={m.attachment_url}
+                              alt="attachment"
+                              className="max-w-full max-h-60 rounded-lg"
+                            />
+                          )}
+                          {m.attachment_url.match(/\.(mp4|webm)$/i) && (
+                            <video
+                              src={m.attachment_url}
+                              controls
+                              className="max-w-full max-h-60 rounded-lg"
+                            />
+                          )}
+                          {m.attachment_url.match(/\.(mp3|wav)$/i) && (
+                            <AudioMessage file={m.attachment_url} />
+                          )}
+                          {!m.attachment_url.match(
+                            /\.(jpeg|jpg|png|gif|mp4|webm|mp3|wav)$/i
+                          ) && (
+                            <a
+                              href={m.attachment_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-500 underline"
+                            >
+                              Download file
+                            </a>
+                          )}
+                        </div>
+                      ) : (
+                        m.content
+                      )}
+                    </div>
+
+                    <div className="flex justify-between items-center mt-1 text-xs text-slate-300">
+                      <span>
+                        {new Date(m.created_at).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </span>
+                      {isOwn && (
+                        <span className="ml-2 flex items-center gap-0.5">
+                          {m.is_delivered && (
+                            <CheckCheck className="w-3 h-3 text-white" />
+                          )}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  
+                </div>
+              );
+            })}
+          </div>
+        ))}
       </div>
 
       {/* Pending attachments */}
@@ -328,7 +337,7 @@ useEffect(() => {
                 <a
                   href={URL.createObjectURL(att.file)}
                   download={att.file.name}
-                  className="p-1 rounded text-white hover:bg-green-600"
+                  className="p-1 rounded text-green-600 hover:text-white hover:bg-green-600"
                 >
                   <Download className="w-4 h-4" />
                 </a>
@@ -338,7 +347,7 @@ useEffect(() => {
                       prev.filter((_, idx) => idx !== i)
                     )
                   }
-                  className="p-1 rounded text-white hover:bg-red-600"
+                  className="p-1 rounded text-red-600 hover:text-white hover:bg-red-600"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -350,7 +359,6 @@ useEffect(() => {
 
       {/* Input + attachment */}
       <div className="p-4 border-t flex gap-2 flex-shrink-0 items-center">
-        {/* Attachment icon */}
         <div className="relative">
           <button
             onClick={() => setShowAttachmentMenu((prev) => !prev)}
@@ -389,7 +397,6 @@ useEffect(() => {
           )}
         </div>
 
-        {/* Hidden file inputs */}
         <input
           type="file"
           accept="image/*"

@@ -8,32 +8,36 @@ import type { UserListResponse } from "../dto/response/UserListResponse";
 import type { GroupChatResponse } from "../dto/response/ChatRoom";
 import { useGroupChatList } from "../composables/Queries/useGroupChatList";
 import { userListQuery } from "../composables/Queries/userListQuery";
+import { chatUserListQuery } from "../composables/Queries/ChatUserListQuery";
 
 interface ChatUsersProps {
-  users: ChatUserType[];
   tabs: string;
   onSelectUser: (user: ChatUserType) => void;
 }
 
 export default function ChatUsers({
-  users,
   tabs,
   onSelectUser,
 }: ChatUsersProps) {
   const [searchTerm, setSearchTerm] = React.useState("");
   const [filteredUsers, setFilteredUsers] = useState<ChatUserType[]>([]);
 
-  const { groupChatListQuery: groupChatList = [] as GroupChatResponse[]} =  useGroupChatList();//    console.log("group chat props", groupsChats);
+  //group chats list
+  const { groupChatListQuery: groupChatList = [] as GroupChatResponse[]} =  useGroupChatList();
+
+  //user's contact list
   const { userListData: contact =[] as UserListResponse[]}  = userListQuery();
 
-// console.log("grou chat list", groupChatList);
+  //user's personal chat list
+  const { userListData: users =[] as ChatUserType[] }  = chatUserListQuery();
+  // console.log("result in chat users", users);
+
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
   };
 
 React.useEffect(() => {
   let newFiltered: ChatUserType[] = [];
-
   if (tabs === "Contacts") {
     newFiltered = contact.filter((c) =>
       c.username.toLowerCase().includes(searchTerm.toLowerCase())
@@ -52,13 +56,12 @@ React.useEffect(() => {
         avatar_url: "",
       }));
   } else {
-    newFiltered = users
-      .filter((user) => (tabs === "Personal" ? !user.is_group : true))
-      .filter((user) =>
-        user.username.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-  }
-
+  newFiltered = users
+    .filter((user) => (tabs === "Personal" ? !user.is_group : true))
+    .filter((user) =>
+      user.username.toLowerCase().includes(searchTerm.toLowerCase())
+    ) as ChatUserType[]; 
+}
   // Only update state if it’s different
   setFilteredUsers((prev) => {
     if (JSON.stringify(prev) === JSON.stringify(newFiltered)) return prev;
@@ -66,11 +69,9 @@ React.useEffect(() => {
   });
 }, [tabs, users, contact, groupChatList, searchTerm]);
 
-
   const handleClick = async (user: ChatUserType) => {
     onSelectUser(user);
   };
-
 
   return (
     <div className="flex flex-col h-full w-full">

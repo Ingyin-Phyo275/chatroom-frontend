@@ -7,8 +7,7 @@ export const getChatroomDetails = async (id: string) => {
     const response = await axiosInstance.get(`/chatroom/get-chatroom-details/${id}`);
 
     const chatroom: ChatroomDetails = response.data.data;
-    console.log("chatroom response members", chatroom.members);
-    console.log("chatroom response message", chatroom.messages);
+    // console.log("chatroom response members", chatroom.members);
 
     return {
       id: chatroom.id,
