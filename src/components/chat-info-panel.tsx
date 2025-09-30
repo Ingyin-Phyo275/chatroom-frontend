@@ -22,8 +22,9 @@ interface ChatInfoProps {
 export default function ChatInfoPanel({ selectedUser }: ChatInfoProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [chatroom, setChatroom] = useState<ChatroomDetails | null>(null);
-
-  const { data, error, isLoading } = useChatroomDetails(selectedUser?.id);
+  const page = 1;
+  const pageSize = 10;
+  const { data, error, isLoading } = useChatroomDetails({chatroomId:selectedUser?.id, page, pageSize});
   console.log("ChatInfoPanel query key:", ["chatroomDetails", selectedUser?.id]);
 
   useEffect(() => {

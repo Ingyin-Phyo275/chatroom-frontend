@@ -8,7 +8,6 @@ import ChatInfoPanel from "./chat-info-panel"
 import type { loginResponse } from "../dto/response/LoginResponse"
 import * as Avatar from "@radix-ui/react-avatar";
 import GroupChatroom from "./groupChatroom"
-// import ChatRoom from "../chatroom"
 
 type chatroomPageProps = {
     selectedUser: ChatUserType,
@@ -26,7 +25,7 @@ export default function ChatroomPage({ selectedUser, loginUser }: chatroomPagePr
 
                 {/* Center: User avatar + name + status */}
                 {selectedUser && (
-                    <div className="flex items-center gap-3 max-lg:hidden">
+                    <div className="flex items-center gap-3 max-md:hidden">
                         <div className={` relative w-10 h-10 ${selectedUser.status === "online"
                             ? "ring-2 ring-green-500"
                             : ""
@@ -83,7 +82,7 @@ export default function ChatroomPage({ selectedUser, loginUser }: chatroomPagePr
                         selectedUser.is_group ? (
                             <GroupChatroom user={selectedUser} loginUser={loginUser} />
                         ) : (
-                            
+
                             <ChatRoom user={selectedUser} loginUser={loginUser} />
                         )
                     ) : (

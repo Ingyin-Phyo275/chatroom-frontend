@@ -1,49 +1,35 @@
 import { useEffect, useRef, useState } from "react";
-import {
-    Send,
-    Paperclip,
-    ImageIcon,
-    VideoIcon,
-    Music,
-    CheckCheck,
-} from "lucide-react";
+import { Send, Paperclip, ImageIcon, VideoIcon, Music, CheckCheck, Pin, Trash, File, Download, X, Pen } from "lucide-react";
 import * as Avatar from "@radix-ui/react-avatar";
 import AudioMessage from "./AudioPlayer";
 import { socket } from "../socket/socket";
 import { getChatroomDetails } from "../http/api/getChatroomDetails";
+import { editGroupChatMessage } from "../http/api/editGroupChatMessage";
+import { toast } from "sonner";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu";
+import { formatMessageDate } from "../hooks/helper";
 import type { loginResponse } from "../dto/response/LoginResponse";
+import type { ChatUserType } from "../dto/UserTypes";
+import type { GetAllMessage } from "../dto/response/GetAllMessage";
 
 type Attachment = { type: string; file: File; url?: string };
-
-type User = {
-    id: number | string;
-    username: string;
-    avatar_url?: string | null;
-    status?: string;
-};
-
-type Props = {
-    user: User;
-    loginUser: loginResponse;
-};
-
-export interface GetAllMessage {
-    id: number | string;
-    sender?: { id: number | string; username?: string };
-    chatroom?: { id: number | string; username?: string };
-    content?: string;
-    created_at?: string;
-    attachment_url?: string | null;
-    is_delivered?: boolean;
-    is_pinned?: boolean;
-    is_group?: boolean;
-}
+type Props = { user: ChatUserType; loginUser: loginResponse };
 
 export default function GroupChatRoom({ user, loginUser }: Props) {
     const [messages, setMessages] = useState<GetAllMessage[]>([]);
     const [text, setText] = useState("");
     const [pendingAttachments, setPendingAttachments] = useState<Attachment[]>([]);
     const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
+    const [previewModal, setPreviewModal] = useState<{ type: string; url: string } | null>(null);
+    const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+
+    const [page, setPage] = useState(1);
+    const [pageSize] = useState(10);
+    const [totalPages, setTotalPages] = useState(1);
+    const [loadingMore, setLoadingMore] = useState(false);
+
+    const [isAtBottom, setIsAtBottom] = useState(true);
+    const [newMessageCount, setNewMessageCount] = useState(0);
 
     const listRef = useRef<HTMLDivElement>(null);
     const imageInputRef = useRef<HTMLInputElement>(null);
@@ -51,32 +37,22 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
     const audioInputRef = useRef<HTMLInputElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-
+    // Join chatroom
     useEffect(() => {
         if (!user.id || !loginUser.user.id) return;
-        socket.emit("join-room", {
-            chatroom_id: user.id,
-            user_id: loginUser.user.id,
-        });
+        socket.emit("join-room", { chatroom_id: user.id, user_id: loginUser.user.id });
     }, [user.id, loginUser.user.id]);
 
-
+    // Listen for new messages
     useEffect(() => {
         const handleNewMessage = (msg: GetAllMessage) => {
-            console.log("🔥 Incoming message:", msg);
-
-            // Normalize IDs to string for safe comparison
             const senderId = msg.sender?.id?.toString();
             const chatroomId = msg.chatroom?.id?.toString();
             const userId = user.id.toString();
             const loginId = loginUser.user.id.toString();
+            console.log("🔥 Incoming message:", msg);
 
-            if (
-                !msg.is_group ||
-                (senderId === userId && chatroomId === loginId) ||
-                (senderId === loginId && chatroomId === userId)
-            ) {
-                console.log("📩 Passed filter, adding to UI:", msg);
+            if (!msg.is_group || (senderId === userId && chatroomId === loginId) || (senderId === loginId && chatroomId === userId)) {
                 setMessages((prev) => [...prev, msg]);
             }
         };
@@ -88,35 +64,123 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
     }, [user.id, loginUser.user.id]);
 
 
+    // Fetch a specific page
+    const fetchPage = async (pageNumber: number) => {
+        //console.log("Fetching Page");
+        const chatroom = await getChatroomDetails({ chatroomId: Number(user.id), page: pageNumber, pageSize });
+        const chatMessages: GetAllMessage[] = chatroom.messages.map((m: any) => ({
+            id: m.id,
+            sender: { id: m.sender.id, username: m.sender.username },
+            chatroom: m.receiver ? { id: m.receiver.id, username: m.receiver.username } : undefined,
+            content: m.content ?? "",
+            created_at: m.created_at ?? new Date().toISOString(),
+            attachment_url: m.attachment_url ?? null,
+            is_delivered: m.is_delivered ,
+            is_pinned: m.is_pinned ?? false,
+        }));
+        return { chatMessages, totalPage: chatroom.totalPage ?? 1 };
+    };
+
+    // Load latest messages
+// Load latest messages (only once per room)
+useEffect(() => {
+  const loadLatestMessages = async () => {
+    if (!user.id) return;
+    try {
+      // Get total pages
+      const firstPage = await fetchPage(1);
+      const totalPage = firstPage.totalPage;
+      setTotalPages(totalPage);
+
+      let currentPage = totalPage;
+      let allMessages: GetAllMessage[] = [];
+      let scrollable = false;
+
+      // Keep loading from the last page backwards until scroll is possible
+      while (!scrollable && currentPage > 0) {
+        const { chatMessages } = await fetchPage(currentPage);
+        allMessages = [...chatMessages, ...allMessages];
+        setMessages([...allMessages]);
+
+        // Wait for DOM to update
+        await new Promise((r) => setTimeout(r, 50));
+
+        if (listRef.current && listRef.current.scrollHeight > listRef.current.clientHeight) {
+          scrollable = true;
+        } else {
+          currentPage--;
+        }
+      }
+
+      // Scroll to bottom after loading
+      scrollToBottom();
+      setPage(currentPage);
+    } catch (err) {
+      console.error("Failed to load latest messages:", err);
+    }
+  };
+
+  loadLatestMessages();
+}, [user.id]); // runs only when chatroom changes
+
+
+
+
+    // Scroll event for infinite scroll & bottom detection
     useEffect(() => {
-        if (!user.id || !loginUser.user.id) return;
-        const fetchMessages = async () => {
-            try {
-                const chatroom = await getChatroomDetails(String(user.id));
-                const chatMessages: GetAllMessage[] = chatroom.messages.map((m: any) => ({
-                    id: m.id,
-                    sender: { id: m.sender.id, username: m.sender.username },
-                    chatroom: m.receiver ? { id: m.receiver.id, username: m.receiver.username } : undefined,
-                    content: m.content ?? "",
-                    created_at: m.created_at ?? new Date().toISOString(),
-                    attachment_url: m.attachment_url ?? null,
-                    is_delivered: m.is_delivered ?? true,
-                    is_pinned: m.is_pinned ?? false,
-                }));
-                setMessages(chatMessages);
-            } catch (err) {
-                console.error("Failed to fetch group messages:", err);
-            }
+        const handleScroll = async () => {
+            console.log("Scroll event");
+            if (!listRef.current) return;
+            const { scrollTop, scrollHeight, clientHeight } = listRef.current;
+            const atBottom = scrollHeight - (scrollTop + clientHeight) < 50;
+            setIsAtBottom(atBottom);
+            if (atBottom) setNewMessageCount(0);
+
+            // // Infinite scroll
+            // if (scrollTop < 50 && !loadingMore && page > 1) {
+            //     setLoadingMore(true);
+            //     const nextPage = page - 1;
+            //     try {
+            //         const { chatMessages } = await fetchPage(nextPage);
+            //         //console.log("Chat Message", chatMessages)
+            //         const currentScrollHeight = listRef.current.scrollHeight;
+            //         setMessages((prev) => [...chatMessages, ...prev]);
+            //         setPage(nextPage);
+            //         setTimeout(() => {
+            //             if (listRef.current)
+            //                 listRef.current.scrollTop = listRef.current.scrollHeight - currentScrollHeight;
+            //         }, 50);
+            //     } catch (err) {
+            //         console.error("Failed to load older messages:", err);
+            //     } finally {
+            //         setLoadingMore(false);
+            //     }
+            // }
         };
-        fetchMessages();
-    }, [user.id, loginUser.user.id]);
 
-    useEffect(() => {
+        const currentList = listRef.current;
+        if (currentList) currentList.addEventListener("scroll", handleScroll);
+        return () => currentList?.removeEventListener("scroll", handleScroll);
+    }, [page, loadingMore, pageSize, user.id]);
+    
+
+    const scrollToBottom = () => {
         if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight;
-    }, [messages]);
+    };
 
+    // Send message
     const sendMessage = () => {
         if (!text.trim() && pendingAttachments.length === 0) return;
+
+        if (editingMessageId) {
+            setMessages((prev) =>
+                prev.map((m) => (m.id === editingMessageId ? { ...m, content: text.trim() } : m))
+            );
+            socket.emit("edit-message", { message_id: editingMessageId, new_content: text.trim() });
+            setEditingMessageId(null);
+            setText("");
+            return;
+        }
 
         const newMsg: GetAllMessage = {
             id: Date.now().toString(),
@@ -133,6 +197,7 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
         setMessages((prev) => [...prev, newMsg]);
         setText("");
         setPendingAttachments([]);
+        scrollToBottom();
 
         socket.emit("chat-message", {
             sender_id: newMsg.sender?.id,
@@ -143,7 +208,7 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
         });
     };
 
-
+    // Handle attachments
     const handleAttachmentClick = (type: string) => {
         switch (type) {
             case "image": imageInputRef.current?.click(); break;
@@ -161,64 +226,204 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
         setShowAttachmentMenu(false);
     };
 
+    const handleEditMessage = (messageId: string, currentText: string) => {
+        setEditingMessageId(messageId);
+        setText(currentText);
+    };
+
+    const saveEditedMessage = async () => {
+        if (!editingMessageId) return;
+        try {
+            const result = await editGroupChatMessage({
+                chatroomId: Number(user.id),
+                messageId: Number(editingMessageId),
+                message: text,
+            });
+            toast.success(result?.message || "Message updated");
+            setMessages((prev) => prev.map((m) => (m.id === editingMessageId ? { ...m, content: text } : m)));
+            setEditingMessageId(null);
+            setText("");
+        } catch (err: any) {
+            toast.error(err?.message || "Failed to edit message");
+        }
+    };
+
+    useEffect(() => {
+        if (!listRef.current) return;
+        if (isAtBottom) {
+            listRef.current.scrollTop = listRef.current.scrollHeight;
+        }
+    }, [messages, isAtBottom]);
+
+    const groupedMessages: Record<string, GetAllMessage[]> = messages.reduce(
+        (groups: Record<string, GetAllMessage[]>, msg) => {
+            if (!msg.created_at) return groups;
+            const dayKey = new Date(msg.created_at).toDateString();
+            if (!groups[dayKey]) groups[dayKey] = [];
+            groups[dayKey].push(msg);
+            return groups;
+        },
+        {}
+    );
 
     return (
-        <div className="flex flex-col h-[calc(100vh-4rem)]">
+        <div className="flex flex-col h-[calc(100vh-4rem)] relative">
             {/* Messages */}
             <div ref={listRef} className="flex-1 overflow-auto p-4 space-y-3">
-                {messages.map((m) => {
-                    const isOwn = m.sender?.id === loginUser.user.id;
-                    return (
-                        <div key={m.id} className={`flex ${isOwn ? "justify-end" : "justify-start"} gap-3`}>
-                            {!isOwn && (
-                                <Avatar.Root className="w-10 h-10 rounded-full overflow-hidden">
-                                    <Avatar.Image
-                                        src={(m.sender as any)?.avatar || undefined} // sender's avatar
-                                        alt={m.sender?.username || "User"}
-                                        className="w-full h-full rounded-full object-cover"
-                                    />
-                                    <Avatar.Fallback className="w-full h-full rounded-full flex items-center justify-center bg-gray-500 text-white font-semibold">
-                                        {m.sender?.username ? m.sender.username.slice(0, 2).toUpperCase() : "U"}
-                                    </Avatar.Fallback>
-                                </Avatar.Root>
-                            )}
-
-                            <div className={`max-w-[70%] p-2 rounded-lg ${isOwn ? "bg-primary text-white" : "bg-slate-200 text-slate-900"}`}>
-                                {m.attachment_url ? (
-                                    <div>
-                                        {m.attachment_url.match(/\.(jpeg|jpg|png|gif)$/i) && <img src={m.attachment_url} className="max-w-full max-h-60 rounded-lg" />}
-                                        {m.attachment_url.match(/\.(mp4|webm)$/i) && <video src={m.attachment_url} controls className="max-w-full max-h-60 rounded-lg" />}
-                                        {m.attachment_url.match(/\.(mp3|wav)$/i) && <AudioMessage file={m.attachment_url} />}
-                                        {!m.attachment_url.match(/\.(jpeg|jpg|png|gif|mp4|webm|mp3|wav)$/i) && (
-                                            <a href={m.attachment_url} target="_blank" rel="noopener noreferrer" className="text-blue-500 underline">
-                                                Download file
-                                            </a>
-                                        )}
-                                    </div>
-                                ) : (
-                                    m.content
-                                )}
-
-                                <div className="text-xs text-slate-300 mt-1 flex justify-between">
-                                    <span>{new Date(m.created_at!).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
-                                    {isOwn && m.is_delivered && <CheckCheck className="w-3 h-3 text-white" />}
-                                </div>
-                            </div>
+                {Object.keys(groupedMessages).map((dayKey) => (
+                    <div key={dayKey} className="space-y-3">
+                        <div className="flex justify-center">
+                            <span className="px-3 py-1 text-xs rounded-full bg-slate-300/70 dark:bg-slate-600/70">
+                                {formatMessageDate(dayKey)}
+                            </span>
                         </div>
-                    );
-                })}
+
+                        {groupedMessages[dayKey].map((m) => {
+                            const isOwn = m.sender?.id === loginUser.user.id;
+                            return (
+                                <div key={m.id} className={`flex ${isOwn ? "justify-end" : "justify-start"} gap-3`}>
+                                    {!isOwn && (
+                                        <Avatar.Root className="w-10 h-10 rounded-full overflow-hidden">
+                                            <Avatar.Image
+                                                src={(m.sender as any)?.avatar || undefined}
+                                                alt={m.sender?.username || "User"}
+                                                className="w-full h-full rounded-full object-cover"
+                                            />
+                                            <Avatar.Fallback className="w-full h-full rounded-full flex items-center justify-center bg-gray-500 text-white font-semibold">
+                                                {m.sender?.username ? m.sender.username.slice(0, 2).toUpperCase() : "U"}
+                                            </Avatar.Fallback>
+                                        </Avatar.Root>
+                                    )}
+
+                                    {/* Message actions */}
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <div className={`max-w-[70%] p-2 rounded-lg cursor-pointer ${isOwn ? "bg-primary text-white" : "bg-slate-200 text-slate-900"}`}>
+                                                {m.attachment_url ? (
+                                                    <div>
+                                                        {m.attachment_url.match(/\.(jpeg|jpg|png|gif)$/i) && (
+                                                            <img src={m.attachment_url} className="max-w-full max-h-60 rounded-lg" />
+                                                        )}
+                                                        {m.attachment_url.match(/\.(mp4|webm)$/i) && (
+                                                            <video src={m.attachment_url} controls className="max-w-full max-h-60 rounded-lg" />
+                                                        )}
+                                                        {m.attachment_url.match(/\.(mp3|wav)$/i) && <AudioMessage file={m.attachment_url} />}
+                                                        {!m.attachment_url.match(/\.(jpeg|jpg|png|gif|mp4|webm|mp3|wav)$/i) && (
+                                                            <a href={m.attachment_url} target="_blank" rel="noopener noreferrer" className="text-blue-500 underline">
+                                                                Download file
+                                                            </a>
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    m.content
+                                                )}
+                                                <div className="text-xs text-slate-300 mt-1 flex justify-between">
+                                                    <span>{new Date(m.created_at!).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+                                                    {isOwn && m.is_delivered && <CheckCheck className="w-3 h-3 text-white" />}
+                                                </div>
+                                            </div>
+                                        </DropdownMenuTrigger>
+
+                                        <DropdownMenuContent className="flex flex-row gap-3 mr-3" side="top">
+                                            <DropdownMenuItem onClick={() => alert(`Pin message: ${m.id}`)}>
+                                                <Pin className="w-4 h-4 mr-2" /> Pin
+                                            </DropdownMenuItem>
+                                            {isOwn && (
+                                                <DropdownMenuItem onClick={() => handleEditMessage(String(m.id), m.content || "")}>
+                                                    <Pen className="w-4 h-4 mr-2" /> Edit
+                                                </DropdownMenuItem>
+                                            )}
+                                            {isOwn && (
+                                                <DropdownMenuItem onClick={() => alert(`Delete message: ${m.id}`)}>
+                                                    <Trash className="w-4 h-4 mr-2" /> Delete
+                                                </DropdownMenuItem>
+                                            )}
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                </div>
+                            );
+                        })}
+                    </div>
+                ))}
             </div>
 
-            {/* Attachments & Input */}
+            {/* New message indicator */}
+            {!isAtBottom && newMessageCount > 0 && (
+                <div
+                    onClick={scrollToBottom}
+                    className="absolute bottom-20 left-1/2 -translate-x-1/2 bg-blue-500 text-white px-3 py-1 rounded-full cursor-pointer shadow-lg z-50"
+                >
+                    {newMessageCount} New Message{newMessageCount > 1 ? "s" : ""}
+                </div>
+            )}
+
+            {/* Pending attachments */}
+            {pendingAttachments.length > 0 && (
+                <div className="p-2 flex gap-3 overflow-x-auto border-t border-b bg-slate-100 dark:bg-slate-800">
+                    {pendingAttachments.map((att, i) => (
+                        <div key={i} className="relative rounded-lg border dark:border-slate-600 p-2 flex flex-col items-center justify-center">
+                            {att.type === "image" && (
+                                <img
+                                    src={URL.createObjectURL(att.file)}
+                                    alt={att.file.name}
+                                    className="max-w-[120px] max-h-[80px] rounded cursor-pointer"
+                                    onClick={() => setPreviewModal({ type: "image", url: URL.createObjectURL(att.file) })}
+                                />
+                            )}
+                            {att.type === "video" && (
+                                <video
+                                    src={URL.createObjectURL(att.file)}
+                                    className="max-w-[120px] max-h-[80px] rounded cursor-pointer"
+                                    onClick={() => setPreviewModal({ type: "video", url: URL.createObjectURL(att.file) })}
+                                />
+                            )}
+                            {att.type === "audio" && <AudioMessage file={att.file} />}
+                            {att.type === "file" && (
+                                <div className="flex flex-col items-center text-xs">
+                                    <File className="w-6 h-6" />
+                                    {att.file.name}
+                                </div>
+                            )}
+                            <div className="flex gap-2 mt-1">
+                                <a
+                                    href={URL.createObjectURL(att.file)}
+                                    download={att.file.name}
+                                    className="p-1 rounded text-green-600 hover:text-white hover:bg-green-600"
+                                >
+                                    <Download className="w-4 h-4" />
+                                </a>
+                                <button
+                                    onClick={() => setPendingAttachments((prev) => prev.filter((_, idx) => idx !== i))}
+                                    className="p-1 rounded text-red-600 hover:text-white hover:bg-red-600"
+                                >
+                                    <X className="w-4 h-4" />
+                                </button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {/* Input & Attachments */}
             <div className="p-4 border-t flex gap-2 items-center">
                 <div className="relative">
-                    <button onClick={() => setShowAttachmentMenu((prev) => !prev)} className="p-2 rounded hover:bg-slate-200"><Paperclip className="w-5 h-5" /></button>
+                    <button onClick={() => setShowAttachmentMenu((prev) => !prev)} className="p-2 rounded hover:bg-slate-200">
+                        <Paperclip className="w-5 h-5" />
+                    </button>
                     {showAttachmentMenu && (
                         <div className="absolute bottom-full left-0 mb-2 flex flex-col bg-white border rounded shadow-lg z-10">
-                            <button onClick={() => handleAttachmentClick("image")} className="flex items-center gap-2 px-3 py-2 hover:bg-slate-100"><ImageIcon className="w-4 h-4" /> Image</button>
-                            <button onClick={() => handleAttachmentClick("video")} className="flex items-center gap-2 px-3 py-2 hover:bg-slate-100"><VideoIcon className="w-4 h-4" /> Video</button>
-                            <button onClick={() => handleAttachmentClick("audio")} className="flex items-center gap-2 px-3 py-2 hover:bg-slate-100"><Music className="w-4 h-4" /> Audio</button>
-                            <button onClick={() => handleAttachmentClick("file")} className="flex items-center gap-2 px-3 py-2 hover:bg-slate-100"><Send className="w-4 h-4" /> File</button>
+                            <button onClick={() => handleAttachmentClick("image")} className="flex items-center gap-2 px-3 py-2 hover:bg-slate-100">
+                                <ImageIcon className="w-4 h-4" /> Image
+                            </button>
+                            <button onClick={() => handleAttachmentClick("video")} className="flex items-center gap-2 px-3 py-2 hover:bg-slate-100">
+                                <VideoIcon className="w-4 h-4" /> Video
+                            </button>
+                            <button onClick={() => handleAttachmentClick("audio")} className="flex items-center gap-2 px-3 py-2 hover:bg-slate-100">
+                                <Music className="w-4 h-4" /> Audio
+                            </button>
+                            <button onClick={() => handleAttachmentClick("file")} className="flex items-center gap-2 px-3 py-2 hover:bg-slate-100">
+                                <Send className="w-4 h-4" /> File
+                            </button>
                         </div>
                     )}
                 </div>
@@ -231,12 +436,37 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
                 <textarea
                     value={text}
                     onChange={(e) => setText(e.target.value)}
-                    placeholder="Type a message..."
+                    placeholder={editingMessageId ? "Edit your message..." : "Type a message..."}
                     className="flex-1 rounded-2xl resize-none p-2 min-h-[44px] max-h-40 border focus:outline-none"
-                    onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
+                    onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                            e.preventDefault();
+                            editingMessageId ? saveEditedMessage() : sendMessage();
+                        }
+                    }}
                 />
-                <button onClick={sendMessage} className="px-4 py-2 rounded-full bg-primary text-white"><Send /></button>
+
+                {editingMessageId && (
+                    <button onClick={() => { setEditingMessageId(null); setText(""); }} className="px-3 py-1 rounded bg-gray-300 text-gray-800 mr-2">
+                        Cancel
+                    </button>
+                )}
+
+                <button onClick={editingMessageId ? saveEditedMessage : sendMessage} className="px-4 py-2 rounded-full bg-primary text-white">
+                    <Send size={16} />
+                </button>
             </div>
+
+            {/* Fullscreen preview modal */}
+            {previewModal && (
+                <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+                    <button onClick={() => setPreviewModal(null)} className="absolute top-4 right-4 p-2 rounded-full text-white">
+                        <X className="w-6 h-6" />
+                    </button>
+                    {previewModal.type === "image" && <img src={previewModal.url} alt="preview" className="max-w-[90%] max-h-[90%] rounded-lg" />}
+                    {previewModal.type === "video" && <video src={previewModal.url} controls autoPlay className="max-w-[90%] max-h-[90%] rounded-lg" />}
+                </div>
+            )}
         </div>
     );
 }

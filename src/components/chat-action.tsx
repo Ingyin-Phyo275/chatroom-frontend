@@ -8,16 +8,18 @@ import type { ChatUserType } from "@/dto/UserTypes";
 import { Archive, EllipsisVertical, Pin, Trash } from "lucide-react";
 import { toast } from "sonner";
 import { deleteChat } from "../http/api/deleteChat";
+import { useQueryClient } from "@tanstack/react-query";
 interface ChatActionProps {
     user: ChatUserType
 }
 export default function ChatAction({user}: ChatActionProps) {
+  const queryClient = useQueryClient();
   const loginUser = JSON.parse(localStorage.getItem('user')!);
   const handleDelete = async () => {
     try{
       const chatId = user?.id;
-      const loginUserId = loginUser?.user?.id;
-      const response = await deleteChat({chatId, userId: loginUserId});
+      const response = await deleteChat({chatId});
+      queryClient.invalidateQueries({ queryKey: ["groupChatList"] });
       console.log("response", response);
     }catch(error){
       toast.error("Error while deleting chat!");

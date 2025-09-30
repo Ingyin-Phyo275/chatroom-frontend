@@ -1,15 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import {
-  Send,
-  Paperclip,
-  ImageIcon,
-  VideoIcon,
-  Music,
-  File,
-  X,
-  Download,
-  CheckCheck,
-} from "lucide-react";
+import { Send,Paperclip,ImageIcon,VideoIcon,Music,CheckCheck,File,Download,X } from "lucide-react";
 import type { ChatUserType } from "@/dto/UserTypes";
 import { Button } from "./ui/button";
 import * as Avatar from "@radix-ui/react-avatar";
@@ -36,6 +26,7 @@ interface ChatRoomProps {
   loginUser: loginResponse;
 }
 
+
 export default function ChatRoom({ user, loginUser }: ChatRoomProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
@@ -61,8 +52,9 @@ export default function ChatRoom({ user, loginUser }: ChatRoomProps) {
       console.log("[SOCKET EVENT] in private room", event, args);
     });
   }, []);
+  
 
-  // --- Listen for incoming messages ---
+  //  Listen for incoming messages 
   useEffect(() => {
     if (!socket) return;
 
@@ -119,7 +111,7 @@ export default function ChatRoom({ user, loginUser }: ChatRoomProps) {
     };
   }, [loginUser.user.id, user.id]);
 
-  // --- Send message ---
+  // send message 
   const sendMessage = () => {
     const trimmedText = text.trim();
     if (!trimmedText && pendingAttachments.length === 0) return;
@@ -129,21 +121,24 @@ export default function ChatRoom({ user, loginUser }: ChatRoomProps) {
       receiver: String(user.id),
       content: trimmedText,
       created_at: new Date().toISOString(),
-      attachment_url: null,
-      is_delivered: true,
-      is_pinned: false,
+      attachment_url: pendingAttachments.length > 0 ? pendingAttachments[0].url : null,
+      // is_delivered: false,
+      // is_pinned: false,
     };
 
     setMessages(prev => [...prev, newMsg]);
     setText("");
     setPendingAttachments([]);
 
-    const payload = {
-      sender_id: newMsg.sender,
-      receiver_id: newMsg.receiver,
-      content: newMsg.content,
-      attachment_url: newMsg.attachment_url,
-    };
+
+
+const payload = {
+  sender_id: newMsg.sender,
+  receiver_id: newMsg.receiver,
+  content: newMsg.content,
+  attachment_url: newMsg.attachment_url, // now will be file name
+};
+
 
     socket.emit("send-message", payload);
   };
@@ -171,14 +166,20 @@ export default function ChatRoom({ user, loginUser }: ChatRoomProps) {
         break;
     }
   };
+const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>, type: string) => {
+  const files = e.target.files;
+  if (!files || files.length === 0) return;
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>, type: string) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-    const newAttachments: Attachment[] = Array.from(files).map((f) => ({ type, file: f }));
-    setPendingAttachments((prev) => [...prev, ...newAttachments]);
-    setShowAttachmentMenu(false);
-  };
+  const newAttachments: Attachment[] = Array.from(files).map((f) => ({
+    type,
+    file: f,
+    url: f.name, // <-- store file name here
+  }));
+
+  setPendingAttachments((prev) => [...prev, ...newAttachments]);
+  setShowAttachmentMenu(false);
+};
+
 
   const groupedMessages = messages.reduce((groups: Record<string, Message[]>, msg) => {
     const day = new Date(msg.created_at).toDateString();

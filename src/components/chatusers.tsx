@@ -22,8 +22,10 @@ export default function ChatUsers({
   const [searchTerm, setSearchTerm] = React.useState("");
   const [filteredUsers, setFilteredUsers] = useState<ChatUserType[]>([]);
 
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(13);
   //group chats list
-  const { groupChatListQuery: groupChatList = [] as GroupChatResponse[]} =  useGroupChatList();
+  const { groupChatListQuery: groupChatList = [] as GroupChatResponse[]} =  useGroupChatList({page, pageSize});
 
   //user's contact list
   const { userListData: contact =[] as UserListResponse[]}  = userListQuery();

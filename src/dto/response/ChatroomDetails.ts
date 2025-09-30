@@ -17,5 +17,6 @@ export interface ChatroomDetails{
     name: string,
     is_group: boolean,
     members: ChatRoomMembers[],
-    messages: Message[]
+    messages: Message[],
+    totalPage: number
 }

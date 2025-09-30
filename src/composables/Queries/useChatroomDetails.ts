@@ -18,14 +18,18 @@ import { getChatroomDetails } from "../../http/api/getChatroomDetails";
 //     }
 // }
 
-
+interface chatroomDetailsProps {
+  chatroomId: number;
+  page: number;
+  pageSize: number;
+}
 // useChatroomDetails.ts
-export const useChatroomDetails = (id?: string | number) =>
+export const useChatroomDetails = ({chatroomId, page, pageSize}: chatroomDetailsProps) =>
   useQuery({
-    queryKey: ['chatroomDetails', String(id)], // force string
+    queryKey: ['chatroomDetails', String(chatroomId)], // force string
     queryFn: async () => {
-      const response = await getChatroomDetails(String(id));
+      const response = await getChatroomDetails({chatroomId, page, pageSize});
       return response;
     },
-    enabled: !!id
+    enabled: !!chatroomId
   });
