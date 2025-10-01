@@ -3,7 +3,7 @@ import axiosInstance from "../httpClient";
 
 export const GetAllMessage = async () => {
     try{
-        const response = await axiosInstance.get("/message/get-all-message");
+        const response = await axiosInstance.get("/message/get-all-messages");
         console.log("response data in get all message", response.data);
         return response.data;
     }catch(error){

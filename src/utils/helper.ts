@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import type { GetAllMessage } from "../dto/response/GetAllMessage";
 
 export function useUserDraft(userId: string, key: string, initialValue = "") {
   const storageKey = `${key}-${userId}`;
@@ -28,3 +29,15 @@ export function useUserDraft(userId: string, key: string, initialValue = "") {
 
   return { value, setValue, clear };
 }
+
+// Ensures no duplicate messages by id
+export const dedupeMessages = (messages: GetAllMessage[]): GetAllMessage[] => {
+  const seen = new Set<string>();
+  return messages.filter((m) => {
+    if (!m?.id) return false; // skip invalid
+    if (seen.has(m.id.toString())) return false;
+    seen.add(m.id.toString());
+    return true;
+  });
+};
+

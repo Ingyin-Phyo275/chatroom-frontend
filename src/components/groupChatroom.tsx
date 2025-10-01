@@ -11,6 +11,7 @@ import { formatMessageDate } from "../hooks/helper";
 import type { loginResponse } from "../dto/response/LoginResponse";
 import type { ChatUserType } from "../dto/UserTypes";
 import type { GetAllMessage } from "../dto/response/GetAllMessage";
+import { dedupeMessages } from "../utils/helper";
 
 type Attachment = { type: string; file: File; url?: string };
 type Props = { user: ChatUserType; loginUser: loginResponse };
@@ -22,7 +23,9 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
     const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
     const [previewModal, setPreviewModal] = useState<{ type: string; url: string } | null>(null);
     const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+    const [messagesLoaded, setMessagesLoaded] = useState(false);
 
+    //api call variables
     const [page, setPage] = useState(1);
     const [pageSize] = useState(10);
     const [totalPages, setTotalPages] = useState(1);
@@ -31,6 +34,7 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
     const [isAtBottom, setIsAtBottom] = useState(true);
     const [newMessageCount, setNewMessageCount] = useState(0);
 
+    //accathments input
     const listRef = useRef<HTMLDivElement>(null);
     const imageInputRef = useRef<HTMLInputElement>(null);
     const videoInputRef = useRef<HTMLInputElement>(null);
@@ -51,22 +55,18 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
             const userId = user.id.toString();
             const loginId = loginUser.user.id.toString();
             console.log("🔥 Incoming message:", msg);
-
             if (!msg.is_group || (senderId === userId && chatroomId === loginId) || (senderId === loginId && chatroomId === userId)) {
-                setMessages((prev) => [...prev, msg]);
+                setMessages((prev) => dedupeMessages([...prev, msg]));
             }
         };
-
         socket.on("receive-message", handleNewMessage);
         return () => {
             socket.off("receive-message", handleNewMessage);
         };
     }, [user.id, loginUser.user.id]);
 
-
     // Fetch a specific page
     const fetchPage = async (pageNumber: number) => {
-        //console.log("Fetching Page");
         const chatroom = await getChatroomDetails({ chatroomId: Number(user.id), page: pageNumber, pageSize });
         const chatMessages: GetAllMessage[] = chatroom.messages.map((m: any) => ({
             id: m.id,
@@ -75,59 +75,52 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
             content: m.content ?? "",
             created_at: m.created_at ?? new Date().toISOString(),
             attachment_url: m.attachment_url ?? null,
-            is_delivered: m.is_delivered ,
+            is_delivered: m.is_delivered,
             is_pinned: m.is_pinned ?? false,
         }));
         return { chatMessages, totalPage: chatroom.totalPage ?? 1 };
     };
 
     // Load latest messages
-// Load latest messages (only once per room)
-useEffect(() => {
-  const loadLatestMessages = async () => {
-    if (!user.id) return;
-    try {
-      // Get total pages
-      const firstPage = await fetchPage(1);
-      const totalPage = firstPage.totalPage;
-      setTotalPages(totalPage);
-
-      let currentPage = totalPage;
-      let allMessages: GetAllMessage[] = [];
-      let scrollable = false;
-
-      // Keep loading from the last page backwards until scroll is possible
-      while (!scrollable && currentPage > 0) {
-        const { chatMessages } = await fetchPage(currentPage);
-        allMessages = [...chatMessages, ...allMessages];
-        setMessages([...allMessages]);
-
-        // Wait for DOM to update
-        await new Promise((r) => setTimeout(r, 50));
-
-        if (listRef.current && listRef.current.scrollHeight > listRef.current.clientHeight) {
-          scrollable = true;
-        } else {
-          currentPage--;
-        }
-      }
-
-      // Scroll to bottom after loading
-      scrollToBottom();
-      setPage(currentPage);
-    } catch (err) {
-      console.error("Failed to load latest messages:", err);
-    }
-  };
-
-  loadLatestMessages();
-}, [user.id]); // runs only when chatroom changes
-
-
-
-
-    // Scroll event for infinite scroll & bottom detection
     useEffect(() => {
+        const loadLatestMessages = async () => {
+            if (!user.id) return;
+            try {
+                const firstPage = await fetchPage(1);
+                const totalPage = firstPage.totalPage;
+                setTotalPages(totalPage);
+                console.log("Call api first time")
+                let currentPage = totalPage;
+                let allMessages: GetAllMessage[] = [];
+                let scrollable = false;
+
+                while (!scrollable && currentPage > 0) {
+                    const { chatMessages } = await fetchPage(currentPage);
+                    console.log(`Call api second time ${currentPage}`)
+                    allMessages = [...chatMessages, ...allMessages];
+                    setMessages(dedupeMessages([...allMessages]));
+                    await new Promise((r) => setTimeout(r, 50));
+
+                    if (listRef.current && listRef.current.scrollHeight > listRef.current.clientHeight) {
+                        scrollable = true;
+                    } else {
+                        currentPage--;
+                    }
+                }
+
+                scrollToBottom();
+                setPage(currentPage);
+                setMessagesLoaded(true); // 
+            } catch (err) {
+                console.error("Failed to load latest messages:", err);
+            }
+        };
+
+        loadLatestMessages();
+    }, [user.id]);
+
+    useEffect(() => {
+        if (!messagesLoaded) return; // 
         const handleScroll = async () => {
             console.log("Scroll event");
             if (!listRef.current) return;
@@ -136,33 +129,31 @@ useEffect(() => {
             setIsAtBottom(atBottom);
             if (atBottom) setNewMessageCount(0);
 
-            // // Infinite scroll
-            // if (scrollTop < 50 && !loadingMore && page > 1) {
-            //     setLoadingMore(true);
-            //     const nextPage = page - 1;
-            //     try {
-            //         const { chatMessages } = await fetchPage(nextPage);
-            //         //console.log("Chat Message", chatMessages)
-            //         const currentScrollHeight = listRef.current.scrollHeight;
-            //         setMessages((prev) => [...chatMessages, ...prev]);
-            //         setPage(nextPage);
-            //         setTimeout(() => {
-            //             if (listRef.current)
-            //                 listRef.current.scrollTop = listRef.current.scrollHeight - currentScrollHeight;
-            //         }, 50);
-            //     } catch (err) {
-            //         console.error("Failed to load older messages:", err);
-            //     } finally {
-            //         setLoadingMore(false);
-            //     }
-            // }
+            if (scrollTop < 50 && !loadingMore && page > 1) {
+                setLoadingMore(true);
+                const nextPage = page - 1;
+                try {
+                    console.log(`Call api in scroll ${nextPage}`)
+                    const { chatMessages } = await fetchPage(nextPage);
+                    const currentScrollHeight = listRef.current.scrollHeight;
+                    setMessages((prev) => dedupeMessages([...chatMessages, ...prev]));
+                    setPage(nextPage);
+                    setTimeout(() => {
+                        if (listRef.current)
+                            listRef.current.scrollTop = listRef.current.scrollHeight - currentScrollHeight;
+                    }, 50);
+                } catch (err) {
+                    console.error("Failed to load older messages:", err);
+                } finally {
+                    setLoadingMore(false);
+                }
+            }
         };
 
         const currentList = listRef.current;
         if (currentList) currentList.addEventListener("scroll", handleScroll);
         return () => currentList?.removeEventListener("scroll", handleScroll);
-    }, [page, loadingMore, pageSize, user.id]);
-    
+    }, [messagesLoaded, page, loadingMore, user.id]);
 
     const scrollToBottom = () => {
         if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight;
@@ -174,8 +165,8 @@ useEffect(() => {
 
         if (editingMessageId) {
             setMessages((prev) =>
-                prev.map((m) => (m.id === editingMessageId ? { ...m, content: text.trim() } : m))
-            );
+                dedupeMessages(prev.map((m) => (m.id === editingMessageId ? { ...m, content: text.trim() } : m))
+                ));
             socket.emit("edit-message", { message_id: editingMessageId, new_content: text.trim() });
             setEditingMessageId(null);
             setText("");
@@ -194,7 +185,7 @@ useEffect(() => {
             is_group: true,
         };
 
-        setMessages((prev) => [...prev, newMsg]);
+        setMessages((prev) => dedupeMessages([...prev, newMsg]));
         setText("");
         setPendingAttachments([]);
         scrollToBottom();
@@ -224,6 +215,7 @@ useEffect(() => {
         const attachments: Attachment[] = Array.from(files).map((f) => ({ type, file: f }));
         setPendingAttachments((prev) => [...prev, ...attachments]);
         setShowAttachmentMenu(false);
+
     };
 
     const handleEditMessage = (messageId: string, currentText: string) => {
@@ -240,7 +232,7 @@ useEffect(() => {
                 message: text,
             });
             toast.success(result?.message || "Message updated");
-            setMessages((prev) => prev.map((m) => (m.id === editingMessageId ? { ...m, content: text } : m)));
+            setMessages((prev) => dedupeMessages(prev.map((m) => (m.id === editingMessageId ? { ...m, content: text } : m))));
             setEditingMessageId(null);
             setText("");
         } catch (err: any) {

@@ -3,7 +3,7 @@ import { io } from "socket.io-client";
 // Read token from localStorage
     const user = JSON.parse(localStorage.getItem('user')!);
     const token = user?.token;console.log("token", token)
-export const socket = io("http://192.168.0.96:7000", {
+export const socket = io("http://localhost:7000", {
   auth: { token }, // send JWT to backend for authentication
 });
 

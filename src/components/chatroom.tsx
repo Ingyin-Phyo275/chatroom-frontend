@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Send,Paperclip,ImageIcon,VideoIcon,Music,CheckCheck,File,Download,X } from "lucide-react";
+import { Send, Paperclip, ImageIcon, VideoIcon, Music, CheckCheck, File, Download, X } from "lucide-react";
 import type { ChatUserType } from "@/dto/UserTypes";
 import { Button } from "./ui/button";
 import * as Avatar from "@radix-ui/react-avatar";
@@ -7,6 +7,7 @@ import AudioMessage from "./AudioPlayer";
 import { socket } from "../socket/socket";
 import type { loginResponse } from "../dto/response/LoginResponse";
 import { formatMessageDate } from "../hooks/helper";
+import { uploadAttachment } from "../http/api/uploadAttachment";
 
 type Attachment = { type: string; file: File; url?: string };
 
@@ -27,12 +28,15 @@ interface ChatRoomProps {
 }
 
 
+
+
 export default function ChatRoom({ user, loginUser }: ChatRoomProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
   const [pendingAttachments, setPendingAttachments] = useState<Attachment[]>([]);
   const [previewModal, setPreviewModal] = useState<{ type: string; url: string } | null>(null);
   const [text, setText] = useState("");
+  const [attachmentType, setAttachmentType] = useState("image");
 
   const listRef = useRef<HTMLDivElement | null>(null);
   const imageInputRef = useRef<HTMLInputElement | null>(null);
@@ -52,7 +56,7 @@ export default function ChatRoom({ user, loginUser }: ChatRoomProps) {
       console.log("[SOCKET EVENT] in private room", event, args);
     });
   }, []);
-  
+
 
   //  Listen for incoming messages 
   useEffect(() => {
@@ -112,33 +116,80 @@ export default function ChatRoom({ user, loginUser }: ChatRoomProps) {
   }, [loginUser.user.id, user.id]);
 
   // send message 
-  const sendMessage = () => {
+  //   const sendMessage = () => {
+  //     const trimmedText = text.trim();
+  //     if (!trimmedText && pendingAttachments.length === 0) return;
+  //     const newMsg: Message = {
+  //       id: Date.now().toString(),
+  //       sender: String(loginUser.user.id),
+  //       receiver: String(user.id),
+  //       content: trimmedText,
+  //       created_at: new Date().toISOString(),
+  //       attachment_url: pendingAttachments.length > 0 ? pendingAttachments[0].url : null,
+  //       // is_delivered: false,
+  //       // is_pinned: false,
+  //     };
+
+  //     setMessages(prev => [...prev, newMsg]);
+  //     setText("");
+  //     setPendingAttachments([]);
+
+
+
+  // const payload = {
+  //   sender_id: newMsg.sender,
+  //   receiver_id: newMsg.receiver,
+  //   content: newMsg.content,
+  //   attachment_url: newMsg.attachment_url, // now will be file name
+  // };
+
+
+  //     socket.emit("send-message", payload);
+  //   };
+
+  const sendMessage = async () => {
     const trimmedText = text.trim();
     if (!trimmedText && pendingAttachments.length === 0) return;
+
+    let uploadedUrl: string | null = null;
+
+    if (pendingAttachments.length > 0) {
+      console.log("Payload", pendingAttachments[0].url, pendingAttachments[0].type)
+      try {
+        const result = await uploadAttachment(pendingAttachments[0].file, pendingAttachments[0].type);
+        setTimeout(() => {
+          setPendingAttachments([]);
+        }, 300);
+        // console.log("upload result", result.url)
+        uploadedUrl = result.url;
+        setAttachmentType(pendingAttachments[0].type);
+        // console.log("attachment type", attachmentType)
+      } catch (error) {
+        console.error("Upload failed:", error);
+        return; // optionally block sending if upload fails
+      }
+    }
+
     const newMsg: Message = {
       id: Date.now().toString(),
       sender: String(loginUser.user.id),
       receiver: String(user.id),
       content: trimmedText,
       created_at: new Date().toISOString(),
-      attachment_url: pendingAttachments.length > 0 ? pendingAttachments[0].url : null,
-      // is_delivered: false,
-      // is_pinned: false,
+      attachment_url: uploadedUrl,
     };
+
 
     setMessages(prev => [...prev, newMsg]);
     setText("");
     setPendingAttachments([]);
 
-
-
-const payload = {
-  sender_id: newMsg.sender,
-  receiver_id: newMsg.receiver,
-  content: newMsg.content,
-  attachment_url: newMsg.attachment_url, // now will be file name
-};
-
+    const payload = {
+      sender_id: newMsg.sender,
+      receiver_id: newMsg.receiver,
+      content: newMsg.content,
+      attachment_url: newMsg.attachment_url,
+    };
 
     socket.emit("send-message", payload);
   };
@@ -166,19 +217,24 @@ const payload = {
         break;
     }
   };
-const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>, type: string) => {
-  const files = e.target.files;
-  if (!files || files.length === 0) return;
 
-  const newAttachments: Attachment[] = Array.from(files).map((f) => ({
-    type,
-    file: f,
-    url: f.name, // <-- store file name here
-  }));
+  const handleFileSelect = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+    type: string
+  ) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
 
-  setPendingAttachments((prev) => [...prev, ...newAttachments]);
-  setShowAttachmentMenu(false);
-};
+    const newAttachments: Attachment[] = Array.from(files).map((file) => ({
+      type,
+      file,
+      url: URL.createObjectURL(file), // 
+    }));
+
+    setPendingAttachments((prev) => [...prev, ...newAttachments]);
+    setShowAttachmentMenu(false);
+
+  };
 
 
   const groupedMessages = messages.reduce((groups: Record<string, Message[]>, msg) => {
@@ -203,14 +259,15 @@ const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>, type: string) 
 
             {/* Messages of this day */}
             {groupedMessages[day].map((m) => {
+              console.log("attachment url", m.attachment_url)
               const isOwn = m.sender === String(loginUser.user.id);
               return (
+                
                 <div key={m.id} className={`flex ${isOwn ? "justify-end" : "justify-start"} gap-3`}>
                   {!isOwn && (
                     <div
-                      className={`relative w-10 h-10 ${
-                        user.status === "online" ? "ring-2 ring-green-500" : ""
-                      } rounded-full`}
+                      className={`relative w-10 h-10 ${user.status === "online" ? "ring-2 ring-green-500" : ""
+                        } rounded-full`}
                     >
                       <Avatar.Root className="w-10 h-10 rounded-full overflow-hidden">
                         <Avatar.Image
@@ -226,21 +283,23 @@ const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>, type: string) 
                   )}
 
                   <div
-                    className={`max-w-[70%] p-2 rounded-lg relative ${
-                      isOwn
-                        ? "bg-primary text-white rounded-br-none"
-                        : "bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-100 rounded-bl-none"
-                    }`}
+                    className={`max-w-[70%] p-2 rounded-lg relative ${isOwn
+                      ? "bg-primary text-white rounded-br-none"
+                      : "bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-100 rounded-bl-none"
+                      }`}
                   >
                     <div className="mt-1 text-sm space-y-2">
                       {m.attachment_url ? (
+
                         <div>
-                          {m.attachment_url.match(/\.(jpeg|jpg|png|gif)$/i) && (
+                          
+                          {attachmentType.match(/\.(jpeg|jpg|png|gif)$/i) && (
                             <img
                               src={m.attachment_url}
-                              alt="attachment"
+                              alt={m.attachment_url}
                               className="max-w-full max-h-60 rounded-lg"
                             />
+
                           )}
                           {m.attachment_url.match(/\.(mp4|webm)$/i) && (
                             <video
@@ -255,15 +314,24 @@ const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>, type: string) 
                           {!m.attachment_url.match(
                             /\.(jpeg|jpg|png|gif|mp4|webm|mp3|wav)$/i
                           ) && (
-                            <a
-                              href={m.attachment_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-blue-500 underline"
-                            >
-                              Download file
-                            </a>
-                          )}
+                              <>
+                                <a
+                                  href={m.attachment_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className=" underline"
+                                >
+                                  Download file
+                                </a>
+                                <img
+                              src={m.attachment_url}
+                              alt={m.attachment_url}
+                              className="max-w-full max-h-60 rounded-lg"
+                            />
+                
+                              </>
+
+                            )}
                         </div>
                       ) : (
                         m.content
@@ -286,7 +354,7 @@ const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>, type: string) 
                       )}
                     </div>
                   </div>
-                  
+
                 </div>
               );
             })}
