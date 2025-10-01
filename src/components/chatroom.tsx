@@ -1,5 +1,15 @@
 import { useEffect, useRef, useState } from "react";
-import { Send, Paperclip, ImageIcon, VideoIcon, Music, CheckCheck, File, Download, X } from "lucide-react";
+import {
+  Send,
+  Paperclip,
+  ImageIcon,
+  VideoIcon,
+  Music,
+  CheckCheck,
+  File,
+  Download,
+  X,
+} from "lucide-react";
 import type { ChatUserType } from "@/dto/UserTypes";
 import { Button } from "./ui/button";
 import * as Avatar from "@radix-ui/react-avatar";
@@ -27,14 +37,16 @@ interface ChatRoomProps {
   loginUser: loginResponse;
 }
 
-
-
-
 export default function ChatRoom({ user, loginUser }: ChatRoomProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
-  const [pendingAttachments, setPendingAttachments] = useState<Attachment[]>([]);
-  const [previewModal, setPreviewModal] = useState<{ type: string; url: string } | null>(null);
+  const [pendingAttachments, setPendingAttachments] = useState<Attachment[]>(
+    []
+  );
+  const [previewModal, setPreviewModal] = useState<{
+    type: string;
+    url: string;
+  } | null>(null);
   const [text, setText] = useState("");
   const [attachmentType, setAttachmentType] = useState("image");
 
@@ -57,8 +69,7 @@ export default function ChatRoom({ user, loginUser }: ChatRoomProps) {
     });
   }, []);
 
-
-  //  Listen for incoming messages 
+  //  Listen for incoming messages
   useEffect(() => {
     if (!socket) return;
 
@@ -66,7 +77,7 @@ export default function ChatRoom({ user, loginUser }: ChatRoomProps) {
     socket.emit("request-messages", { userId: loginUser.user.id });
 
     const handleAllMessages = (msgs: any[]) => {
-      const transformed = msgs.flat().map(msg => ({
+      const transformed = msgs.flat().map((msg) => ({
         id: String(msg.id),
         sender: String(msg.sender?.id),
         receiver: String(msg.receiver?.id),
@@ -78,9 +89,11 @@ export default function ChatRoom({ user, loginUser }: ChatRoomProps) {
       }));
 
       const filtered = transformed.filter(
-        m =>
-          (m.sender === String(loginUser.user.id) && m.receiver === String(user.id)) ||
-          (m.sender === String(user.id) && m.receiver === String(loginUser.user.id))
+        (m) =>
+          (m.sender === String(loginUser.user.id) &&
+            m.receiver === String(user.id)) ||
+          (m.sender === String(user.id) &&
+            m.receiver === String(loginUser.user.id))
       );
 
       setMessages(filtered);
@@ -101,10 +114,12 @@ export default function ChatRoom({ user, loginUser }: ChatRoomProps) {
       };
 
       if (
-        (newMsg.sender === String(user.id) && newMsg.receiver === String(loginUser.user.id)) ||
-        (newMsg.sender === String(loginUser.user.id) && newMsg.receiver === String(user.id))
+        (newMsg.sender === String(user.id) &&
+          newMsg.receiver === String(loginUser.user.id)) ||
+        (newMsg.sender === String(loginUser.user.id) &&
+          newMsg.receiver === String(user.id))
       ) {
-        setMessages(prev => [...prev, newMsg]);
+        setMessages((prev) => [...prev, newMsg]);
       }
     };
 
@@ -115,38 +130,6 @@ export default function ChatRoom({ user, loginUser }: ChatRoomProps) {
     };
   }, [loginUser.user.id, user.id]);
 
-  // send message 
-  //   const sendMessage = () => {
-  //     const trimmedText = text.trim();
-  //     if (!trimmedText && pendingAttachments.length === 0) return;
-  //     const newMsg: Message = {
-  //       id: Date.now().toString(),
-  //       sender: String(loginUser.user.id),
-  //       receiver: String(user.id),
-  //       content: trimmedText,
-  //       created_at: new Date().toISOString(),
-  //       attachment_url: pendingAttachments.length > 0 ? pendingAttachments[0].url : null,
-  //       // is_delivered: false,
-  //       // is_pinned: false,
-  //     };
-
-  //     setMessages(prev => [...prev, newMsg]);
-  //     setText("");
-  //     setPendingAttachments([]);
-
-
-
-  // const payload = {
-  //   sender_id: newMsg.sender,
-  //   receiver_id: newMsg.receiver,
-  //   content: newMsg.content,
-  //   attachment_url: newMsg.attachment_url, // now will be file name
-  // };
-
-
-  //     socket.emit("send-message", payload);
-  //   };
-
   const sendMessage = async () => {
     const trimmedText = text.trim();
     if (!trimmedText && pendingAttachments.length === 0) return;
@@ -154,16 +137,23 @@ export default function ChatRoom({ user, loginUser }: ChatRoomProps) {
     let uploadedUrl: string | null = null;
 
     if (pendingAttachments.length > 0) {
-      console.log("Payload", pendingAttachments[0].url, pendingAttachments[0].type)
+      console.log(
+        "Payload",
+        pendingAttachments[0].url,
+        pendingAttachments[0].type
+      );
       try {
-        const result = await uploadAttachment(pendingAttachments[0].file, pendingAttachments[0].type);
+        const result = await uploadAttachment(
+          pendingAttachments[0].file,
+          pendingAttachments[0].type
+        );
         setTimeout(() => {
           setPendingAttachments([]);
         }, 300);
         // console.log("upload result", result.url)
         uploadedUrl = result.url;
-        setAttachmentType(pendingAttachments[0].type);
-        // console.log("attachment type", attachmentType)
+        setAttachmentType(result.type!);
+        // console.log("attachment type", attachmentType) //image
       } catch (error) {
         console.error("Upload failed:", error);
         return; // optionally block sending if upload fails
@@ -179,8 +169,7 @@ export default function ChatRoom({ user, loginUser }: ChatRoomProps) {
       attachment_url: uploadedUrl,
     };
 
-
-    setMessages(prev => [...prev, newMsg]);
+    setMessages((prev) => [...prev, newMsg]);
     setText("");
     setPendingAttachments([]);
 
@@ -228,21 +217,36 @@ export default function ChatRoom({ user, loginUser }: ChatRoomProps) {
     const newAttachments: Attachment[] = Array.from(files).map((file) => ({
       type,
       file,
-      url: URL.createObjectURL(file), // 
+      url: URL.createObjectURL(file), //
     }));
 
     setPendingAttachments((prev) => [...prev, ...newAttachments]);
     setShowAttachmentMenu(false);
-
   };
 
+  const groupedMessages = messages.reduce(
+    (groups: Record<string, Message[]>, msg) => {
+      const day = new Date(msg.created_at).toDateString();
+      if (!groups[day]) groups[day] = [];
+      groups[day].push(msg);
+      return groups;
+    },
+    {}
+  );
 
-  const groupedMessages = messages.reduce((groups: Record<string, Message[]>, msg) => {
-    const day = new Date(msg.created_at).toDateString();
-    if (!groups[day]) groups[day] = [];
-    groups[day].push(msg);
-    return groups;
-  }, {});
+    const handleDownload = async (url : string) => {
+    try {
+      const response = await fetch(url, { mode: "cors" });
+      const blob = await response.blob();
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = url.split("/").pop() || "";
+      link.click();
+      URL.revokeObjectURL(link.href);
+    } catch (err) {
+      console.error("Download failed:", err);
+    }
+  };
 
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)]">
@@ -259,15 +263,24 @@ export default function ChatRoom({ user, loginUser }: ChatRoomProps) {
 
             {/* Messages of this day */}
             {groupedMessages[day].map((m) => {
-              console.log("attachment url", m.attachment_url)
+              const filePath = m.attachment_url
+                ? new URL(m.attachment_url).pathname
+                : null;
+              console.log("attachment url", m.attachment_url);
               const isOwn = m.sender === String(loginUser.user.id);
+              console.log("attachment type", attachmentType);
               return (
-                
-                <div key={m.id} className={`flex ${isOwn ? "justify-end" : "justify-start"} gap-3`}>
+                <div
+                  key={m.id}
+                  className={`flex ${
+                    isOwn ? "justify-end" : "justify-start"
+                  } gap-3`}
+                >
                   {!isOwn && (
                     <div
-                      className={`relative w-10 h-10 ${user.status === "online" ? "ring-2 ring-green-500" : ""
-                        } rounded-full`}
+                      className={`relative w-10 h-10 ${
+                        user.status === "online" ? "ring-2 ring-green-500" : ""
+                      } rounded-full`}
                     >
                       <Avatar.Root className="w-10 h-10 rounded-full overflow-hidden">
                         <Avatar.Image
@@ -283,23 +296,28 @@ export default function ChatRoom({ user, loginUser }: ChatRoomProps) {
                   )}
 
                   <div
-                    className={`max-w-[70%] p-2 rounded-lg relative ${isOwn
-                      ? "bg-primary text-white rounded-br-none"
-                      : "bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-100 rounded-bl-none"
-                      }`}
+                    className={`max-w-[70%] p-2 rounded-lg relative ${
+                      isOwn
+                        ? "bg-primary text-white rounded-br-none"
+                        : "bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-100 rounded-bl-none"
+                    }`}
                   >
                     <div className="mt-1 text-sm space-y-2">
                       {m.attachment_url ? (
-
                         <div>
-                          
-                          {attachmentType.match(/\.(jpeg|jpg|png|gif)$/i) && (
+                          {filePath!.match(/\.(jpeg|jpg|png|gif)$/i) && (
                             <img
-                              src={m.attachment_url}
-                              alt={m.attachment_url}
-                              className="max-w-full max-h-60 rounded-lg"
+                              src={m.attachment_url || ""}
+                              alt={m.attachment_url || ""}
+                              className="max-w-full max-h-60 rounded-lg cursor-pointer"
+                              onClick={() =>
+                                m.attachment_url &&
+                                setPreviewModal({
+                                  type: "image",
+                                  url: m.attachment_url, // guaranteed string now
+                                })
+                              }
                             />
-
                           )}
                           {m.attachment_url.match(/\.(mp4|webm)$/i) && (
                             <video
@@ -311,27 +329,20 @@ export default function ChatRoom({ user, loginUser }: ChatRoomProps) {
                           {m.attachment_url.match(/\.(mp3|wav)$/i) && (
                             <AudioMessage file={m.attachment_url} />
                           )}
-                          {!m.attachment_url.match(
+                          {!filePath!.match(
                             /\.(jpeg|jpg|png|gif|mp4|webm|mp3|wav)$/i
                           ) && (
-                              <>
-                                <a
-                                  href={m.attachment_url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className=" underline"
-                                >
-                                  Download file
-                                </a>
-                                <img
-                              src={m.attachment_url}
-                              alt={m.attachment_url}
-                              className="max-w-full max-h-60 rounded-lg"
-                            />
-                
-                              </>
-
-                            )}
+                            <>
+                              <a
+                                href={m.attachment_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className=" underline"
+                              >
+                                Download file
+                              </a>
+                            </>
+                          )}
                         </div>
                       ) : (
                         m.content
@@ -354,7 +365,6 @@ export default function ChatRoom({ user, loginUser }: ChatRoomProps) {
                       )}
                     </div>
                   </div>
-
                 </div>
               );
             })}
@@ -519,29 +529,51 @@ export default function ChatRoom({ user, loginUser }: ChatRoomProps) {
       </div>
 
       {/* Fullscreen preview modal */}
+      {/* Fullscreen preview modal */}
       {previewModal && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-          <button
-            onClick={() => setPreviewModal(null)}
-            className="absolute top-4 right-4 p-2 rounded-full text-white"
-          >
-            <X className="w-6 h-6" />
-          </button>
-          {previewModal.type === "image" && (
-            <img
-              src={previewModal.url}
-              alt="preview"
-              className="max-w-[90%] max-h-[90%] rounded-lg"
-            />
-          )}
-          {previewModal.type === "video" && (
-            <video
-              src={previewModal.url}
-              controls
-              autoPlay
-              className="max-w-[90%] max-h-[90%] rounded-lg"
-            />
-          )}
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+          <div className="relative bg-white rounded-lg shadow-lg p-4 max-w-[90%] max-h-[90%] flex flex-col items-center justify-center">
+            {/* Close button */}
+            <button
+              onClick={() => setPreviewModal(null)}
+              className="absolute top-3 right-3 p-2 rounded-full bg-black/60 hover:bg-black/80 text-white transition"
+            >
+              <X className="w-6 h-6" />
+            </button>
+
+            {/* Content */}
+            {previewModal.type === "image" && (
+              <img
+                src={previewModal.url}
+                alt="preview"
+                className="max-w-full max-h-[70vh] rounded-lg object-contain mb-4"
+              />
+            )}
+
+            {previewModal.type === "video" && (
+              <video
+                src={previewModal.url}
+                controls
+                autoPlay
+                className="max-w-full max-h-[70vh] rounded-lg mb-4"
+              />
+            )}
+
+            {/* Download button */}
+            {/* <a
+              href={previewModal.url}
+              download
+              target="_blank"
+              rel="noopener noreferrer"
+            > */}
+<Button
+  className="w-full"
+  onClick={() => handleDownload(previewModal.url)}
+>
+  Download
+</Button>
+            {/* </a> */}
+          </div>
         </div>
       )}
     </div>

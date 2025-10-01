@@ -6,7 +6,7 @@ export const uploadAttachment = async (file: File | Blob | string, type: string)
         const formData = new FormData();
         formData.append("attachment_url", file);
         formData.append("type", type);
-                console.log("form data payload", formData);
+                console.log("form data payload", {formData, type});
         const response = await axiosInstance.post("/message/send-attachment", formData, {
             headers: {
                 "Content-Type": "multipart/form-data",
