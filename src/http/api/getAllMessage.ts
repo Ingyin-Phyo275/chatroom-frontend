@@ -1,10 +1,15 @@
 import { AxiosError } from "axios";
 import axiosInstance from "../httpClient";
 
-export const GetAllMessage = async () => {
+interface GetAllMessageProps {
+  receiverId: number;
+  page: number;
+  pageSize: number;
+}
+export const GetAllMessage = async ({receiverId, page, pageSize} : GetAllMessageProps) => {
     try{
-        const response = await axiosInstance.get("/message/get-all-messages");
-        console.log("response data in get all message", response.data);
+        const response = await axiosInstance.get(`/message/get-all-messages?receiver_id=${receiverId}&page=${page}&pageSize=${pageSize}`);
+        // console.log("response data in get all message", response.data);
         return response.data;
     }catch(error){
         if(error instanceof AxiosError) {

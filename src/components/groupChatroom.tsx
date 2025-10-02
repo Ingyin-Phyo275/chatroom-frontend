@@ -12,6 +12,7 @@ import type { loginResponse } from "../dto/response/LoginResponse";
 import type { ChatUserType } from "../dto/UserTypes";
 import type { GetAllMessage } from "../dto/response/GetAllMessage";
 import { dedupeMessages } from "../utils/helper";
+import { ChatroomUploadFile } from "../http/api/chatroomUploadFile";
 
 type Attachment = { type: string; file: File; url?: string };
 type Props = { user: ChatUserType; loginUser: loginResponse };
@@ -24,6 +25,7 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
     const [previewModal, setPreviewModal] = useState<{ type: string; url: string } | null>(null);
     const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
     const [messagesLoaded, setMessagesLoaded] = useState(false);
+  const [attachmentType, setAttachmentType] = useState("image");
 
     //api call variables
     const [page, setPage] = useState(1);
@@ -70,8 +72,8 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
         const chatroom = await getChatroomDetails({ chatroomId: Number(user.id), page: pageNumber, pageSize });
         const chatMessages: GetAllMessage[] = chatroom.messages.map((m: any) => ({
             id: m.id,
-            sender: { id: m.sender.id, username: m.sender.username },
-            chatroom: m.receiver ? { id: m.receiver.id, username: m.receiver.username } : undefined,
+            sender: { id: m.sender?.id, username: m.sender?.username },
+            chatroom: m.receiver ? { id: m.receiver?.id, username: m.receiver?.username } : undefined,
             content: m.content ?? "",
             created_at: m.created_at ?? new Date().toISOString(),
             attachment_url: m.attachment_url ?? null,
@@ -160,7 +162,7 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
     };
 
     // Send message
-    const sendMessage = () => {
+    const sendMessage = async () => {
         if (!text.trim() && pendingAttachments.length === 0) return;
 
         if (editingMessageId) {
@@ -173,13 +175,30 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
             return;
         }
 
+        let uploadedUrl: string | null = null;
+                if (pendingAttachments.length > 0) {
+                  try {
+                    const result = await ChatroomUploadFile(
+                      pendingAttachments[0].file,
+                       user?.id,
+                       text.trim(),
+                    );
+                    uploadedUrl = result.url;
+                    setAttachmentType(result.type ?? attachmentType);
+                  } catch (error) {
+                    console.error("Upload failed:", error);
+                    toast?.error?.("Attachment upload failed");
+                    return;
+                  }
+                }
+
         const newMsg: GetAllMessage = {
             id: Date.now().toString(),
             sender: { id: loginUser.user.id, username: loginUser.user.name },
             chatroom: { id: user.id, username: user.username },
             content: text.trim(),
             created_at: new Date().toISOString(),
-            attachment_url: null,
+            attachment_url: uploadedUrl,
             is_delivered: true,
             is_pinned: false,
             is_group: true,
@@ -258,6 +277,16 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
         {}
     );
 
+      // helpers to detect file types safely
+  const filePathFromUrl = (url?: string | null) => {
+    if (!url) return null;
+    try {
+      return new URL(url).pathname;
+    } catch {
+      return url;
+    }
+  };
+
     return (
         <div className="flex flex-col h-[calc(100vh-4rem)] relative">
             {/* Messages */}
@@ -272,6 +301,8 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
 
                         {groupedMessages[dayKey].map((m) => {
                             const isOwn = m.sender?.id === loginUser.user.id;
+                                          const filePath = filePathFromUrl(m.attachment_url ?? null);
+
                             return (
                                 <div key={m.id} className={`flex ${isOwn ? "justify-end" : "justify-start"} gap-3`}>
                                     {!isOwn && (
@@ -293,14 +324,15 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
                                             <div className={`max-w-[70%] p-2 rounded-lg cursor-pointer ${isOwn ? "bg-primary text-white" : "bg-slate-200 text-slate-900"}`}>
                                                 {m.attachment_url ? (
                                                     <div>
-                                                        {m.attachment_url.match(/\.(jpeg|jpg|png|gif)$/i) && (
+                                                        {m.content && <p>{m.content}</p>}
+                                                        {filePath?.match(/\.(jpeg|jpg|png|gif)$/i) && (
                                                             <img src={m.attachment_url} className="max-w-full max-h-60 rounded-lg" />
                                                         )}
-                                                        {m.attachment_url.match(/\.(mp4|webm)$/i) && (
+                                                        {filePath?.match(/\.(mp4|webm)$/i) && (
                                                             <video src={m.attachment_url} controls className="max-w-full max-h-60 rounded-lg" />
                                                         )}
-                                                        {m.attachment_url.match(/\.(mp3|wav)$/i) && <AudioMessage file={m.attachment_url} />}
-                                                        {!m.attachment_url.match(/\.(jpeg|jpg|png|gif|mp4|webm|mp3|wav)$/i) && (
+                                                        {filePath?.match(/\.(mp3|wav)$/i) && <AudioMessage file={m.attachment_url} />}
+                                                        {!filePath?.match(/\.(jpeg|jpg|png|gif|mp4|webm|mp3|wav)$/i) && (
                                                             <a href={m.attachment_url} target="_blank" rel="noopener noreferrer" className="text-blue-500 underline">
                                                                 Download file
                                                             </a>
