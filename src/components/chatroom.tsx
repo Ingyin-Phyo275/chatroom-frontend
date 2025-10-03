@@ -22,16 +22,11 @@ interface ChatRoomProps {
 }
 
 export default function ChatRoom({ user, loginUser }: ChatRoomProps) {
-  // messages store (most UI expects array of MessageItem)
+
   const [messages, setMessages] = useState<PrivateChatMessage[]>([]);
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
-  const [pendingAttachments, setPendingAttachments] = useState<Attachment[]>(
-    []
-  );
-  const [previewModal, setPreviewModal] = useState<{
-    type: string;
-    url: string;
-  } | null>(null);
+  const [pendingAttachments, setPendingAttachments] = useState<Attachment[]>([]);
+  const [previewModal, setPreviewModal] = useState<{type: string;url: string;} | null>(null);
   const [text, setText] = useState("");
   const [attachmentType, setAttachmentType] = useState("image");
 
@@ -52,7 +47,6 @@ export default function ChatRoom({ user, loginUser }: ChatRoomProps) {
   // "new message" indicator if user scrolled up
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [newMessageCount, setNewMessageCount] = useState(0);
-
   const pageRef = useRef<number>(0);
 
   // reset state when switching chat
@@ -101,8 +95,9 @@ export default function ChatRoom({ user, loginUser }: ChatRoomProps) {
     const chatMessages: PrivateChatMessage[] = (chatroom.messages || []).map(
       (m: any) => transformMessageFromApi(m)
     );
-    console.log("fetch page", pageNumber);
-    console.log("total pages", chatroom?.pagination?.totalPages)
+    console.log(page);
+    console.log(totalPages);
+    console.log(loadingMore);
 
     return { chatMessages, totalPage: chatroom.pagination?.totalPages ?? 1 };
   };
@@ -137,7 +132,6 @@ export default function ChatRoom({ user, loginUser }: ChatRoomProps) {
 
     const handleNewMessage = (msg: any) => {
       const newMsg = transformMessageFromApi(msg);
-
       const belongs =
           (String(newMsg.sender?.id ?? newMsg.sender) === String(user.id) &&
           String(newMsg.receiver?.id ?? newMsg.receiver) === String(loginUser.user.id)) ||
@@ -166,117 +160,114 @@ export default function ChatRoom({ user, loginUser }: ChatRoomProps) {
     };
   }, [isAtBottom, loginUser.user.id, user.id]);
 
-// Load latest messages initially
-useEffect(() => {
-  if (!user.id) return;
+  // Load latest messages initially
+  useEffect(() => {
+    if (!user.id) return;
 
-  let cancelled = false;
+    let cancelled = false;
 
-  const loadLatestPage = async () => {
-    try {
-      // First, fetch page 1 to get totalPage
-      const firstPage = await fetchPage(1);
-      const totalPage = firstPage.totalPage;
-      setTotalPages(totalPage);
-
-      if (totalPage < 1) return;
-
-      // Fetch only the newest page initially
-      const { chatMessages } = await fetchPage(totalPage);
-      if (cancelled) return;
-
-      // Append messages (oldest → newest)
-      const filtered = filterMessages([...chatMessages]);
-      setMessages(filtered);
-
-      scrollToBottom();
-      setPage(totalPage);
-pageRef.current = totalPage;
-      setMessagesLoaded(true);
-    } catch (err) {
-      console.error("Failed to load latest messages:", err);
-    }
-  };
-
-  loadLatestPage();
-
-  return () => {
-    cancelled = true;
-  };
-}, [user.id]);
-
-
-
-// Infinite scroll: load older messages on scroll-to-top
-useEffect(() => {
-  if (!messagesLoaded) return;
-
-  let mounted = true;
-  let isFetching = false; // prevent duplicate fetches
-
-  const handleScroll = async () => {
-    if (!listRef.current || !mounted || isFetching) return;
-    const el = listRef.current;
-    const { scrollTop, scrollHeight, clientHeight } = el;
-
-    // Detect if at bottom
-    const atBottom = scrollHeight - (scrollTop + clientHeight) < 50;
-    setIsAtBottom(atBottom);
-    if (atBottom) setNewMessageCount(0);
-
-    // Load older messages if near top
-    if (scrollTop < 50 && pageRef.current > 1) {
-      isFetching = true;
-      const nextPage = pageRef.current - 1;
-
+    const loadLatestPage = async () => {
       try {
-        const { chatMessages } = await fetchPage(nextPage);
-        if (!mounted) return;
+        // First, fetch page 1 to get totalPage
+        const firstPage = await fetchPage(1);
+        const totalPage = firstPage.totalPage;
+        setTotalPages(totalPage);
 
-        const prevScrollHeight = el.scrollHeight;
-        setMessages((prev) => filterMessages([...chatMessages, ...prev]));
+        if (totalPage < 1) return;
 
-        pageRef.current = nextPage;
-        setPage(nextPage);
+        // Fetch only the newest page initially
+        const { chatMessages } = await fetchPage(totalPage);
+        if (cancelled) return;
 
-        // Preserve scroll position
-        setTimeout(() => {
-          if (listRef.current) {
-            listRef.current.scrollTop =
-              listRef.current.scrollHeight - prevScrollHeight;
-          }
-        }, 50);
+        // Append messages (oldest → newest)
+        const filtered = filterMessages([...chatMessages]);
+        setMessages(filtered);
+
+        scrollToBottom();
+        setPage(totalPage);
+        pageRef.current = totalPage;
+        setMessagesLoaded(true);
       } catch (err) {
-        console.error("Failed to load older messages:", err);
-      } finally {
-        isFetching = false;
+        console.error("Failed to load latest messages:", err);
       }
+    };
+
+    loadLatestPage();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user.id]);
+
+  // Infinite scroll: load older messages on scroll-to-top
+  useEffect(() => {
+    if (!messagesLoaded) return;
+
+    let mounted = true;
+    let isFetching = false; // prevent duplicate fetches
+
+    const handleScroll = async () => {
+      if (!listRef.current || !mounted || isFetching) return;
+      const el = listRef.current;
+      const { scrollTop, scrollHeight, clientHeight } = el;
+
+      // Detect if at bottom
+      const atBottom = scrollHeight - (scrollTop + clientHeight) < 50;
+      setIsAtBottom(atBottom);
+      if (atBottom) setNewMessageCount(0);
+
+      // Load older messages if near top
+      if (scrollTop < 50 && pageRef.current > 1) {
+        isFetching = true;
+        const nextPage = pageRef.current - 1;
+
+        try {
+          const { chatMessages } = await fetchPage(nextPage);
+          if (!mounted) return;
+
+          const prevScrollHeight = el.scrollHeight;
+          setMessages((prev) => filterMessages([...chatMessages, ...prev]));
+
+          pageRef.current = nextPage;
+          setPage(nextPage);
+
+          // Preserve scroll position
+          setTimeout(() => {
+            if (listRef.current) {
+              listRef.current.scrollTop =
+                listRef.current.scrollHeight - prevScrollHeight;
+            }
+          }, 50);
+        } catch (err) {
+          console.error("Failed to load older messages:", err);
+        } finally {
+          isFetching = false;
+        }
+      }
+    };
+
+    // Debounce scroll to avoid too many rapid calls
+    const debouncedScroll = () => {
+      if (handleScrollTimeout.current) clearTimeout(handleScrollTimeout.current);
+      handleScrollTimeout.current = setTimeout(handleScroll, 100);
+    };
+
+    const handleScrollTimeout = { current: null as NodeJS.Timeout | null };
+    const node = listRef.current;
+    node?.addEventListener("scroll", debouncedScroll);
+
+    return () => {
+      mounted = false;
+      node?.removeEventListener("scroll", debouncedScroll);
+    };
+  }, [messagesLoaded]);
+
+  // Scroll to bottom helper
+  const scrollToBottom = () => {
+    if (listRef.current) {
+      listRef.current.scrollTop = listRef.current.scrollHeight;
     }
   };
-
-  // Debounce scroll to avoid too many rapid calls
-  const debouncedScroll = () => {
-    if (handleScrollTimeout.current) clearTimeout(handleScrollTimeout.current);
-    handleScrollTimeout.current = setTimeout(handleScroll, 100);
-  };
-
-  const handleScrollTimeout = { current: null as NodeJS.Timeout | null };
-  const node = listRef.current;
-  node?.addEventListener("scroll", debouncedScroll);
-
-  return () => {
-    mounted = false;
-    node?.removeEventListener("scroll", debouncedScroll);
-  };
-}, [messagesLoaded]);
-
-
-// Scroll to bottom helper
-const scrollToBottom = () => {
-  if (listRef.current) {
-    listRef.current.scrollTop = listRef.current.scrollHeight;
-  }
-};
 
   // Send message (including attachments upload)
   const sendMessage = async () => {
@@ -373,11 +364,11 @@ const scrollToBottom = () => {
     }
   };
 
+  const groupedMessages = groupMessagesByDay(messages);
+  const sortedDays = Object.keys(groupedMessages).sort(
+    (a, b) => new Date(a).getTime() - new Date(b).getTime()
+  );
 
-const groupedMessages = groupMessagesByDay(messages);
-const sortedDays = Object.keys(groupedMessages).sort(
-  (a, b) => new Date(a).getTime() - new Date(b).getTime()
-);
   // helpers to detect file types safely
   const filePathFromUrl = (url?: string | null) => {
     if (!url) return null;
@@ -390,7 +381,6 @@ const sortedDays = Object.keys(groupedMessages).sort(
 
   // Edit message (if you want to keep editing like group chat)
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
-
   const handleEditMessage = (messageId: string, currentText: string) => {
     setEditingMessageId(messageId);
     setText(currentText);
@@ -428,8 +418,7 @@ const sortedDays = Object.keys(groupedMessages).sort(
 
             {groupedMessages[day].map((m: PrivateChatMessage) => {
               // m.sender could be string (id) or object with id
-              const senderId =
-                typeof m.sender === "string" ? m.sender : String(m.sender?.id ?? "");
+              const senderId = typeof m.sender === "string" ? m.sender : String(m.sender?.id ?? "");
               const loginId = String(loginUser.user.id);
               const isOwn = senderId === loginId;
 

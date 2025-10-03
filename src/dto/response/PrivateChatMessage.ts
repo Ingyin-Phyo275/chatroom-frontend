@@ -7,6 +7,8 @@ export interface PrivateChatMessage {
   is_delivered?: boolean;
   is_pinned?: boolean;
   attachment_url?: string | null;
+  imagePath?: string | null;
+  attachmentType?: "image" | "video" | "audio" | "file" | null;
   is_group?: boolean;
   pagination?: {
     page: number;

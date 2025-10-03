@@ -3,11 +3,11 @@ import type { ChatUserType } from "../dto/UserTypes"
 import { Button } from "./ui/button"
 import { SidebarTrigger } from "./ui/sidebar"
 import { useState } from "react"
-import ChatRoom from "./chatroom"
 import ChatInfoPanel from "./chat-info-panel"
 import type { loginResponse } from "../dto/response/LoginResponse"
 import * as Avatar from "@radix-ui/react-avatar";
 import GroupChatroom from "./groupChatroom"
+import ChatRoom from "../chatroom"
 
 type chatroomPageProps = {
     selectedUser: ChatUserType,

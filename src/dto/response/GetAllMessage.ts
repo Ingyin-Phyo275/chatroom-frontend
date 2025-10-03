@@ -5,6 +5,9 @@ export interface GetAllMessage {
     content?: string;
     created_at?: string;
     attachment_url?: string | null;
+      attachment_urls?: string[] | null; 
+      attachment_type?: string | null;
+        imagePath?: string[] | null;
     is_delivered?: boolean;
     is_pinned?: boolean;
     is_group?: boolean;
