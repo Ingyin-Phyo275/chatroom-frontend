@@ -2,12 +2,12 @@ import React, { useState } from "react";
 import { SearchIcon, X } from "lucide-react";
 import type { UserListResponse } from "../dto/response/UserListResponse";
 import { Input } from "./ui/input";
-import { createChatroom } from "../http/api/createChatroom";
 import { toast } from "sonner";
 import * as Avatar from "@radix-ui/react-avatar";
-import { addMembers } from "../http/api/addMember";
 import { useQueryClient } from "@tanstack/react-query";
 import { userListQuery } from "../composables/Queries/userListQuery";
+import { addMembers } from "../http/api/groupChat/addMember";
+import { createChatroom } from "../http/api/groupChat/createChatroom";
 
 interface MemberAddFormProps {
   action?: "add" | "create";

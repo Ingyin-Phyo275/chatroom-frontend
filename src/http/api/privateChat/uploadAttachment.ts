@@ -1,13 +1,14 @@
 import { AxiosError } from "axios";
-import axiosInstance from "../httpClient";
+import axiosInstance from "../../httpClient";
 
-export const uploadAttachment = async (file: File | Blob | string, type: string) => {
+export const uploadAttachment = async (file: File | Blob | string, type: string, receiver_id: string) => {
     try {
         const formData = new FormData();
         formData.append("attachment_url", file);
         formData.append("type", type);
-                console.log("form data payload", {formData, type});
-        const response = await axiosInstance.post("/message/send-attachment", formData, {
+        formData.append("receiver_id", receiver_id);
+        console.log("form data payload", {formData, type});
+        const response = await axiosInstance.post("/message/sent-attach", formData, {
             headers: {
                 "Content-Type": "multipart/form-data",
             },

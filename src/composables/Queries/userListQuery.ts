@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query"
 import type { UserListResponse } from "../../dto/response/UserListResponse"
-import { userList } from "../../http/api/userList"
+import { userList } from "../../http/api/privateChat/userList";
 
 export const userListQuery = () => {
     const userListData = useQuery<UserListResponse[]>({

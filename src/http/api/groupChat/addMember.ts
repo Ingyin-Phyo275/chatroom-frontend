@@ -1,6 +1,6 @@
 import { AxiosError } from "axios";
-import axiosInstance from "../httpClient";
-import type { addMembersData } from "../../dto/input/addMember";
+import axiosInstance from "../../httpClient";
+import type { addMembersData } from "../../../dto/input/addMember";
 
 export const addMembers = async ({chatroomId, userIds}: addMembersData) => {
     try {

@@ -3,8 +3,7 @@ import { Send, Paperclip, ImageIcon, VideoIcon, Music, CheckCheck, Pin, Trash, F
 import * as Avatar from "@radix-ui/react-avatar";
 import AudioMessage from "./AudioPlayer";
 import { socket } from "../socket/socket";
-import { getChatroomDetails } from "../http/api/getChatroomDetails";
-import { editGroupChatMessage } from "../http/api/editGroupChatMessage";
+
 import { toast } from "sonner";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu";
 import { formatMessageDate } from "../hooks/helper";
@@ -12,7 +11,9 @@ import type { loginResponse } from "../dto/response/LoginResponse";
 import type { ChatUserType } from "../dto/UserTypes";
 import type { GetAllMessage } from "../dto/response/GetAllMessage";
 import { dedupeMessages } from "../utils/helper";
-import { ChatroomUploadFile } from "../http/api/chatroomUploadFile";
+import { getChatroomDetails } from "../http/api/groupChat/getChatroomDetails";
+import { ChatroomUploadFile } from "../http/api/groupChat/chatroomUploadFile";
+import { editGroupChatMessage } from "../http/api/groupChat/editGroupChatMessage";
 
 type Attachment = { type: string; file: File; url?: string };
 type Props = { user: ChatUserType; loginUser: loginResponse };
@@ -25,7 +26,7 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
     const [previewModal, setPreviewModal] = useState<{ type: string; url: string } | null>(null);
     const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
     const [messagesLoaded, setMessagesLoaded] = useState(false);
-    const [attachmentType, setAttachmentType] = useState("image");
+    const [attachmentType, setattachmentType] = useState("image");
 
     //api call variables
     const [page, setPage] = useState(1);
@@ -43,7 +44,11 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
     const audioInputRef = useRef<HTMLInputElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const [imagePath, setImagePath] = useState<string | null>(null);
+    // const [imagePath, setImagePath] = useState<string | null>(null);
+
+    console.log(totalPages);
+    console.log(setattachmentType);
+    
 
     // Join chatroom
     useEffect(() => {
@@ -62,7 +67,7 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
             if (!msg.is_group || (senderId === userId && chatroomId === loginId) || (senderId === loginId && chatroomId === userId)) {
                 setMessages((prev) => dedupeMessages([...prev, msg]));
             }
-            
+
         };
         socket.on("receive-message", handleNewMessage);
         return () => {
@@ -83,7 +88,7 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
             is_delivered: m.is_delivered,
             is_pinned: m.is_pinned ?? false,
         }));
-        console.log(totalPages);
+        // console.log(totalPages);
         return { chatMessages, totalPage: chatroom.totalPage ?? 1 };
     };
 
@@ -95,14 +100,14 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
                 const firstPage = await fetchPage(1);
                 const totalPage = firstPage.totalPage;
                 setTotalPages(totalPage);
-                console.log("Call api first time")
+                // console.log("Call api first time")
                 let currentPage = totalPage;
                 let allMessages: GetAllMessage[] = [];
                 let scrollable = false;
 
                 while (!scrollable && currentPage > 0) {
                     const { chatMessages } = await fetchPage(currentPage);
-                    console.log(`Call api second time ${currentPage}`)
+                    //console.log(`Call api second time ${currentPage}`)
                     allMessages = [...chatMessages, ...allMessages];
                     setMessages(dedupeMessages([...allMessages]));
                     await new Promise((r) => setTimeout(r, 50));
@@ -128,7 +133,7 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
     useEffect(() => {
         if (!messagesLoaded) return; // 
         const handleScroll = async () => {
-            console.log("Scroll event");
+            // console.log("Scroll event");
             if (!listRef.current) return;
             const { scrollTop, scrollHeight, clientHeight } = listRef.current;
             const atBottom = scrollHeight - (scrollTop + clientHeight) < 50;
@@ -139,7 +144,7 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
                 setLoadingMore(true);
                 const nextPage = page - 1;
                 try {
-                    console.log(`Call api in scroll ${nextPage}`)
+                    // console.log(`Call api in scroll ${nextPage}`)
                     const { chatMessages } = await fetchPage(nextPage);
                     const currentScrollHeight = listRef.current.scrollHeight;
                     setMessages((prev) => dedupeMessages([...chatMessages, ...prev]));
@@ -165,101 +170,176 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
         if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight;
     };
 
-    // Send message
-const sendMessage = async () => {
-  if (!text.trim() && pendingAttachments.length === 0) return;
+    // Send message with multiple socket call
+    const sendMessage = async () => {
+        if (!text.trim() && pendingAttachments.length === 0) return;
 
-  // Edit mode
-  if (editingMessageId) {
-    setMessages((prev) =>
-      dedupeMessages(
-        prev.map((m) =>
-          m.id === editingMessageId ? { ...m, content: text.trim() } : m
-        )
-      )
-    );
-    socket.emit("edit-message", { message_id: editingMessageId, new_content: text.trim() });
-    setEditingMessageId(null);
-    setText("");
-    return;
-  }
+        // Edit mode
+        if (editingMessageId) {
+            setMessages((prev) =>
+                dedupeMessages(
+                    prev.map((m) =>
+                        m.id === editingMessageId ? { ...m, content: text.trim() } : m
+                    )
+                )
+            );
+            socket.emit("edit-message", { message_id: editingMessageId, new_content: text.trim() });
+            setEditingMessageId(null);
+            setText("");
+            return;
+        }
 
-  // If there are attachments, send each as a separate API call
-  if (pendingAttachments.length > 0) {
-    for (const att of pendingAttachments) {
-      try {
-        const result: any = await ChatroomUploadFile(att.file, user?.id, text.trim());
+        // If there are attachments, send each as a separate API call
+        if (pendingAttachments.length > 0) {
+            for (const att of pendingAttachments) {
+                try {
+                    const result: any = await ChatroomUploadFile(att.file, user?.id, text.trim());
 
-        const uploadedUrl = result?.data?.[0]?.attachment_url ?? null;
-        const imagePath = result?.data?.[0]?.imagePath ?? null;
-        const attachmentTypeToSend = result?.attachment_type ?? attachmentType;
-        console.log("attchment url", uploadedUrl);
-        // console.log("imagePath", imagePath);
+                    const uploadedUrl = result?.data?.[0]?.attachment_url ?? null;
+                    const imagePath = result?.data?.[0]?.imagePath ?? null;
+                    const attachmentTypeToSend = result?.data?.[0]?.attachment_type ?? attachmentType;
 
-        const newMsg: GetAllMessage = {
-          id: Date.now().toString(),
-          sender: { id: loginUser.user.id, username: loginUser.user.name },
-          chatroom: { id: user.id, username: user.username },
-          content: text.trim(),
-          created_at: new Date().toISOString(),
-          attachment_urls: uploadedUrl ? [uploadedUrl] : [],
-          attachment_url: uploadedUrl,
-          imagePath: imagePath,
-          is_delivered: true,
-          is_pinned: false,
-          is_group: true,
-        };
+                    const newMsg: GetAllMessage = {
+                        id: Date.now().toString(),
+                        sender: { id: loginUser.user.id, username: loginUser.user.name },
+                        chatroom: { id: user.id, username: user.username },
+                        content: text.trim(),
+                        created_at: new Date().toISOString(),
+                        attachment_urls: uploadedUrl ? [uploadedUrl] : [],
+                        attachment_url: uploadedUrl,
+                        imagePath: imagePath,
+                        is_delivered: true,
+                        is_pinned: false,
+                        is_group: true,
+                    };
 
-        // Add locally
-        setMessages((prev) => dedupeMessages([...prev, newMsg]));
-        scrollToBottom();
+                    // Add locally
+                    setMessages((prev) => dedupeMessages([...prev, newMsg]));
+                    scrollToBottom();
 
-        // Emit to server
-        socket.emit("chat-message", {
-          sender_id: newMsg.sender?.id,
-          chatroom_id: newMsg.chatroom?.id,
-          content: newMsg.content,
-          attachment_urls: uploadedUrl ? [uploadedUrl] : [],
-          attachment_type: attachmentTypeToSend,
-          imagePath: imagePath,
-          is_group: true,
-        });
+                    // Emit to server
+                    socket.emit("chat-message", {
+                        sender_id: newMsg.sender?.id,
+                        chatroom_id: newMsg.chatroom?.id,
+                        content: newMsg.content,
+                        attachment_urls: uploadedUrl ? [uploadedUrl] : [],
+                        attachment_type: attachmentTypeToSend,
+                        imagePath: imagePath,
+                        is_group: true,
+                    });
 
-      } catch (error) {
-        console.error("Upload failed:", error);
-        toast?.error?.("Attachment upload failed");
-      }
-    }
-  } else {
-    // no attachments,  send a text message
-    const newMsg: GetAllMessage = {
-      id: Date.now().toString(),
-      sender: { id: loginUser.user.id, username: loginUser.user.name },
-      chatroom: { id: user.id, username: user.username },
-      content: text.trim(),
-      created_at: new Date().toISOString(),
-      attachment_urls: [],
-      imagePath: null,
-      is_delivered: true,
-      is_pinned: false,
-      is_group: true,
+                } catch (error) {
+                    console.error("Upload failed:", error);
+                    toast?.error?.("Attachment upload failed");
+                }
+            }
+        } else {
+            // no attachments,  send a text message
+            const newMsg: GetAllMessage = {
+                id: Date.now().toString(),
+                sender: { id: loginUser.user.id, username: loginUser.user.name },
+                chatroom: { id: user.id, username: user.username },
+                content: text.trim(),
+                created_at: new Date().toISOString(),
+                attachment_urls: [],
+                imagePath: null,
+                is_delivered: true,
+                is_pinned: false,
+                is_group: true,
+            };
+
+            setMessages((prev) => dedupeMessages([...prev, newMsg]));
+            socket.emit("chat-message", {
+                sender_id: newMsg.sender?.id,
+                chatroom_id: newMsg.chatroom?.id,
+                content: newMsg.content,
+                attachment_urls: [],
+                attachment_type: attachmentType,
+                imagePath: null,
+                is_group: true,
+            });
+        }
+
+        setText("");
+        setPendingAttachments([]);
     };
 
-    setMessages((prev) => dedupeMessages([...prev, newMsg]));
-    socket.emit("chat-message", {
-      sender_id: newMsg.sender?.id,
-      chatroom_id: newMsg.chatroom?.id,
-      content: newMsg.content,
-      attachment_urls: [],
-      attachment_type: attachmentType,
-      imagePath: null,
-      is_group: true,
-    });
-  }
+    //send message with array of attachments
+    // const sendMessage = async () => {
+    //   if (!text.trim() && pendingAttachments.length === 0) return;
 
-  setText("");
-  setPendingAttachments([]);
-};
+    //   // Edit mode
+    //   if (editingMessageId) {
+    //     setMessages((prev) =>
+    //       dedupeMessages(
+    //         prev.map((m) =>
+    //           m.id === editingMessageId ? { ...m, content: text.trim() } : m
+    //         )
+    //       )
+    //     );
+    //     socket.emit("edit-message", { message_id: editingMessageId, new_content: text.trim() });
+    //     setEditingMessageId(null);
+    //     setText("");
+    //     return;
+    //   }
+
+    //   let uploadedUrls: string[] = [];
+    //   let imagePaths: string[] = [];
+
+    //   if (pendingAttachments.length > 0) {
+    //     try {
+    //       // Upload all attachments in parallel
+    //       const results: any = await Promise.all(
+    //         pendingAttachments.map((att) =>
+    //           ChatroomUploadFile(att.file, user?.id, text.trim())
+    //         )
+    //       );
+
+    //       // Collect both URLs and imagePaths
+    //       uploadedUrls = results.map((r: any) => r?.data?.[0]?.attachment_url).filter(Boolean);
+    //       imagePaths   = results.map((r: any) => r?.data?.[0]?.imagePath).filter(Boolean);
+
+    //       console.log("Uploaded files:", uploadedUrls);
+    //       console.log("Image paths:", imagePaths);
+
+    //       setattachmentType(results[0]?.attachment_type ?? attachmentType);
+    //     } catch (error) {
+    //       console.error("Upload failed:", error);
+    //       toast?.error?.("Attachment upload failed");
+    //       return;
+    //     }
+    //   }
+
+    //   const newMsg: GetAllMessage = {
+    //     id: Date.now().toString(),
+    //     sender: { id: loginUser.user.id, username: loginUser.user.name },
+    //     chatroom: { id: user.id, username: user.username },
+    //     content: text.trim(),
+    //     created_at: new Date().toISOString(),
+    //     attachment_urls: uploadedUrls,
+    //     imagePath: imagePaths ?? null, // 
+    //     is_delivered: true,
+    //     is_pinned: false,
+    //     is_group: true,
+    //   };
+
+    //   // Add locally
+    //   setMessages((prev) => dedupeMessages([...prev, newMsg]));
+    //   setText("");
+    //   setPendingAttachments([]);
+    //   scrollToBottom();
+
+    //   // Emit to server
+    //   socket.emit("chat-message", {
+    //     sender_id: newMsg.sender?.id,
+    //     chatroom_id: newMsg.chatroom?.id,
+    //     content: newMsg.content,
+    //     attachment_urls: uploadedUrls,
+    //     attachment_type: attachmentType,
+    //     imagePath: imagePaths ?? null, // 
+    //     is_group: true,
+    //   });
+    // };
 
     // Handle attachments
     const handleAttachmentClick = (type: string) => {
@@ -319,16 +399,6 @@ const sendMessage = async () => {
         },
         {}
     );
-
-    // helpers to detect file types safely
-    // const filePathFromUrl = (url?: string | null) => {
-    //     if (!url) return null;
-    //     try {
-    //         return new URL(url).pathname;
-    //     } catch {
-    //         return url;
-    //     }
-    // };
 
     function AttachmentPreview({ url }: { url: string }) {
         const filePath = (() => {

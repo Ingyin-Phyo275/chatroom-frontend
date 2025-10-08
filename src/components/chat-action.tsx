@@ -7,8 +7,8 @@ import {
 import type { ChatUserType } from "@/dto/UserTypes";
 import { Archive, EllipsisVertical, Pin, Trash } from "lucide-react";
 import { toast } from "sonner";
-import { deleteChat } from "../http/api/deleteChat";
 import { useQueryClient } from "@tanstack/react-query";
+import { deleteChat } from "../http/api/groupChat/deleteChat";
 interface ChatActionProps {
     user: ChatUserType
 }

@@ -9,6 +9,7 @@ import type { GroupChatResponse } from "../dto/response/ChatRoom";
 import { useGroupChatList } from "../composables/Queries/useGroupChatList";
 import { userListQuery } from "../composables/Queries/userListQuery";
 import { chatUserListQuery } from "../composables/Queries/ChatUserListQuery";
+import { Badge } from "@/components/ui/badge"
 
 interface ChatUsersProps {
   tabs: string;
@@ -25,56 +26,57 @@ export default function ChatUsers({
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(13);
   //group chats list
-  const { groupChatListQuery: groupChatList = [] as GroupChatResponse[]} =  useGroupChatList({page, pageSize});
+  const { groupChatListQuery: groupChatList = [] as GroupChatResponse[] } = useGroupChatList({ page, pageSize });
 
   //user's contact list
-  const { userListData: contact =[] as UserListResponse[]}  = userListQuery();
+  const { userListData: contact = [] as UserListResponse[] } = userListQuery();
 
   //user's personal chat list
-  const { userListData: users =[] as ChatUserType[] }  = chatUserListQuery();
+  const { userListData: users = [] as ChatUserType[] } = chatUserListQuery();
   // console.log("result in chat users", users);
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
   };
 
-React.useEffect(() => {
-  let newFiltered: ChatUserType[] = [];
-  if (tabs === "Contacts") {
-    newFiltered = contact.filter((c) =>
-      c.username.toLowerCase().includes(searchTerm.toLowerCase())
-    ) as unknown as ChatUserType[];
-  } else if (tabs === "Group") {
-    newFiltered = groupChatList
-      .filter((g: GroupChatResponse) =>
-        g.name.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-      .map((g: GroupChatResponse) => ({
-        id: String(g.id),
-        username: g.name,
-        status: "online",
-        is_group: true,
-        tabs: "Group",
-        avatar_url: "",
-      }));
-  } else {
-  newFiltered = users
-    .filter((user) => (tabs === "Personal" ? !user.is_group : true))
-    .filter((user) =>
-      user.username.toLowerCase().includes(searchTerm.toLowerCase())
-    ) as ChatUserType[]; 
-}
-  // Only update state if it’s different
-  setFilteredUsers((prev) => {
-    if (JSON.stringify(prev) === JSON.stringify(newFiltered)) return prev;
-    return newFiltered;
-  });
-}, [tabs, users, contact, groupChatList, searchTerm]);
+
+  React.useEffect(() => {
+    let newFiltered: ChatUserType[] = [];
+    if (tabs === "Contacts") {
+      newFiltered = contact.filter((c) =>
+        c.username.toLowerCase().includes(searchTerm.toLowerCase())
+      ) as unknown as ChatUserType[];
+    } else if (tabs === "Group") {
+      newFiltered = groupChatList
+        .filter((g: GroupChatResponse) =>
+          g.name.toLowerCase().includes(searchTerm.toLowerCase())
+        )
+        .map((g: GroupChatResponse) => ({
+          id: String(g.id),
+          username: g.name,
+          status: "online",
+          is_group: true,
+          tabs: "Group",
+          avatar_url: "",
+        }));
+    } else {
+      newFiltered = users
+        .filter((user) => (tabs === "Personal" ? !user.is_group : true))
+        .filter((user) =>
+          user.username.toLowerCase().includes(searchTerm.toLowerCase())
+        ) as ChatUserType[];
+    }
+    // Only update state if it’s different
+    setFilteredUsers((prev) => {
+      if (JSON.stringify(prev) === JSON.stringify(newFiltered)) return prev;
+      return newFiltered;
+    });
+  }, [tabs, users, contact, groupChatList, searchTerm]);
 
   const handleClick = async (user: ChatUserType) => {
     onSelectUser(user);
   };
-
+  
   return (
     <div className="flex flex-col h-full w-full">
       {/* Search bar */}
@@ -116,12 +118,20 @@ React.useEffect(() => {
 
             {/* Name + status */}
             <div className="flex flex-col">
-              <span className="font-medium">{user.username}</span>
+              <span className="font-medium">{user.username}
+                {
+                  tabs !== "Contacts" && <Badge
+                  className="h-5 min-w-5 rounded-full px-1 ml-2 font-mono tabular-nums"
+                >
+                  {10}
+                </Badge>
+                }
+              </span>
               {!user.is_group && (
                 <span
                   className={`text-xs ${user.status === "online"
-                      ? "text-green-500"
-                      : "text-gray-400 dark:text-gray-300"
+                    ? "text-green-500"
+                    : "text-gray-400 dark:text-gray-300"
                     }`}
                 >
                   {user.status === "online" ? "Online" : "Offline"}

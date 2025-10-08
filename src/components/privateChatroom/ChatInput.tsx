@@ -33,7 +33,7 @@ export default function ChatInput({
         </button>
 
         {/* Text */}
-        <input
+        <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && sendMessage()}

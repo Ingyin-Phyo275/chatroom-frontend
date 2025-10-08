@@ -9,9 +9,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { EllipsisVertical } from "lucide-react";
 import { Button } from "./ui/button";
-import { removeMembers } from "../http/api/removeMember";
 import { Separator } from "@radix-ui/react-dropdown-menu";
 import { useQueryClient } from "@tanstack/react-query";
+import { removeMembers } from "../http/api/groupChat/removeMember";
 
 interface User {
   id: string;

@@ -1,5 +1,5 @@
 import { AxiosError } from "axios";
-import axiosInstance from "../httpClient";
+import axiosInstance from "../../httpClient";
 
 export const GetPrivateMessage = async () => {
     try{

@@ -1,6 +1,6 @@
 import { AxiosError } from "axios";
-import axiosInstance from "../httpClient";
-import type { ChatroomDetails } from "../../dto/response/ChatroomDetails";
+import axiosInstance from "../../httpClient";
+import type { ChatroomDetails } from "../../../dto/response/ChatroomDetails";
 
 interface ChatroomDetailsProps {
   chatroomId: number;

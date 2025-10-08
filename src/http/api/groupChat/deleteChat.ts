@@ -1,6 +1,6 @@
 import { AxiosError } from "axios";
-import axiosInstance from "../httpClient";
-import type { DeleteChatProps } from "../../dto/input/deleteChatProps";
+import axiosInstance from "../../httpClient";
+import type { DeleteChatProps } from "../../../dto/input/deleteChatProps";
 
 
 export const deleteChat = async (data: DeleteChatProps) => {

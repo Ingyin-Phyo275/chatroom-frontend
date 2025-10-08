@@ -1,6 +1,5 @@
 import { AxiosError } from "axios";
-import axiosInstance from "../httpClient";
-
+import axiosInstance from "../../httpClient";
 interface editGroupChatMessageProps {
     chatroomId: number,
     messageId: number,

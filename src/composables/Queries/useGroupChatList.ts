@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { getChatrooms } from "../../http/api/getChatroom";
+import { getChatrooms } from "../../http/api/groupChat/getChatroom";
 
 interface GroupChatProps {
     page: number

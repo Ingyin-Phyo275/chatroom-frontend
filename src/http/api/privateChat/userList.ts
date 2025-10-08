@@ -1,6 +1,6 @@
 import axios from "axios";
-import axiosInstance from "../httpClient";
-import type { UserListResponse } from "../../dto/response/UserListResponse";
+import axiosInstance from "../../httpClient";
+import type { UserListResponse } from "../../../dto/response/UserListResponse";
 
 export const userList = async () => {
     try {

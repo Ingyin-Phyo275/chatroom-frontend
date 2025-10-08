@@ -1,5 +1,5 @@
 import { AxiosError } from "axios";
-import axiosInstance from "../httpClient";
+import axiosInstance from "../../httpClient";
 
 
 export const ChatroomUploadFile = async (file: File | Blob | string, chatroom_id: string, content: string) => {

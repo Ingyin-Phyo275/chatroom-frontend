@@ -1,7 +1,13 @@
 import type { PrivateChatMessage } from "@/dto/response/PrivateChatMessage";
 import type { ChatUserType } from "@/dto/UserTypes";
 import * as Avatar from "@radix-ui/react-avatar";
-import { CheckCheck, Download, Pen } from "lucide-react";
+import { CheckCheck, Download } from "lucide-react";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu"
 
 export default function MessageItem({
   message,
@@ -11,6 +17,7 @@ export default function MessageItem({
   onEdit,
   onDownload,
   setPreviewModal,
+  onDelete
 }: {
   message: PrivateChatMessage;
   isOwn: boolean;
@@ -19,9 +26,10 @@ export default function MessageItem({
   onEdit: (id: string, content: string) => void;
   onDownload: (url: string, filename: string) => void;
   setPreviewModal: (preview: any) => void;
+  onDelete: (messageId: number) => void;
 }) {
   const sender = user;
-// console.log("props", message)
+  // console.log("props", message?.attachment_url)
 
   return (
     <div className={`flex ${isOwn ? "justify-end" : "justify-start"} gap-3`}>
@@ -40,73 +48,80 @@ export default function MessageItem({
       )}
 
       {/* Message bubble */}
-      <div
-        className={`max-w-[70%] p-2 rounded-lg ${
-          isOwn
+      <ContextMenu>
+
+        <div
+          className={`max-w-[70%] p-2 rounded-lg ${isOwn
             ? "bg-primary text-white rounded-br-none"
             : "bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-100 rounded-bl-none"
-        }`}
-      >
-        {/* Message content */}
-        {message.attachment_url ? (
-          <div>
-            {filePath?.match(/\.(jpeg|jpg|png|gif)$/i) && (
-              <img
-                src={message.attachment_url}
-                alt="attachment"
-                className="max-w-full max-h-60 rounded-lg cursor-pointer"
-                onClick={() =>
-                  setPreviewModal({ type: "image", url: message.attachment_url })
-                }
-              />
-            )}
+            }`}
+        >
+          <ContextMenuTrigger>
+            {/* Message content */}
+            {message.attachment_url ? (
+              <div>
+                {filePath?.match(/\.(jpeg|jpg|png|gif)$/i) && (
+                  <img
+                    src={message.attachment_url}
+                    alt="attachment"
+                    className="max-w-full max-h-60 rounded-lg cursor-pointer"
+                    onClick={() =>
+                      setPreviewModal({ type: "image", url: message.attachment_url })
+                    }
+                  />
+                )}
 
-            {filePath?.match(/\.(mp4|webm)$/i) && (
-              <video
-                src={message.attachment_url}
-                controls
-                className="max-w-full max-h-60 rounded-lg"
-              />
-            )}
+                {filePath?.match(/\.(mp4|webm)$/i) && (
+                  <video
+                    src={message.attachment_url}
+                    controls
+                    className="max-w-full max-h-60 rounded-lg"
+                  />
+                )}
 
-            {filePath?.match(/\.(mp3|wav)$/i) && (
-              <audio controls src={message.attachment_url} className="w-full" />
-            )}
+                {filePath?.match(/\.(mp3|wav)$/i) && (
+                  <audio controls src={message.attachment_url} className="w-full" />
+                )}
 
-            {!filePath?.match(/\.(jpeg|jpg|png|gif|mp4|webm|mp3|wav)$/i) && (
-              <div className="flex items-center gap-2">
-                <a href={message.attachment_url} target="_blank" rel="noopener noreferrer" className="underline text-blue-600">
-                  Open file
-                </a>
-                <button
-                  onClick={() => onDownload(message.attachment_url!, message.attachment_url!.split("/").pop() || "file")}
-                  className="p-1 rounded text-green-600 hover:text-white hover:bg-green-600"
-                >
-                  <Download className="w-4 h-4" />
-                </button>
+                {!filePath?.match(/\.(jpeg|jpg|png|gif|mp4|webm|mp3|wav)$/i) && (
+                  <div className="flex items-center gap-2">
+                    <a href={message.attachment_url} target="_blank" rel="noopener noreferrer" className="underline text-blue-600">
+                      Open file
+                    </a>
+                    <button
+                      onClick={() => onDownload(message.attachment_url!, message.attachment_url!.split("/").pop() || "file")}
+                      className="p-1 rounded text-green-600 hover:text-white hover:bg-green-600"
+                    >
+                      <Download className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
               </div>
+            ) : (
+              <div>{message.content || message.content}</div>
+            )}
+          </ContextMenuTrigger>
+
+          {/* Footer: time & actions */}
+          <div className="flex justify-between items-center mt-1 text-xs text-slate-300">
+            <span>
+              {new Date(message.created_at || message.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+            </span>
+
+            {isOwn && (
+              <span className="ml-2 flex items-center gap-1">
+                {message.is_delivered && <CheckCheck className="w-3 h-3 text-white" />}
+                <ContextMenuContent>
+                  <ContextMenuItem onClick={() => onEdit(message.id, message.content || message.content)}>Edit</ContextMenuItem>
+                  <ContextMenuItem onClick={() => onDelete(Number(message.id))}>Delete</ContextMenuItem>
+                  <ContextMenuItem>Pin</ContextMenuItem>
+                </ContextMenuContent>
+
+              </span>
             )}
           </div>
-        ) : (
-          <div>{message.content || message.content}</div>
-        )}
-
-        {/* Footer: time & actions */}
-        <div className="flex justify-between items-center mt-1 text-xs text-slate-300">
-          <span>
-            {new Date(message.created_at || message.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-          </span>
-
-          {isOwn && (
-            <span className="ml-2 flex items-center gap-1">
-              {message.is_delivered && <CheckCheck className="w-3 h-3 text-white" />}
-              <button onClick={() => onEdit(message.id, message.content || message.content)}>
-                <Pen className="w-4 h-4" />
-              </button>
-            </span>
-          )}
         </div>
-      </div>
+      </ContextMenu>
     </div>
   );
 }

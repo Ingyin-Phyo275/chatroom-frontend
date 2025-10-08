@@ -5,6 +5,7 @@ import { groupMessagesByDay } from "@/utils/helper";
 import type { PrivateChatMessage } from "@/dto/response/PrivateChatMessage";
 import type { loginResponse } from "@/dto/response/LoginResponse";
 import type { ChatUserType } from "@/dto/UserTypes";
+import { formatMessageDate } from "../../hooks/helper";
 
 export default function MessageList({
   messages,
@@ -15,6 +16,7 @@ export default function MessageList({
   setPreviewModal,
   chatContainerRef,
   setIsAtBottom,
+  onDelete
 }: {
   messages: PrivateChatMessage[];
   loginUser: loginResponse;
@@ -24,6 +26,7 @@ export default function MessageList({
   setPreviewModal: (preview: any) => void;
   chatContainerRef: React.RefObject<HTMLDivElement | null>;
   setIsAtBottom: (atBottom: boolean) => void;
+  onDelete: (messageId: number) => void;
 }) {
   // Track if user is at bottom
   useEffect(() => {
@@ -54,30 +57,36 @@ export default function MessageList({
     }
   };
 
-  const formatDayLabel = (day: string) => {
-    const msgDate = new Date(day);
-    const today = new Date();
-    const yesterday = new Date();
-    yesterday.setDate(today.getDate() - 1);
+  // const formatDayLabel = (day: string) => {
+  //   const msgDate = new Date(day);
+  //   const today = new Date();
+  //   const yesterday = new Date();
+  //   yesterday.setDate(today.getDate() - 1);
 
-    if (
-      msgDate.getFullYear() === today.getFullYear() &&
-      msgDate.getMonth() === today.getMonth() &&
-      msgDate.getDate() === today.getDate()
-    ) return "Today";
+  //   if (
+  //     msgDate.getFullYear() === today.getFullYear() &&
+  //     msgDate.getMonth() === today.getMonth() &&
+  //     msgDate.getDate() === today.getDate()
+  //   ) return "Today";
 
-    if (
-      msgDate.getFullYear() === yesterday.getFullYear() &&
-      msgDate.getMonth() === yesterday.getMonth() &&
-      msgDate.getDate() === yesterday.getDate()
-    ) return "Yesterday";
+  //   if (
+  //     msgDate.getFullYear() === yesterday.getFullYear() &&
+  //     msgDate.getMonth() === yesterday.getMonth() &&
+  //     msgDate.getDate() === yesterday.getDate()
+  //   ) return "Yesterday";
 
-    const diffDays = Math.floor((today.getTime() - msgDate.getTime()) / (1000 * 60 * 60 * 24));
-    if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? "s" : ""} ago`;
-    if (diffDays < 30) return `${Math.floor(diffDays / 7)} week${Math.floor(diffDays / 7) > 1 ? "s" : ""} ago`;
-    if (diffDays < 365) return `${Math.floor(diffDays / 30)} month${Math.floor(diffDays / 30) > 1 ? "s" : ""} ago`;
-    return `${Math.floor(diffDays / 365)} year${Math.floor(diffDays / 365) > 1 ? "s" : ""} ago`;
-  };
+  //   // const diffDays = Math.floor((today.getTime() - msgDate.getTime()) / (1000 * 60 * 60 * 24));
+  //   // if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? "s" : ""} ago`;
+  //   // if (diffDays < 30) return `${Math.floor(diffDays / 7)} week${Math.floor(diffDays / 7) > 1 ? "s" : ""} ago`;
+  //   // if (diffDays < 365) return `${Math.floor(diffDays / 30)} month${Math.floor(diffDays / 30) > 1 ? "s" : ""} ago`;
+  //   // return `${Math.floor(diffDays / 365)} year${Math.floor(diffDays / 365) > 1 ? "s" : ""} ago`;
+  //   return msgDate.toLocaleDateString([], {
+  //   weekday: "long",
+  //   month: "short",
+  //   day: "numeric",
+  //   year: msgDate.getFullYear() !== today.getFullYear() ? "numeric" : undefined,
+  // });
+  // };
 
   return (
     <div
@@ -94,7 +103,7 @@ export default function MessageList({
         <div key={day} className="space-y-3">
           <div className="flex justify-center">
             <span className="px-3 py-1 text-xs rounded-full bg-slate-300/70 dark:bg-slate-600/70">
-              {formatDayLabel(day)}
+              {formatMessageDate(day)}
             </span>
           </div>
 
@@ -113,6 +122,7 @@ export default function MessageList({
                 onEdit={onEdit}
                 onDownload={onDownload}
                 setPreviewModal={setPreviewModal}
+                onDelete={onDelete}
               />
             );
           })}

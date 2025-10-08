@@ -7,12 +7,12 @@ import AudioMessage from "./AudioPlayer";
 import { socket } from "../socket/socket";
 import type { loginResponse } from "../dto/response/LoginResponse";
 import { formatMessageDate } from "../hooks/helper";
-import { uploadAttachment } from "../http/api/uploadAttachment";
-import { GetAllMessage  } from "../http/api/getAllMessage"; // keeps original import name
 import { toast } from "sonner";
 import {DropdownMenu,DropdownMenuContent,DropdownMenuItem,DropdownMenuTrigger} from "./ui/dropdown-menu";
 import {  filterMessages, groupMessagesByDay } from "../utils/helper";
 import type { PrivateChatMessage } from "../dto/response/PrivateChatMessage";
+import { GetAllMessage } from "../http/api/privateChat/getAllMessage";
+import { uploadAttachment } from "../http/api/privateChat/uploadAttachment";
 
 type Attachment = { type: string; file: File; url?: string };
 
@@ -279,7 +279,8 @@ export default function ChatRoom({ user, loginUser }: ChatRoomProps) {
       try {
         const result = await uploadAttachment(
           pendingAttachments[0].file,
-          pendingAttachments[0].type
+          pendingAttachments[0].type,
+          user?.id
         );
         uploadedUrl = result.url;
         setAttachmentType(result.type ?? attachmentType);
