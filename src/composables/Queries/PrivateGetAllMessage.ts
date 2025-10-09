@@ -14,6 +14,5 @@ export const usePrivateFetchAllMessage = ({ receiverId, page, pageSize }: GetAll
             const response = await GetAllMessage({ receiverId, page, pageSize });
             return response?.data;
         },
-        staleTime: 1000 * 60,  // optional: 1 minute cache
     });
 };

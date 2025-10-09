@@ -47,6 +47,9 @@ export function NavUser({
   if(!user) return null
 
   const handleLogout = () => {
+    if(socket.connected){
+      socket.emit("logout");
+    }
     socket.disconnect();
     logout();
   }

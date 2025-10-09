@@ -7,6 +7,7 @@ export interface GetAllMessage {
     attachment_url?: string | null;
       attachment_urls?: string[] | null; 
       attachment_type?: string | null;
+      attachment_types?: string[] | null;
         imagePath?: string[] | null;
     is_delivered?: boolean;
     is_pinned?: boolean;

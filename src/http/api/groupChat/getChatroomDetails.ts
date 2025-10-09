@@ -19,7 +19,7 @@ export const getChatroomDetails = async ({chatroomId, page, pageSize}: ChatroomD
       name: chatroom.name,
       is_group: chatroom.is_group,
       members: chatroom.members,
-      messages: chatroom.messages ?? [], // ensure messages is always an array
+      messages: chatroom.messages ?? [],
       totalPage: chatroom.totalPage
     };
   } catch (error) {

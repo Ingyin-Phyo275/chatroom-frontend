@@ -57,36 +57,6 @@ export default function MessageList({
     }
   };
 
-  // const formatDayLabel = (day: string) => {
-  //   const msgDate = new Date(day);
-  //   const today = new Date();
-  //   const yesterday = new Date();
-  //   yesterday.setDate(today.getDate() - 1);
-
-  //   if (
-  //     msgDate.getFullYear() === today.getFullYear() &&
-  //     msgDate.getMonth() === today.getMonth() &&
-  //     msgDate.getDate() === today.getDate()
-  //   ) return "Today";
-
-  //   if (
-  //     msgDate.getFullYear() === yesterday.getFullYear() &&
-  //     msgDate.getMonth() === yesterday.getMonth() &&
-  //     msgDate.getDate() === yesterday.getDate()
-  //   ) return "Yesterday";
-
-  //   // const diffDays = Math.floor((today.getTime() - msgDate.getTime()) / (1000 * 60 * 60 * 24));
-  //   // if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? "s" : ""} ago`;
-  //   // if (diffDays < 30) return `${Math.floor(diffDays / 7)} week${Math.floor(diffDays / 7) > 1 ? "s" : ""} ago`;
-  //   // if (diffDays < 365) return `${Math.floor(diffDays / 30)} month${Math.floor(diffDays / 30) > 1 ? "s" : ""} ago`;
-  //   // return `${Math.floor(diffDays / 365)} year${Math.floor(diffDays / 365) > 1 ? "s" : ""} ago`;
-  //   return msgDate.toLocaleDateString([], {
-  //   weekday: "long",
-  //   month: "short",
-  //   day: "numeric",
-  //   year: msgDate.getFullYear() !== today.getFullYear() ? "numeric" : undefined,
-  // });
-  // };
 
   return (
     <div

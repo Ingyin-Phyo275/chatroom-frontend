@@ -14,6 +14,7 @@ import { dedupeMessages } from "../utils/helper";
 import { getChatroomDetails } from "../http/api/groupChat/getChatroomDetails";
 import { ChatroomUploadFile } from "../http/api/groupChat/chatroomUploadFile";
 import { editGroupChatMessage } from "../http/api/groupChat/editGroupChatMessage";
+import AttachmentPreview from "./groupChat/AttachmentPreview";
 
 type Attachment = { type: string; file: File; url?: string };
 type Props = { user: ChatUserType; loginUser: loginResponse };
@@ -46,9 +47,9 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
 
     // const [imagePath, setImagePath] = useState<string | null>(null);
 
-    console.log(totalPages);
-    console.log(setattachmentType);
-    
+    // console.log(totalPages);
+    // console.log(setattachmentType);
+
 
     // Join chatroom
     useEffect(() => {
@@ -194,9 +195,9 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
             for (const att of pendingAttachments) {
                 try {
                     const result: any = await ChatroomUploadFile(att.file, user?.id, text.trim());
-
-                    const uploadedUrl = result?.data?.[0]?.attachment_url ?? null;
-                    const imagePath = result?.data?.[0]?.imagePath ?? null;
+                    console.log("result", result?.data?.imagePath?.[0]?.path);
+                    const uploadedUrl =  result?.data?.attachment_url?.[0] ?? null;
+                    const imagePath =  result?.data?.imagePath?.[0] ?? null;
                     const attachmentTypeToSend = result?.data?.[0]?.attachment_type ?? attachmentType;
 
                     const newMsg: GetAllMessage = {
@@ -264,82 +265,94 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
         setPendingAttachments([]);
     };
 
-    //send message with array of attachments
-    // const sendMessage = async () => {
-    //   if (!text.trim() && pendingAttachments.length === 0) return;
+    //send message with single socket call for multiple attachments by using array of imagePath
+// const sendMessage = async () => {
+//   if (!text.trim() && pendingAttachments.length === 0) return;
 
-    //   // Edit mode
-    //   if (editingMessageId) {
-    //     setMessages((prev) =>
-    //       dedupeMessages(
-    //         prev.map((m) =>
-    //           m.id === editingMessageId ? { ...m, content: text.trim() } : m
-    //         )
-    //       )
-    //     );
-    //     socket.emit("edit-message", { message_id: editingMessageId, new_content: text.trim() });
-    //     setEditingMessageId(null);
-    //     setText("");
-    //     return;
-    //   }
+//   // Edit mode
+//   if (editingMessageId) {
+//     setMessages((prev) =>
+//       dedupeMessages(
+//         prev.map((m) =>
+//           m.id === editingMessageId ? { ...m, content: text.trim() } : m
+//         )
+//       )
+//     );
+//     socket.emit("edit-message", {
+//       message_id: editingMessageId,
+//       new_content: text.trim(),
+//     });
+//     setEditingMessageId(null);
+//     setText("");
+//     return;
+//   }
 
-    //   let uploadedUrls: string[] = [];
-    //   let imagePaths: string[] = [];
+//   let uploadedUrls: string[] = [];
+//   let attachmentTypes: string[] = [];
+//   let imagePaths: string[] = [];
 
-    //   if (pendingAttachments.length > 0) {
-    //     try {
-    //       // Upload all attachments in parallel
-    //       const results: any = await Promise.all(
-    //         pendingAttachments.map((att) =>
-    //           ChatroomUploadFile(att.file, user?.id, text.trim())
-    //         )
-    //       );
+//   if (pendingAttachments.length > 0) {
+//     try {
+//       // Upload all attachments in parallel
+//       const results: any = await Promise.all(
+//         pendingAttachments.map((att) =>
+//           ChatroomUploadFile(att.file, user?.id, text.trim())
+//         )
+//       );
 
-    //       // Collect both URLs and imagePaths
-    //       uploadedUrls = results.map((r: any) => r?.data?.[0]?.attachment_url).filter(Boolean);
-    //       imagePaths   = results.map((r: any) => r?.data?.[0]?.imagePath).filter(Boolean);
+//       // Collect URLs, types, and imagePaths
+//       uploadedUrls = results
+//         .map((r: any) => r?.data?.[0]?.attachment_url)
+//         .filter(Boolean);
+//       attachmentTypes = results
+//         .map((r: any) => r?.data?.[0]?.attachment_type)
+//         .filter(Boolean);
+//       imagePaths = results
+//         .map((r: any) => r?.data?.[0]?.imagePath)
+//         .filter(Boolean);
 
-    //       console.log("Uploaded files:", uploadedUrls);
-    //       console.log("Image paths:", imagePaths);
+//       console.log("Uploaded files:", uploadedUrls);
+//       console.log("Attachment types:", attachmentTypes);
+//       console.log("Image paths:", imagePaths);
+//     } catch (error) {
+//       console.error("Upload failed:", error);
+//       toast?.error?.("Attachment upload failed");
+//       return;
+//     }
+//   }
 
-    //       setattachmentType(results[0]?.attachment_type ?? attachmentType);
-    //     } catch (error) {
-    //       console.error("Upload failed:", error);
-    //       toast?.error?.("Attachment upload failed");
-    //       return;
-    //     }
-    //   }
+//   const newMsg: GetAllMessage = {
+//     id: Date.now().toString(),
+//     sender: { id: loginUser.user.id, username: loginUser.user.name },
+//     chatroom: { id: user.id, username: user.username },
+//     content: text.trim(),
+//     created_at: new Date().toISOString(),
+//     attachment_urls: uploadedUrls,
+//     attachment_types: attachmentTypes, // array of types
+//     imagePath: imagePaths.length > 0 ? imagePaths : null,
+//     is_delivered: true,
+//     is_pinned: false,
+//     is_group: true,
+//   };
 
-    //   const newMsg: GetAllMessage = {
-    //     id: Date.now().toString(),
-    //     sender: { id: loginUser.user.id, username: loginUser.user.name },
-    //     chatroom: { id: user.id, username: user.username },
-    //     content: text.trim(),
-    //     created_at: new Date().toISOString(),
-    //     attachment_urls: uploadedUrls,
-    //     imagePath: imagePaths ?? null, // 
-    //     is_delivered: true,
-    //     is_pinned: false,
-    //     is_group: true,
-    //   };
+//   // Add locally
+//   setMessages((prev) => dedupeMessages([...prev, newMsg]));
+//   setText("");
+//   setPendingAttachments([]);
+//   scrollToBottom();
 
-    //   // Add locally
-    //   setMessages((prev) => dedupeMessages([...prev, newMsg]));
-    //   setText("");
-    //   setPendingAttachments([]);
-    //   scrollToBottom();
+//   // Emit to server
+//   socket.emit("chat-message", {
+//     sender_id: newMsg.sender?.id,
+//     chatroom_id: newMsg.chatroom?.id,
+//     content: newMsg.content,
+//     attachment_urls: uploadedUrls,
+//     attachment_types: attachmentTypes,
+//     imagePath: imagePaths.length > 0 ? imagePaths : null,
+//     is_group: true,
+//   });
+// };
 
-    //   // Emit to server
-    //   socket.emit("chat-message", {
-    //     sender_id: newMsg.sender?.id,
-    //     chatroom_id: newMsg.chatroom?.id,
-    //     content: newMsg.content,
-    //     attachment_urls: uploadedUrls,
-    //     attachment_type: attachmentType,
-    //     imagePath: imagePaths ?? null, // 
-    //     is_group: true,
-    //   });
-    // };
 
     // Handle attachments
     const handleAttachmentClick = (type: string) => {
@@ -354,11 +367,20 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>, type: string) => {
         const files = e.target.files;
         if (!files) return;
-        const attachments: Attachment[] = Array.from(files).map((f) => ({ type, file: f }));
+
+        const attachments: Attachment[] = Array.from(files).map((f) => ({
+            type,
+            file: f,
+            url: URL.createObjectURL(f), 
+        }));
+
         setPendingAttachments((prev) => [...prev, ...attachments]);
         setShowAttachmentMenu(false);
 
+        // Allow selecting same file again
+        e.target.value = "";
     };
+
 
     const handleEditMessage = (messageId: string, currentText: string) => {
         setEditingMessageId(messageId);
@@ -399,51 +421,6 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
         },
         {}
     );
-
-    function AttachmentPreview({ url }: { url: string }) {
-        const filePath = (() => {
-            try {
-                return new URL(url).pathname;
-            } catch {
-                return url;
-            }
-        })();
-
-        if (filePath.match(/\.(jpeg|jpg|png|gif)$/i)) {
-            return (
-                <img
-                    src={url}
-                    className="max-w-full max-h-60 rounded-lg mb-1"
-                    alt="attachment"
-                />
-            );
-        }
-
-        if (filePath.match(/\.(mp4|webm)$/i)) {
-            return (
-                <video
-                    src={url}
-                    controls
-                    className="max-w-full max-h-60 rounded-lg mb-1"
-                />
-            );
-        }
-
-        if (filePath.match(/\.(mp3|wav)$/i)) {
-            return <AudioMessage file={url} />;
-        }
-
-        return (
-            <a
-                href={url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-500 underline block mb-1"
-            >
-                Download file
-            </a>
-        );
-    }
 
     return (
         <div className="flex flex-col h-[calc(100vh-4rem)] relative">
@@ -490,14 +467,6 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
                                                     {m.attachment_url && (
                                                         <AttachmentPreview url={m.attachment_url} />
                                                     )}
-
-                                                    {/* Multiple attachments
-                                                    {m.attachment_urls &&
-                                                        m.attachment_urls.map((url, idx) => (
-                                                            
-                                                                <AttachmentPreview key={idx} url={url} />
-                                                            
-                                                        ))} */}
                                                 </div>
 
                                                 {/* Footer: time + status */}
@@ -553,39 +522,51 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
             {pendingAttachments.length > 0 && (
                 <div className="p-2 flex gap-3 overflow-x-auto border-t border-b bg-slate-100 dark:bg-slate-800">
                     {pendingAttachments.map((att, i) => (
-                        <div key={i} className="relative rounded-lg border dark:border-slate-600 p-2 flex flex-col items-center justify-center">
-                            {att.type === "image" && (
+                        <div
+                            key={i}
+                            className="relative rounded-lg border dark:border-slate-600 p-2 flex flex-col items-center justify-center"
+                        >
+                            {/* === PREVIEW === */}
+                            {att.type === "image" && att.url && (
                                 <img
-                                    src={URL.createObjectURL(att.file)}
+                                    src={att.url}
                                     alt={att.file.name}
                                     className="max-w-[120px] max-h-[80px] rounded cursor-pointer"
-                                    onClick={() => setPreviewModal({ type: "image", url: URL.createObjectURL(att.file) })}
+                                    onClick={() => setPreviewModal({ type: "image", url: att.url! })}
                                 />
                             )}
-                            {att.type === "video" && (
+
+                            {att.type === "video" && att.url && (
                                 <video
-                                    src={URL.createObjectURL(att.file)}
+                                    src={att.url}
                                     className="max-w-[120px] max-h-[80px] rounded cursor-pointer"
-                                    onClick={() => setPreviewModal({ type: "video", url: URL.createObjectURL(att.file) })}
+                                    onClick={() => setPreviewModal({ type: "video", url: att.url! })}
                                 />
                             )}
-                            {att.type === "audio" && <AudioMessage file={att.file} />}
+
+                            {att.type === "audio" && att.url && <AudioMessage file={att.url} />}
+
                             {att.type === "file" && (
                                 <div className="flex flex-col items-center text-xs">
                                     <File className="w-6 h-6" />
                                     {att.file.name}
                                 </div>
                             )}
+
+                            {/* ACTION BUTTONS */}
                             <div className="flex gap-2 mt-1">
                                 <a
-                                    href={URL.createObjectURL(att.file)}
+                                    href={att.url}
                                     download={att.file.name}
                                     className="p-1 rounded text-green-600 hover:text-white hover:bg-green-600"
                                 >
                                     <Download className="w-4 h-4" />
                                 </a>
                                 <button
-                                    onClick={() => setPendingAttachments((prev) => prev.filter((_, idx) => idx !== i))}
+                                    onClick={() => {
+                                        if (att.url) URL.revokeObjectURL(att.url);
+                                        setPendingAttachments((prev) => prev.filter((_, idx) => idx !== i));
+                                    }}
                                     className="p-1 rounded text-red-600 hover:text-white hover:bg-red-600"
                                 >
                                     <X className="w-4 h-4" />
@@ -595,6 +576,7 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
                     ))}
                 </div>
             )}
+
 
             {/* Input & Attachments */}
             <div className="p-4 border-t flex gap-2 items-center">

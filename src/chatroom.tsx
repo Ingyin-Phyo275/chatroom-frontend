@@ -9,7 +9,7 @@ import AttachmentPreview from "./components/privateChatroom/AttachmentPreview";
 import ChatInput from "./components/privateChatroom/ChatInput";
 import PreviewModal from "./components/privateChatroom/PreviewModal";
 import { GetAllMessage } from "./http/api/privateChat/getAllMessage";
-import { deleteMessage } from "./http/api/privateChat/deleteMessage";
+import { deleteMessage } from "@/http/api/privateChat/deleteMessage";
 
 interface PreviewModal {
   preview: {
@@ -18,6 +18,7 @@ interface PreviewModal {
     name?: string;
   }
 }
+
 export default function ChatRoom({ user, loginUser }: { user: any; loginUser: any }) {
   const [messages, setMessages] = useState<PrivateChatMessage[]>([]);
   const [text, setText] = useState("");
@@ -39,16 +40,8 @@ export default function ChatRoom({ user, loginUser }: { user: any; loginUser: an
   const pageSize = 10;
   const [hasMore, setHasMore] = useState(true);
   const pageRef = useRef(1);
-  console.log(page);
 
-  useEffect(() => {
-    socket.onAny((event, ...args) => {
-      console.log("[SOCKET EVENT] in privaet room", event, args);
-    });
-  }, []);
-
-
-  // 🔹 Transform API message to local format
+  // Transform API message to local format
   const transformMessageFromApi = (m: any): PrivateChatMessage => ({
     id: String(m.id),
     sender:
@@ -61,50 +54,41 @@ export default function ChatRoom({ user, loginUser }: { user: any; loginUser: an
         : { id: String(m.receiver ?? ""), username: "Unknown" },
     content: m.content ?? "",
     created_at: m.created_at ?? new Date().toISOString(),
-    attachment_url: m.attachment_url ?? null,
-    imagePath: m.imagePath ?? null,
-    attachmentType: m.attachmentType ?? null,
+    attachment_url: m.attachment_url ?? m.attachment_urls ?? null,
+    imagePath: m.imagePath ?? m.imagePaths ?? null,
+    attachmentType: m.attachmentType ?? m.attachment_type ?? null,
     is_delivered: m.is_delivered ?? false,
     is_pinned: m.is_pinned ?? false,
     is_group: m.is_group ?? false,
     pagination: m.pagination,
   });
 
-  //  Scroll to bottom helper
+  // Scroll helper
   const scrollToBottom = (smooth = false) => {
-    if (chatContainerRef.current) {
-      if (smooth) {
-        chatContainerRef.current.scrollTo({
-          top: chatContainerRef.current.scrollHeight,
-          behavior: "smooth",
-        });
-      } else {
-        chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
-      }
-      setIsAtBottom(true);
-      setNewMessageCount(0);
+    if (!chatContainerRef.current) return;
+    if (smooth) {
+      chatContainerRef.current.scrollTo({ top: chatContainerRef.current.scrollHeight, behavior: "smooth" });
+    } else {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
     }
+    setIsAtBottom(true);
+    setNewMessageCount(0);
   };
 
-  // Fetch messages (supports infinite scroll)
+  // Fetch messages with pagination
   const fetchMessages = async (pageToFetch: number) => {
     try {
       const res = await GetAllMessage({ receiverId: Number(user.id), page: pageToFetch, pageSize });
       const newMsgs: PrivateChatMessage[] = (res.messages || []).map(transformMessageFromApi);
 
-      setMessages((prev) => {
-        if (pageToFetch === 1) return filterMessages(newMsgs); // first page
-        return filterMessages([...newMsgs, ...prev]); // prepend older messages
-      });
-
-      const more = newMsgs.length === pageSize;
-      setHasMore(more);
+      setMessages((prev) => (pageToFetch === 1 ? filterMessages(newMsgs) : filterMessages([...newMsgs, ...prev])));
+      setHasMore(newMsgs.length === pageSize);
     } catch (err) {
       console.error("Fetch messages failed:", err);
     }
   };
 
-  //Initial load
+  // Initial load
   useEffect(() => {
     setMessages([]);
     setPage(1);
@@ -113,19 +97,14 @@ export default function ChatRoom({ user, loginUser }: { user: any; loginUser: an
     fetchMessages(1).then(() => scrollToBottom());
   }, [user.id]);
 
-  //  Infinite scroll (load older messages on scroll to top)
+  // Infinite scroll
   useEffect(() => {
     const container = chatContainerRef.current;
     if (!container) return;
     let fetching = false;
 
     const handleScroll = () => {
-      const scrollTop = container.scrollTop;
-      const scrollHeight = container.scrollHeight;
-      const clientHeight = container.clientHeight;
-
-      // Load older messages
-      if (scrollTop < 50 && hasMore && !fetching) {
+      if (container.scrollTop < 50 && hasMore && !fetching) {
         fetching = true;
         const nextPage = pageRef.current + 1;
         fetchMessages(nextPage).then(() => {
@@ -134,9 +113,7 @@ export default function ChatRoom({ user, loginUser }: { user: any; loginUser: an
           fetching = false;
         });
       }
-
-      // Detect bottom
-      const atBottom = scrollHeight - scrollTop - clientHeight < 50;
+      const atBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 50;
       setIsAtBottom(atBottom);
       if (atBottom) setNewMessageCount(0);
     };
@@ -145,31 +122,35 @@ export default function ChatRoom({ user, loginUser }: { user: any; loginUser: an
     return () => container.removeEventListener("scroll", handleScroll);
   }, [hasMore]);
 
-  // Socket join & message listeners
+  // Socket join & listeners
   useEffect(() => {
     if (!socket) return;
+
     socket.emit("join", { userId: loginUser.user.id });
 
-    const handleNewMessage = (msg: any) => {
+    const handleIncomingMessage = (msg: any) => {
       const newMsg = transformMessageFromApi(msg);
-      //console.log("New message received via socket:", msg);
       const belongs =
-        (String(newMsg.sender?.id ?? newMsg.sender) === String(user.id) && String(newMsg.receiver?.id ?? newMsg.receiver) === String(loginUser.user.id)) ||
-        (String(newMsg.sender?.id ?? newMsg.sender) === String(loginUser.user.id) && String(newMsg.receiver?.id ?? newMsg.receiver) === String(user.id));
+        (String(newMsg.sender?.id ?? newMsg.sender) === String(user.id) &&
+          String(newMsg.receiver?.id ?? newMsg.receiver) === String(loginUser.user.id)) ||
+        (String(newMsg.sender?.id ?? newMsg.sender) === String(loginUser.user.id) &&
+          String(newMsg.receiver?.id ?? newMsg.receiver) === String(user.id));
       if (!belongs) return;
 
       setMessages((prev) => filterMessages([...prev, newMsg]));
-
-      // Only increment new message count; scrolling is handled in useEffect below
       if (!isAtBottom) setNewMessageCount((c) => c + 1);
     };
 
-    socket.on("receive-message", handleNewMessage);
+    socket.on("receive-message", handleIncomingMessage); // messages from others
+    socket.on("message-sent", handleIncomingMessage);    // messages from self
 
-    return () => { socket.off("receive-message", handleNewMessage) };
+    return () => {
+      socket.off("receive-message", handleIncomingMessage);
+      socket.off("message-sent", handleIncomingMessage);
+    };
   }, [loginUser.user.id, user.id, isAtBottom]);
 
-  //  Auto-scroll effect
+  // Auto-scroll when new messages
   useEffect(() => {
     if (isAtBottom) scrollToBottom();
   }, [messages, isAtBottom]);
@@ -179,19 +160,19 @@ export default function ChatRoom({ user, loginUser }: { user: any; loginUser: an
     const trimmedText = text.trim();
     if (!trimmedText && pendingAttachments.length === 0) return;
 
-    let uploadedUrl: string | null = null;
-    let imagePath: string | null = null;
-    let attachmentType: string | null = null;
-    if (pendingAttachments.length > 0) {
+    const uploadedAttachments: { url: string; imagePath?: string | null; type: "image" | "video" | "audio" | "file" }[] = [];
+
+    for (const attachment of pendingAttachments) {
       try {
-        const result = await uploadAttachment(pendingAttachments[0].file, pendingAttachments[0].type, user?.id);
-        uploadedUrl = result.url;
-        imagePath = result?.imagePath;
-        attachmentType = result?.type;
-        console.log("attachment type", attachmentType);
+        const result = await uploadAttachment(attachment.file, attachment.type, user?.id);
+        uploadedAttachments.push({
+          url: result.url,
+          imagePath: result?.imagePath ?? null,
+          type: result?.type as "image" | "video" | "audio" | "file",
+        });
       } catch (err) {
         console.error(err);
-        toast?.error?.("Attachment upload failed");
+        toast?.error?.(`Failed to upload ${attachment.name}`);
         return;
       }
     }
@@ -202,9 +183,9 @@ export default function ChatRoom({ user, loginUser }: { user: any; loginUser: an
       receiver: String(user.id),
       content: trimmedText,
       created_at: new Date().toISOString(),
-      attachment_url: uploadedUrl,
-      imagePath: imagePath,
-      attachmentType: attachmentType as "image" | "video" | "audio" | "file" | null,
+      attachment_urls: uploadedAttachments.length > 0 ? uploadedAttachments.map(a => a.url) : null,
+      imagePaths: uploadedAttachments.length > 0 ? uploadedAttachments.map(a => a.imagePath) as string[] : null,
+      attachmentTypes: uploadedAttachments.length > 0 ? uploadedAttachments.map(a => a.type) : null,
       is_delivered: false,
     };
 
@@ -217,12 +198,13 @@ export default function ChatRoom({ user, loginUser }: { user: any; loginUser: an
       sender_id: newMsg.sender,
       receiver_id: newMsg.receiver,
       content: newMsg.content,
-      attachment_url: newMsg.attachment_url,
-      imagePath: newMsg.imagePath,
-      attachment_type: attachmentType
+      attachment_urls: newMsg.attachment_urls,
+      imagePaths: newMsg.imagePaths,
+      attachment_type: newMsg.attachmentTypes,
     });
   };
 
+  // Edit message
   const saveEditedMessage = () => {
     setMessages((prev) => prev.map((m) => (m.id === editingMessageId ? { ...m, content: text } : m)));
     setEditingMessageId(null);
@@ -234,6 +216,7 @@ export default function ChatRoom({ user, loginUser }: { user: any; loginUser: an
     setText(content);
   };
 
+  // Download attachment
   const handleDownload = (url: string, filename: string) => {
     const link = document.createElement("a");
     link.href = url;
@@ -243,6 +226,7 @@ export default function ChatRoom({ user, loginUser }: { user: any; loginUser: an
     document.body.removeChild(link);
   };
 
+  // Attachment input handling
   const handleAttachmentClick = (type: string) => {
     setShowAttachmentMenu(false);
     if (type === "image") imageInputRef.current?.click();
@@ -252,28 +236,30 @@ export default function ChatRoom({ user, loginUser }: { user: any; loginUser: an
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>, type: string) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setPendingAttachments((prev) => [
-        ...prev,
-        { type, url: URL.createObjectURL(file), name: file.name, file },
-      ]);
+    const files = e.target.files;
+    if (!files) return;
+
+    const newAttachments = Array.from(files).map((file) => ({
+      type,
+      url: URL.createObjectURL(file),
+      name: file.name,
+      file,
+    }));
+
+    setPendingAttachments((prev) => [...prev, ...newAttachments]);
+  };
+
+  // Delete message
+  const handleDeleteMessage = async (messageId: number) => {
+    try {
+      await deleteMessage(messageId, user?.id);
+      await fetchMessages(1);
+    } catch (err) {
+      console.error("Failed to delete message:", err);
+      toast?.error?.("Failed to delete message");
     }
   };
 
-const handleDeleteMessage = async (messageId: number) => {
-  try {
-    const result = await deleteMessage(messageId, user?.id);
-    if (result.success) {
-      // Remove the deleted message from state
-      await fetchMessages(1);
-      toast?.success?.(result.message || "Message deleted");
-    }
-  } catch (err) {
-    console.error("Failed to delete message:", err);
-    toast?.error?.("Failed to delete message");
-  }
-};
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)] relative">
       <MessageList
@@ -308,10 +294,7 @@ const handleDeleteMessage = async (messageId: number) => {
         setText={setText}
         sendMessage={sendMessage}
         editingMessageId={editingMessageId}
-        cancelEdit={() => {
-          setEditingMessageId(null);
-          setText("");
-        }}
+        cancelEdit={() => { setEditingMessageId(null); setText(""); }}
         saveEditedMessage={saveEditedMessage}
         handleAttachmentClick={handleAttachmentClick}
         handleFileSelect={handleFileSelect}
@@ -328,7 +311,6 @@ const handleDeleteMessage = async (messageId: number) => {
           onDownload={handleDownload}
         />
       )}
-
     </div>
   );
 }

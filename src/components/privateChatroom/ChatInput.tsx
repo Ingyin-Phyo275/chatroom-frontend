@@ -55,27 +55,27 @@ export default function ChatInput({
         accept="image/*"
         ref={inputRefs.imageInputRef}
         onChange={(e) => handleFileSelect(e, "image")}
-        className="hidden"
+        className="hidden" multiple
       />
       <input
         type="file"
         accept="video/*"
         ref={inputRefs.videoInputRef}
         onChange={(e) => handleFileSelect(e, "video")}
-        className="hidden"
+        className="hidden" multiple
       />
       <input
         type="file"
         accept="audio/*"
         ref={inputRefs.audioInputRef}
         onChange={(e) => handleFileSelect(e, "audio")}
-        className="hidden"
+        className="hidden" multiple
       />
       <input
         type="file"
         ref={inputRefs.fileInputRef}
         onChange={(e) => handleFileSelect(e, "file")}
-        className="hidden"
+        className="hidden" multiple
       />
 
       {/* Attachment Menu */}

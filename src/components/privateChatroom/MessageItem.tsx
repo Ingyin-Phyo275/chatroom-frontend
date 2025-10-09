@@ -29,7 +29,7 @@ export default function MessageItem({
   onDelete: (messageId: number) => void;
 }) {
   const sender = user;
-  // console.log("props", message?.attachment_url)
+  // console.log("props", message?.is_delivered)
 
   return (
     <div className={`flex ${isOwn ? "justify-end" : "justify-start"} gap-3`}>
@@ -57,8 +57,11 @@ export default function MessageItem({
             }`}
         >
           <ContextMenuTrigger>
+            {message?.content && message?.content}
+
             {/* Message content */}
-            {message.attachment_url ? (
+            {message.attachment_url && (
+              
               <div>
                 {filePath?.match(/\.(jpeg|jpg|png|gif)$/i) && (
                   <img
@@ -97,9 +100,7 @@ export default function MessageItem({
                   </div>
                 )}
               </div>
-            ) : (
-              <div>{message.content || message.content}</div>
-            )}
+            ) }
           </ContextMenuTrigger>
 
           {/* Footer: time & actions */}
@@ -108,9 +109,10 @@ export default function MessageItem({
               {new Date(message.created_at || message.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
             </span>
 
+
             {isOwn && (
               <span className="ml-2 flex items-center gap-1">
-                {message.is_delivered && <CheckCheck className="w-3 h-3 text-white" />}
+                {message.is_delivered && <CheckCheck className="w-3 h-3 text-green" />}
                 <ContextMenuContent>
                   <ContextMenuItem onClick={() => onEdit(message.id, message.content || message.content)}>Edit</ContextMenuItem>
                   <ContextMenuItem onClick={() => onDelete(Number(message.id))}>Delete</ContextMenuItem>
