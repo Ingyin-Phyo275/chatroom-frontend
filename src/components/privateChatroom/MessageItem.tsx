@@ -8,7 +8,6 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu"
-
 export default function MessageItem({
   message,
   isOwn,
@@ -83,7 +82,8 @@ export default function MessageItem({
                 )}
 
                 {filePath?.match(/\.(mp3|wav)$/i) && (
-                  <audio controls src={message.attachment_url} className="w-full" />
+                  <audio controls src={message.attachment_url}  />
+                  // <AudioMessage file={message.attachment_url!} />
                 )}
 
                 {!filePath?.match(/\.(jpeg|jpg|png|gif|mp4|webm|mp3|wav)$/i) && (
@@ -99,6 +99,7 @@ export default function MessageItem({
                     </button>
                   </div>
                 )}
+                
               </div>
             ) }
           </ContextMenuTrigger>

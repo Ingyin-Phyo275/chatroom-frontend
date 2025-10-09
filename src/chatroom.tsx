@@ -128,18 +128,36 @@ export default function ChatRoom({ user, loginUser }: { user: any; loginUser: an
 
     socket.emit("join", { userId: loginUser.user.id });
 
-    const handleIncomingMessage = (msg: any) => {
-      const newMsg = transformMessageFromApi(msg);
-      const belongs =
-        (String(newMsg.sender?.id ?? newMsg.sender) === String(user.id) &&
-          String(newMsg.receiver?.id ?? newMsg.receiver) === String(loginUser.user.id)) ||
-        (String(newMsg.sender?.id ?? newMsg.sender) === String(loginUser.user.id) &&
-          String(newMsg.receiver?.id ?? newMsg.receiver) === String(user.id));
-      if (!belongs) return;
+const handleIncomingMessage = (msg: any) => {
+  const newMsg = transformMessageFromApi(msg);
+  const belongs =
+    (String(newMsg.sender?.id ?? newMsg.sender) === String(user.id) &&
+      String(newMsg.receiver?.id ?? newMsg.receiver) === String(loginUser.user.id)) ||
+    (String(newMsg.sender?.id ?? newMsg.sender) === String(loginUser.user.id) &&
+      String(newMsg.receiver?.id ?? newMsg.receiver) === String(user.id));
+  if (!belongs) return;
 
-      setMessages((prev) => filterMessages([...prev, newMsg]));
-      if (!isAtBottom) setNewMessageCount((c) => c + 1);
-    };
+  setMessages((prev) => {
+    // 🧠 Find optimistic message (same sender, receiver, and timestamp within a few seconds)
+    const existingIndex = prev.findIndex(
+      (m) =>
+        m.sender === String(loginUser.user.id) &&
+        m.receiver === String(user.id) &&
+        Math.abs(new Date(m.created_at).getTime() - new Date(newMsg.created_at).getTime()) < 3000
+    );
+
+    if (existingIndex !== -1) {
+      // Replace optimistic message with server message
+      const updated = [...prev];
+      updated[existingIndex] = newMsg;
+      return filterMessages(updated);
+    }
+
+    // Otherwise add new one
+    return filterMessages([...prev, newMsg]);
+  });
+};
+
 
     socket.on("receive-message", handleIncomingMessage); // messages from others
     socket.on("message-sent", handleIncomingMessage);    // messages from self
