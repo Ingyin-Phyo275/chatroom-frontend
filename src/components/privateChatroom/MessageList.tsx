@@ -79,6 +79,7 @@ export default function MessageList({
 
           {groupedMessages[day].map((msg: PrivateChatMessage) => {
             const filePath = filePathFromUrl(msg.attachment_url ?? null);
+            // console.log("filePath", filePath);
             return (
               <MessageItem
                 key={msg.id}

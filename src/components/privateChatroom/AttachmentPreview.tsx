@@ -31,7 +31,7 @@ export default function AttachmentPreview({
               <source src={att.url} />
             </video>
           )}
-          {att.type === "audio" && <audio controls src={att.url}></audio>}
+          {att.type === "audio" && <audio controls src={att.url} ></audio>}
           {att.type === "file" && <p className="text-xs">{att.name}</p>}
 
           {/* Remove */}

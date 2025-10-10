@@ -45,7 +45,7 @@ export default function AudioMessage({ file }: AudioMessageProps) {
   };
 
   return (
-    <div className="flex items-center gap-2 bg-gray-200 dark:bg-slate-700 rounded-lg px-3 py-2 max-w-[250px]">
+    <div className="flex items-center gap-2 bg-gray-400 dark:bg-slate-700 rounded-lg px-3 py-2 max-w-[250px]">
       <button onClick={togglePlay} className="p-1">
         {playing ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
       </button>
@@ -58,6 +58,7 @@ export default function AudioMessage({ file }: AudioMessageProps) {
       <span className="text-xs text-gray-600 dark:text-gray-300">
         {formatTime(progress)} / {formatTime(duration)}
       </span>
-<audio ref={audioRef} src={typeof file === 'string' ? file : URL.createObjectURL(file)} className="hidden" />    </div>
+      <audio ref={audioRef} src={typeof file === 'string' ? file : URL.createObjectURL(file)} className="hidden" />    
+    </div>
   );
 }

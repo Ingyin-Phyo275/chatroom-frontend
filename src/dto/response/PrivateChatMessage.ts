@@ -6,6 +6,7 @@ export interface PrivateChatMessage {
   created_at: string;
   is_delivered?: boolean;
   is_pinned?: boolean;
+  attachments?: {path: string; type: "image" | "video" | "audio" | "file"; }[]; // Deprecated, use attachment_url or attachment_urls
   attachment_url?: string | null;
  attachment_urls?: string[] | null; 
   imagePath?: string | null;

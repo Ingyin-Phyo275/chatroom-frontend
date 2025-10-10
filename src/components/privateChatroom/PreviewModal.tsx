@@ -1,4 +1,4 @@
-import { X, Download } from "lucide-react";
+import { X, File } from "lucide-react";
 
 type PreviewModalProps = {
   preview: {
@@ -48,12 +48,7 @@ export default function PreviewModal({ preview, onClose, onDownload }: PreviewMo
         )}
         {preview.type === "audio" && <audio controls src={preview.url}></audio>}
         {preview.type === "file" && (
-          <button
-            onClick={() => onDownload(preview.url, preview.name || "file")}
-            className="bg-blue-500 text-white px-4 py-2 rounded"
-          >
-            <Download /> {preview.name || "Download file"}
-          </button>
+          <File className="w-12 h-12 text-slate-500 mb-2" onClick={() => onDownload(preview.url, preview.name || "file")} />
         )}
         <button
           onClick={() => handleDownload(preview.url)}

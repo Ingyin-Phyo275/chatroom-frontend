@@ -1,7 +1,7 @@
 import type { PrivateChatMessage } from "@/dto/response/PrivateChatMessage";
 import type { ChatUserType } from "@/dto/UserTypes";
 import * as Avatar from "@radix-ui/react-avatar";
-import { CheckCheck, Download } from "lucide-react";
+import { CheckCheck, Download, File } from "lucide-react";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -28,7 +28,7 @@ export default function MessageItem({
   onDelete: (messageId: number) => void;
 }) {
   const sender = user;
-  // console.log("props", message?.is_delivered)
+  console.log("props",filePath);
 
   return (
     <div className={`flex ${isOwn ? "justify-end" : "justify-start"} gap-3`}>
@@ -60,7 +60,7 @@ export default function MessageItem({
 
             {/* Message content */}
             {message.attachment_url && (
-              
+
               <div>
                 {filePath?.match(/\.(jpeg|jpg|png|gif)$/i) && (
                   <img
@@ -82,26 +82,22 @@ export default function MessageItem({
                 )}
 
                 {filePath?.match(/\.(mp3|wav)$/i) && (
-                  <audio controls src={message.attachment_url}  />
+                  <audio controls src={message.attachment_url} />
                   // <AudioMessage file={message.attachment_url!} />
                 )}
 
                 {!filePath?.match(/\.(jpeg|jpg|png|gif|mp4|webm|mp3|wav)$/i) && (
-                  <div className="flex items-center gap-2">
-                    <a href={message.attachment_url} target="_blank" rel="noopener noreferrer" className="underline text-blue-600">
-                      Open file
-                    </a>
-                    <button
-                      onClick={() => onDownload(message.attachment_url!, message.attachment_url!.split("/").pop() || "file")}
-                      className="p-1 rounded text-green-600 hover:text-white hover:bg-green-600"
-                    >
-                      <Download className="w-4 h-4" />
-                    </button>
+                  <div className="relative flex flex-col items-center justify-center w-[200px] h-[200px] bg-gray-100 rounded-lg shadow-md p-4 hover:shadow-lg transition-shadow">
+                    {/* File Icon */}
+                    <File className="w-12 h-12 text-slate-500 mb-2" onClick={() =>
+                      setPreviewModal({ type: "file", url: message.attachment_url })
+                    }/>
+
+
                   </div>
                 )}
-                
               </div>
-            ) }
+            )}
           </ContextMenuTrigger>
 
           {/* Footer: time & actions */}
