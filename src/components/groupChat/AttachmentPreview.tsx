@@ -46,14 +46,7 @@ const AttachmentPreview = React.memo(function AttachmentPreview({ url }: { url: 
   }
 
   return (
-    <a
-      href={url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="text-blue-500 underline block mb-1"
-    >
-      Download file
-    </a>
+    <></>
   );
 });
 
