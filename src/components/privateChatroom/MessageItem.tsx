@@ -14,7 +14,6 @@ export default function MessageItem({
   user,
   filePath,
   onEdit,
-  onDownload,
   setPreviewModal,
   onDelete
 }: {
@@ -23,12 +22,11 @@ export default function MessageItem({
   user: ChatUserType;
   filePath: string
   onEdit: (id: string, content: string) => void;
-  onDownload: (url: string, filename: string) => void;
   setPreviewModal: (preview: any) => void;
   onDelete: (messageId: number) => void;
 }) {
   const sender = user;
-  console.log("props",filePath);
+  //console.log("props",filePath);
 
   return (
     <div className={`flex ${isOwn ? "justify-end" : "justify-start"} gap-3`}>

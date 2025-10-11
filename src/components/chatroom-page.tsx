@@ -8,7 +8,6 @@ import type { loginResponse } from "../dto/response/LoginResponse"
 import * as Avatar from "@radix-ui/react-avatar";
 import ChatRoom from "../chatroom"
 import GroupChatRoom from "./groupChatroom"
-import {socket} from "../socket/socket"
 
 type chatroomPageProps = {
     selectedUser: ChatUserType,
@@ -16,67 +15,6 @@ type chatroomPageProps = {
 }
 export default function ChatroomPage({ selectedUser, loginUser }: chatroomPageProps) {
     const [showInfo, setShowInfo] = useState(false);
-    const [inCall, setInCall] = useState(false);
-    const [localStream, setLocalStream] = useState<MediaStream | null>(null);
-    const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
-
-    const handleAudioCall = async () => {
-    if (!selectedUser) return;
-
-    try {
-        // 1. Get user audio
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        setLocalStream(stream);
-
-        // 2. Create a new RTCPeerConnection
-        const pc = new RTCPeerConnection();
-
-        // Add local tracks to peer connection
-        stream.getTracks().forEach(track => pc.addTrack(track, stream));
-
-        // Handle remote tracks
-        pc.ontrack = (event) => {
-            setRemoteStream(event.streams[0]);
-        };
-
-        // 3. Create offer and send it via socket
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-
-        socket.emit("call-user", {
-            to: selectedUser.id,
-            offer
-        });
-
-        setInCall(true);
-
-        // Listen for answer
-        socket.on("answer-made", async (data: { answer: RTCSessionDescriptionInit }) => {
-            await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
-        });
-
-        // Handle ICE candidates
-        pc.onicecandidate = (event) => {
-            if (event.candidate) {
-                socket.emit("ice-candidate", {
-                    to: selectedUser.id,
-                    candidate: event.candidate
-                });
-            }
-        };
-
-        socket.on("ice-candidate", async (data: { candidate: RTCIceCandidateInit }) => {
-            try {
-                await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
-            } catch (err) {
-                console.error(err);
-            }
-        });
-
-    } catch (err) {
-        console.error("Error accessing microphone:", err);
-    }
-};
 
     return (
         <>
