@@ -18,5 +18,6 @@ export interface ChatroomDetails{
     is_group: boolean,
     members: ChatRoomMembers[],
     messages: Message[],
-    totalPage: number
+    totalPage: number,
+    is_edit: boolean
 }

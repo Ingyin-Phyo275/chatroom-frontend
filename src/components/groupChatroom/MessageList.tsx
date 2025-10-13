@@ -13,6 +13,7 @@ type Props = {
 };
 
 export default function GroupMessages({ groupedMessages, loginUser, onEditMessage }: Props) {
+  // console.log("group message", groupedMessages)
   return (
     <div className="space-y-3">
       {Object.keys(groupedMessages).map((dayKey) => (
@@ -26,9 +27,9 @@ export default function GroupMessages({ groupedMessages, loginUser, onEditMessag
 
           {groupedMessages[dayKey].map((m) => {
             const isOwn = m.sender?.id === loginUser.user.id;
-
+            //console.log("messages", m)
             return (
-              <div key={m.id} className={`flex ${isOwn ? "justify-end" : "justify-start"} gap-3`}>
+              <div key={m.id} className={`message-item flex ${isOwn ? "justify-end" : "justify-start"} gap-3`} data-id={m.id}>
                 {!isOwn && (
                   <Avatar.Root className="w-10 h-10 rounded-full overflow-hidden">
                     <Avatar.Image
@@ -53,6 +54,7 @@ export default function GroupMessages({ groupedMessages, loginUser, onEditMessag
                       <div>
                         {m.content && <p className="mb-1">{m.content}</p>}
 
+
                         {/* Attachments */}
                         {Array.isArray(m.attachment_url)
                           ? m.attachment_url.map((url, i) => <AttachmentPreview key={i} urls={url} />)
@@ -60,7 +62,10 @@ export default function GroupMessages({ groupedMessages, loginUser, onEditMessag
                       </div>
 
                       {/* Time + status */}
-                      <div className="text-xs text-slate-300 mt-1 flex justify-between">
+                      <div className="text-xs text-slate-300 mt-1 flex justify-between gap-2">
+                          {
+                            m.is_edit === true && <span className="text-grey-500 italic">Edited</span>
+                          }
                         <span>
                           {new Date(m.created_at!).toLocaleTimeString([], {
                             hour: "2-digit",

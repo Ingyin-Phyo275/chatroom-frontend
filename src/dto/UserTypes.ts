@@ -5,7 +5,8 @@ export type ChatUserType = {
   status: string;
   tabs?: string;
   is_group?: boolean;
-  avatar_url?: string
+  avatar_url?: string;
+  unreadCount?: number;
 };
 
 

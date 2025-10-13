@@ -14,6 +14,7 @@ export interface PrivateChatMessage {
   attachmentType?: "image" | "video" | "audio" | "file" | null;
   attachmentTypes?: ("image" | "video" | "audio" | "file")[] | null;
   is_group?: boolean;
+  is_edit?: boolean;
   pagination?: {
     page: number;
     pageSize: number;

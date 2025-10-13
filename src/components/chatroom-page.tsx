@@ -8,6 +8,7 @@ import type { loginResponse } from "../dto/response/LoginResponse"
 import * as Avatar from "@radix-ui/react-avatar";
 import ChatRoom from "../chatroom"
 import GroupChatRoom from "./groupChatroom"
+import GroupCall from "./groupCall/GroupCall"
 
 type chatroomPageProps = {
     selectedUser: ChatUserType,
@@ -15,6 +16,7 @@ type chatroomPageProps = {
 }
 export default function ChatroomPage({ selectedUser, loginUser }: chatroomPageProps) {
     const [showInfo, setShowInfo] = useState(false);
+    const [showGroupCall, setShowGroupCall] = useState(false);
 
     return (
         <>
@@ -58,12 +60,22 @@ export default function ChatroomPage({ selectedUser, loginUser }: chatroomPagePr
                 {/* Right: info buttons */}
                 {selectedUser && (
                     <div>
-                        <Button className="p-2 rounded" variant={"ghost"}>
+                        <Button
+                            className="p-2 rounded"
+                            variant="ghost"
+                            onClick={() => setShowGroupCall(true)}
+                        >
                             <Phone className="w-6 h-6 text-primary" />
                         </Button>
-                        <Button className="p-2 rounded" variant={"ghost"}>
+
+                        <Button
+                            className="p-2 rounded"
+                            variant="ghost"
+                            onClick={() => setShowGroupCall(true)} // can use for video call too
+                        >
                             <Video className="w-5 h-5 text-primary" />
                         </Button>
+
                         <Button
                             className="p-2 rounded"
                             variant={"ghost"}
@@ -72,8 +84,27 @@ export default function ChatroomPage({ selectedUser, loginUser }: chatroomPagePr
                             <Info className="w-5 h-5 text-primary" />
                         </Button>
                     </div>
+                    
                 )}
             </header>
+            
+                {showGroupCall && selectedUser && (
+  <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="bg-white dark:bg-slate-800 p-4 rounded-lg w-full max-w-3xl h-[80vh] relative">
+      <button
+        className="absolute top-2 right-2 p-2 bg-gray-200 dark:bg-slate-700 rounded"
+        onClick={() => setShowGroupCall(false)}
+      >
+        Close
+      </button>
+
+      <GroupCall
+        userId={loginUser.user.id}
+        chatroomId={selectedUser.id}
+      />
+    </div>
+  </div>
+)}
 
             {/* Chat + Info layout */}
             <div className="flex-1 flex border-l h-[calc(100vh-4rem)]">
@@ -107,6 +138,9 @@ export default function ChatroomPage({ selectedUser, loginUser }: chatroomPagePr
                         <ChatInfoPanel selectedUser={selectedUser} />
                     </div>
                 )}
+
+
+
             </div>
         </>
     )

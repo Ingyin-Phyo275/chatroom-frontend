@@ -12,6 +12,7 @@ export default function MessageList({
   loginUser,
   user,
   onEdit,
+  //@ts-ignore
   onDownload,
   setPreviewModal,
   chatContainerRef,
@@ -57,7 +58,7 @@ export default function MessageList({
     }
   };
 
-
+// console.log("private message list", messages)
   return (
     <div
       ref={chatContainerRef}
@@ -91,7 +92,6 @@ export default function MessageList({
                 filePath={filePath!}
                 user={user}
                 onEdit={onEdit}
-                onDownload={onDownload}
                 setPreviewModal={setPreviewModal}
                 onDelete={onDelete}
               />

@@ -1,7 +1,7 @@
 import type { PrivateChatMessage } from "@/dto/response/PrivateChatMessage";
 import type { ChatUserType } from "@/dto/UserTypes";
 import * as Avatar from "@radix-ui/react-avatar";
-import { CheckCheck, Download, File } from "lucide-react";
+import { CheckCheck, File } from "lucide-react";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -26,7 +26,7 @@ export default function MessageItem({
   onDelete: (messageId: number) => void;
 }) {
   const sender = user;
-  //console.log("props",filePath);
+  // console.log("props",filePath);
 
   return (
     <div className={`flex ${isOwn ? "justify-end" : "justify-start"} gap-3`}>
@@ -99,7 +99,10 @@ export default function MessageItem({
           </ContextMenuTrigger>
 
           {/* Footer: time & actions */}
-          <div className="flex justify-between items-center mt-1 text-xs text-slate-300">
+          <div className="flex justify-between items-center mt-1 text-xs text-slate-300 gap-2">
+            {
+              message?.is_edit === true && <span className="text-grey-500 italic">Edited</span>
+            }
             <span>
               {new Date(message.created_at || message.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
             </span>
@@ -109,7 +112,9 @@ export default function MessageItem({
               <span className="ml-2 flex items-center gap-1">
                 {message.is_delivered && <CheckCheck className="w-3 h-3 text-green" />}
                 <ContextMenuContent>
-                  <ContextMenuItem onClick={() => onEdit(message.id, message.content || message.content)}>Edit</ContextMenuItem>
+                  {
+                    !filePath?.match(/\.(jpeg|jpg|png|gif|mp4|webm|mp3|wav)$/i) && <ContextMenuItem onClick={() => onEdit(message.id, message.content || message.content)}>Edit</ContextMenuItem>
+                  }
                   <ContextMenuItem onClick={() => onDelete(Number(message.id))}>Delete</ContextMenuItem>
                   <ContextMenuItem>Pin</ContextMenuItem>
                 </ContextMenuContent>

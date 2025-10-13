@@ -15,7 +15,8 @@ export const getChatrooms = async ({page, pageSize}: GroupChatProps) => {
         const returnData = response.data.data.data.map((chatroom: GroupChatResponse) => ({
             id: chatroom.id,
             name: chatroom.name,
-            is_group: true
+            is_group: true,
+            unreadCount: chatroom.unreadCount
             
         }))
         //console.log("get chatrooms in api", returnData);

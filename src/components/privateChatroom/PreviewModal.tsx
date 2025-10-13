@@ -13,12 +13,15 @@ type PreviewModalProps = {
 
 export default function PreviewModal({ preview, onClose, onDownload }: PreviewModalProps) {
   const handleDownload = async (url: string) => {
+      console.log("preview", url)
+      const downloadUrl = Array.isArray(url) ? url[0] : url;
+
     try {
       const response = await fetch(url, { mode: "cors" });
       const blob = await response.blob();
       const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);
-      link.download = url.split("/").pop() || "file";
+      link.download = downloadUrl.split("/").pop() || "file";
       link.click();
       URL.revokeObjectURL(link.href);
     } catch (err) {

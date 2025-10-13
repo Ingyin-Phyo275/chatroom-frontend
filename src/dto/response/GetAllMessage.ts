@@ -13,4 +13,5 @@ export interface GetAllMessage {
     is_delivered?: boolean;
     is_pinned?: boolean;
     is_group?: boolean;
+    is_edit?: boolean;
 }

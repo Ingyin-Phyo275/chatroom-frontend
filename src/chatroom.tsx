@@ -10,6 +10,7 @@ import ChatInput from "./components/privateChatroom/ChatInput";
 import PreviewModal from "./components/privateChatroom/PreviewModal";
 import { GetAllMessage } from "./http/api/privateChat/getAllMessage";
 import { deleteMessage } from "@/http/api/privateChat/deleteMessage";
+import { editPrivateChatMessage } from "./http/api/privateChat/editPrivateChatMessage";
 
 interface PreviewModal {
   preview: {
@@ -36,6 +37,7 @@ export default function ChatRoom({ user, loginUser }: { user: any; loginUser: an
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Pagination
+    //@ts-ignore
   const [page, setPage] = useState(1);
   const pageSize = 10;
   const [hasMore, setHasMore] = useState(true);
@@ -60,6 +62,7 @@ export default function ChatRoom({ user, loginUser }: { user: any; loginUser: an
     is_delivered: m.is_delivered ?? false,
     is_pinned: m.is_pinned ?? false,
     is_group: m.is_group ?? false,
+    is_edit: m.is_edit,
     pagination: m.pagination,
   });
 
@@ -81,12 +84,28 @@ export default function ChatRoom({ user, loginUser }: { user: any; loginUser: an
       const res = await GetAllMessage({ receiverId: Number(user.id), page: pageToFetch, pageSize });
       const newMsgs: PrivateChatMessage[] = (res.messages || []).map(transformMessageFromApi);
 
+      // console.log("fetch message", res)
       setMessages((prev) => (pageToFetch === 1 ? filterMessages(newMsgs) : filterMessages([...newMsgs, ...prev])));
       setHasMore(newMsgs.length === pageSize);
     } catch (err) {
       console.error("Fetch messages failed:", err);
     }
   };
+
+  useEffect(() => {
+    const handleMessageEdited = ({ message_id, new_content }: any) => {
+      setMessages(prev =>
+        prev.map(msg =>
+          Number(msg.id) === Number(message_id)
+            ? { ...msg, content: new_content, isEdited: true }
+            : msg
+        )
+      );
+    };
+  
+    socket.on("message-edited", handleMessageEdited);
+    return () => {socket.off("message-edited", handleMessageEdited)};
+  }, []);
 
   // Initial load
   useEffect(() => {
@@ -122,6 +141,14 @@ export default function ChatRoom({ user, loginUser }: { user: any; loginUser: an
     return () => container.removeEventListener("scroll", handleScroll);
   }, [hasMore]);
 
+  //Socket event log
+      useEffect(() => {
+        socket.onAny((event, ...args) => {
+            console.log("[SOCKET EVENT] in group chat", event, args);
+        });
+    }, []);
+
+
   // Socket join & listeners
   useEffect(() => {
     if (!socket) return;
@@ -138,7 +165,6 @@ const handleIncomingMessage = (msg: any) => {
   if (!belongs) return;
 
   setMessages((prev) => {
-    // 🧠 Find optimistic message (same sender, receiver, and timestamp within a few seconds)
     const existingIndex = prev.findIndex(
       (m) =>
         m.sender === String(loginUser.user.id) &&
@@ -157,8 +183,6 @@ const handleIncomingMessage = (msg: any) => {
     return filterMessages([...prev, newMsg]);
   });
 };
-
-
     socket.on("receive-message", handleIncomingMessage); // messages from others
     socket.on("message-sent", handleIncomingMessage);    // messages from self
 
@@ -184,8 +208,8 @@ const handleIncomingMessage = (msg: any) => {
       try {
         const result = await uploadAttachment(attachment.file, attachment.type, user?.id);
         uploadedAttachments.push({
-          url: result.url,
-          imagePath: result?.imagePath ?? null,
+          url: "",
+          imagePath: result?.data?.imagePath ?? null,
           type: result?.type as "image" | "video" | "audio" | "file",
         });
       } catch (err) {
@@ -223,10 +247,39 @@ const handleIncomingMessage = (msg: any) => {
   };
 
   // Edit message
-  const saveEditedMessage = () => {
-    setMessages((prev) => prev.map((m) => (m.id === editingMessageId ? { ...m, content: text } : m)));
-    setEditingMessageId(null);
-    setText("");
+  const saveEditedMessage = async () => {
+    if(!editingMessageId) return;
+    try{
+        const messageIdNumber = Number(editingMessageId);
+
+      const result = await editPrivateChatMessage({
+        msgId: Number(editingMessageId),
+        content: text
+      });
+      toast.success(result?.message || "Message updated");
+      
+          setMessages((prev) => {
+            const updated = prev.map((msg) =>
+              msg.id === editingMessageId ? { ...msg, content: text } : msg
+            );
+            return [...updated]; // force new reference
+          });
+
+              // 3 Emit edit event to other members
+              socket.emit("edit-message", {
+                message_id: messageIdNumber,
+                new_content: text.trim(),
+                receiver_id: Number(user.id),
+                editor_id: Number(loginUser.user.id),
+              });
+      
+          setEditingMessageId(null);
+          setText("");
+    }catch(err){
+      console.error("Failed to edit message:", err);
+      toast?.error?.("Failed to edit message");
+      return;
+    }
   };
 
   const handleEditMessage = (id: string, content: string) => {
@@ -321,14 +374,14 @@ const handleIncomingMessage = (msg: any) => {
         setShowAttachmentMenu={setShowAttachmentMenu}
       />
 
-      {previewModal && (
-        <PreviewModal
-          // @ts-ignore
-          preview={previewModal}
-          onClose={() => setPreviewModal(null)}
-          onDownload={handleDownload}
-        />
-      )}
+{previewModal && (
+  <PreviewModal
+  // @ts-ignore
+    preview={previewModal}
+    onClose={() => setPreviewModal(null)}
+    onDownload={handleDownload}
+  />
+)}
     </div>
   );
 }

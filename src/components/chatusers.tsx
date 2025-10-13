@@ -58,6 +58,7 @@ export default function ChatUsers({
           is_group: true,
           tabs: "Group",
           avatar_url: "",
+          unreadCount: g.unreadCount
         }));
     } else {
       newFiltered = users
@@ -76,6 +77,8 @@ export default function ChatUsers({
   const handleClick = async (user: ChatUserType) => {
     onSelectUser(user);
   };
+
+  //console.log("filter user", filteredUsers)
   
   return (
     <div className="flex flex-col h-full w-full">
@@ -119,13 +122,12 @@ export default function ChatUsers({
             {/* Name + status */}
             <div className="flex flex-col">
               <span className="font-medium">{user.username}
-                {
-                  tabs !== "Contacts" && <Badge
-                  className="h-5 min-w-5 rounded-full px-1 ml-2 font-mono tabular-nums"
-                >
-                  {10}
-                </Badge>
-                }
+{tabs !== "Contacts" && user?.unreadCount! > 0 && (
+  <Badge className="h-5 min-w-5 rounded-full px-1 ml-2 font-mono tabular-nums">
+    {user.unreadCount}
+  </Badge>
+)}
+
               </span>
               {!user.is_group && (
                 <span

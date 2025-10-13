@@ -12,12 +12,13 @@ export const getChatroomDetails = async ({chatroomId, page, pageSize}: ChatroomD
     const response = await axiosInstance.get(`/chatroom/get-chatroom-details?chatroomId=${chatroomId}&page=${page}&pageSize=${pageSize}`);
 
     const chatroom: ChatroomDetails = response.data.data;
-    // console.log("chatroom response members", chatroom.members);
+    // console.log("chatroom response members", chatroom.messages);
 
     return {
       id: chatroom.id,
       name: chatroom.name,
       is_group: chatroom.is_group,
+      is_edit: chatroom.is_edit,
       members: chatroom.members,
       messages: chatroom.messages ?? [],
       totalPage: chatroom.totalPage

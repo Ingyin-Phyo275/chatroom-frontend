@@ -20,9 +20,7 @@ type Props = { user: ChatUserType; loginUser: loginResponse };
 export default function GroupChatRoom({ user, loginUser }: Props) {
   const [messages, setMessages] = useState<GetAllMessage[]>([]);
   const [text, setText] = useState("");
-  const [pendingAttachments, setPendingAttachments] = useState<Attachment[]>(
-    []
-  );
+  const [pendingAttachments, setPendingAttachments] = useState<Attachment[]>([]);
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
   const [previewModal, setPreviewModal] = useState<{
     type: string;
@@ -30,11 +28,13 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
   } | null>(null);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [messagesLoaded, setMessagesLoaded] = useState(false);
+    //@ts-ignore
   const [attachmentType, setattachmentType] = useState("image");
 
   //api call variables
   const [page, setPage] = useState(1);
   const [pageSize] = useState(10);
+  //@ts-ignore
   const [totalPages, setTotalPages] = useState(1);
   const [loadingMore, setLoadingMore] = useState(false);
 
@@ -56,6 +56,23 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
       user_id: loginUser.user.id,
     });
   }, [user.id, loginUser.user.id]);
+
+
+useEffect(() => {
+  const handleMessageEdited = ({ message_id, new_content }: any) => {
+    setMessages(prev =>
+      prev.map(msg =>
+        Number(msg.id) === Number(message_id)
+          ? { ...msg, content: new_content, isEdited: true }
+          : msg
+      )
+    );
+  };
+
+  socket.on("message-edited", handleMessageEdited);
+  return () => {socket.off("message-edited", handleMessageEdited)};
+}, []);
+
 
 
 useEffect(() => {
@@ -84,6 +101,7 @@ useEffect(() => {
       page: pageNumber,
       pageSize,
     });
+    //console.log("fetch response", chatroom?.messages)
     const chatMessages: GetAllMessage[] = chatroom.messages.map((m: any) => ({
       id: m.id,
       sender: { id: m.sender?.id, username: m.sender?.username },
@@ -100,6 +118,7 @@ useEffect(() => {
         : [],
       is_delivered: m.is_delivered ?? false,
       is_pinned: m.is_pinned ?? false,
+      is_edit: m.is_edit,
     }));
 
     return { chatMessages, totalPage: chatroom.totalPage ?? 1 };
@@ -144,43 +163,104 @@ useEffect(() => {
     loadLatestMessages();
   }, [user.id]);
 
-  useEffect(() => {
-    if (!messagesLoaded) return; 
-    const handleScroll = async () => {
-      // console.log("Scroll event");
-      if (!listRef.current) return;
-      const { scrollTop, scrollHeight, clientHeight } = listRef.current;
-      const atBottom = scrollHeight - (scrollTop + clientHeight) < 50;
-      setIsAtBottom(atBottom);
-      if (atBottom) setNewMessageCount(0);
+  // useEffect(() => {
+  //   if (!messagesLoaded) return; 
+  //   const handleScroll = async () => {
+  //     // console.log("Scroll event");
+  //     if (!listRef.current) return;
+  //     const { scrollTop, scrollHeight, clientHeight } = listRef.current;
+  //     const atBottom = scrollHeight - (scrollTop + clientHeight) < 50;
+  //     setIsAtBottom(atBottom);
+  //     if (atBottom) setNewMessageCount(0);
 
-      if (scrollTop < 50 && !loadingMore && page > 1) {
-        setLoadingMore(true);
-        const nextPage = page - 1;
-        try {
-          // console.log(`Call api in scroll ${nextPage}`)
-          const { chatMessages } = await fetchPage(nextPage);
-          const currentScrollHeight = listRef.current.scrollHeight;
-          setMessages((prev) => dedupeMessages([...chatMessages, ...prev]));
-          setPage(nextPage);
-          setTimeout(() => {
-            if (listRef.current)
-              listRef.current.scrollTop =
-                listRef.current.scrollHeight - currentScrollHeight;
-          }, 50);
-        } catch (err) {
-          console.error("Failed to load older messages:", err);
-        } finally {
-          setLoadingMore(false);
-        }
+  //     if (scrollTop < 50 && !loadingMore && page > 1) {
+  //       setLoadingMore(true);
+  //       const nextPage = page - 1;
+  //       try {
+  //         // console.log(`Call api in scroll ${nextPage}`)
+  //         const { chatMessages } = await fetchPage(nextPage);
+  //         const currentScrollHeight = listRef.current.scrollHeight;
+  //         setMessages((prev) => dedupeMessages([...chatMessages, ...prev]));
+  //         setPage(nextPage);
+  //         setTimeout(() => {
+  //           if (listRef.current)
+  //             listRef.current.scrollTop =
+  //               listRef.current.scrollHeight - currentScrollHeight;
+  //         }, 50);
+  //       } catch (err) {
+  //         console.error("Failed to load older messages:", err);
+  //       } finally {
+  //         setLoadingMore(false);
+  //       }
+  //     }
+  //   };
+
+  //   const currentList = listRef.current;
+  //   if (currentList) currentList.addEventListener("scroll", handleScroll);
+  //   return () => currentList?.removeEventListener("scroll", handleScroll);
+  // }, [messagesLoaded, page, loadingMore, user.id]);
+
+useEffect(() => {
+  if (!messagesLoaded) return;
+
+  const readMessagesRef = new Set<string>();
+
+  const handleScroll = async () => {
+    if (!listRef.current) return;
+
+    const { scrollTop, scrollHeight, clientHeight } = listRef.current;
+    const atBottom = scrollHeight - (scrollTop + clientHeight) < 50;
+    setIsAtBottom(atBottom);
+    if (atBottom) setNewMessageCount(0);
+
+    // ---- Emit "message-read" for visible messages ----
+    requestAnimationFrame(() => {
+      const messageElements = Array.from(
+        listRef.current!.querySelectorAll<HTMLDivElement>(".message-item")
+      );
+
+      messageElements.forEach((el) => {
+        const msgId = el.dataset.id;
+        if (!msgId || readMessagesRef.has(msgId)) return;
+
+        socket.emit("message-read", { messageId: Number(msgId) });
+        readMessagesRef.add(msgId);
+      });
+    });
+
+    // ---- Load older messages if scrollTop < 50 ----
+    if (scrollTop < 50 && !loadingMore && page > 1) {
+      setLoadingMore(true);
+      const nextPage = page - 1;
+      try {
+        const { chatMessages } = await fetchPage(nextPage);
+        const currentScrollHeight = listRef.current.scrollHeight;
+        setMessages((prev) => dedupeMessages([...chatMessages, ...prev]));
+        setPage(nextPage);
+        setTimeout(() => {
+          if (listRef.current)
+            listRef.current.scrollTop =
+              listRef.current.scrollHeight - currentScrollHeight;
+        }, 50);
+      } catch (err) {
+        console.error("Failed to load older messages:", err);
+      } finally {
+        setLoadingMore(false);
       }
-    };
+    }
+  };
 
-    const currentList = listRef.current;
-    if (currentList) currentList.addEventListener("scroll", handleScroll);
-    return () => currentList?.removeEventListener("scroll", handleScroll);
-  }, [messagesLoaded, page, loadingMore, user.id]);
+  const currentList = listRef.current;
+  if (currentList) currentList.addEventListener("scroll", handleScroll);
 
+  // Trigger once on mount to mark visible messages as read
+  handleScroll();
+
+  return () => currentList?.removeEventListener("scroll", handleScroll);
+}, [messagesLoaded, page, loadingMore, user.id]);
+
+
+  
   const scrollToBottom = () => {
     if (listRef.current)
       listRef.current.scrollTop = listRef.current.scrollHeight;
@@ -261,6 +341,7 @@ useEffect(() => {
       is_delivered: true,
       is_pinned: false,
       is_group: true,
+      is_edit: false,
     };
 
     setMessages((prev) => dedupeMessages([...prev, newMsg]));
@@ -326,52 +407,48 @@ useEffect(() => {
     setText(currentText);
   };
 
-//   const saveEditedMessage = async () => {
-//     if (!editingMessageId) return;
-//     try {
-//       const result = await editGroupChatMessage({
-//         chatroomId: Number(user.id),
-//         messageId: Number(editingMessageId),
-//         message: text,
-//       });
-//       toast.success(result?.message || "Message updated");
-//       setMessages((prev) =>
-//         dedupeMessages(
-//           prev.map((m) =>
-//             m.id === editingMessageId ? { ...m, content: text } : m
-//           )
-//         )
-//       );
-//       setEditingMessageId(null);
-//       setText("");
-//     } catch (err: any) {
-//       toast.error(err?.message || "Failed to edit message");
-//     }
-//   };
 
 const saveEditedMessage = async () => {
   if (!editingMessageId) return;
+
+  // Ensure editingMessageId is a number
+  const messageIdNumber = Number(editingMessageId);
+
   try {
+    // 1️ Update DB via API
     const result = await editGroupChatMessage({
       chatroomId: Number(user.id),
-      messageId: Number(editingMessageId),
-      message: text,
+      messageId: messageIdNumber,
+      message: text.trim(),
     });
+
     toast.success(result?.message || "Message updated");
 
-    setMessages((prev) => {
-      const updated = prev.map((msg) =>
-        msg.id === editingMessageId ? { ...msg, content: text } : msg
-      );
-      return [...updated]; // force new reference
+    // 2️ Update sender UI immediately
+    setMessages(prev =>
+      prev.map(msg =>
+        Number(msg.id) === messageIdNumber
+          ? { ...msg, content: text.trim(), isEdited: true }
+          : msg
+      )
+    );
+
+    // 3 Emit edit event to other members
+    socket.emit("edit-message", {
+      message_id: messageIdNumber,
+      new_content: text.trim(),
+      chatroom_id: Number(user.id),
+      editor_id: Number(loginUser.user.id),
     });
 
+    // 4 Reset editing state
     setEditingMessageId(null);
     setText("");
   } catch (err: any) {
     toast.error(err?.message || "Failed to edit message");
   }
 };
+
 
   useEffect(() => {
     if (!listRef.current) return;
@@ -390,6 +467,8 @@ const saveEditedMessage = async () => {
     },
     {}
   );
+
+ // console.log("group", groupedMessages)
 
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)] relative">
