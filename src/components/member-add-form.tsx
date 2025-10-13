@@ -8,6 +8,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { userListQuery } from "../composables/Queries/userListQuery";
 import { addMembers } from "../http/api/groupChat/addMember";
 import { createChatroom } from "../http/api/groupChat/createChatroom";
+import { getNonGroupMembers } from "../http/api/groupChat/get-non-groupMembers";
 
 interface MemberAddFormProps {
   action?: "add" | "create";
@@ -35,6 +36,10 @@ export default function MemberAddForm({ action = "create", chatroomId }: MemberA
     contact.username.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  //retrieve non-gp-member
+  const nonGroupMembers = getNonGroupMembers(chatroomId!);
+  console.log("non group member", nonGroupMembers)
+
   const handleSubmit = async () => {
     if (action === "create" && !groupName.trim()) {
       toast.error("Please enter a group name");
@@ -60,6 +65,7 @@ export default function MemberAddForm({ action = "create", chatroomId }: MemberA
         const response = await createChatroom({
           name: groupName,
           memberIds: selectedContacts.map(c => c.id),
+          
         });
         queryClient.invalidateQueries({ queryKey: ["groupChatList"] });
         toast.success(response.message || response.data?.message || "Group created");
