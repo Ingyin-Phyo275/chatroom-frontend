@@ -10,6 +10,7 @@ import { useGroupChatList } from "../composables/Queries/useGroupChatList";
 import { userListQuery } from "../composables/Queries/userListQuery";
 import { chatUserListQuery } from "../composables/Queries/ChatUserListQuery";
 import { Badge } from "@/components/ui/badge"
+import useCounterStore from "../store/UnreadCount";
 
 interface ChatUsersProps {
   tabs: string;
@@ -20,6 +21,8 @@ export default function ChatUsers({
   tabs,
   onSelectUser,
 }: ChatUsersProps) {
+
+  const { value, setValue } = useCounterStore();
   const [searchTerm, setSearchTerm] = React.useState("");
   const [filteredUsers, setFilteredUsers] = useState<ChatUserType[]>([]);
 
@@ -33,12 +36,15 @@ export default function ChatUsers({
 
   //user's personal chat list
   const { userListData: users = [] as ChatUserType[] } = chatUserListQuery();
-  // console.log("result in chat users", users);
+  //console.log("result in chat users", users);
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
   };
 
+
+  //zustand
+  //console.log("zustand value", value)
 
   React.useEffect(() => {
     let newFiltered: ChatUserType[] = [];
@@ -76,10 +82,11 @@ export default function ChatUsers({
 
   const handleClick = async (user: ChatUserType) => {
     onSelectUser(user);
+
   };
 
   //console.log("filter user", filteredUsers)
-  
+
   return (
     <div className="flex flex-col h-full w-full">
       {/* Search bar */}
@@ -122,11 +129,27 @@ export default function ChatUsers({
             {/* Name + status */}
             <div className="flex flex-col">
               <span className="font-medium">{user.username}
-{tabs !== "Contacts" && user?.unreadCount! > 0 && (
-  <Badge className="h-5 min-w-5 rounded-full px-1 ml-2 font-mono tabular-nums">
-    {user.unreadCount}
-  </Badge>
-)}
+                {/* {tabs !== "Contacts" && user?.unreadCount! > 0 && (
+                  <Badge className="h-5 min-w-5 rounded-full px-1 ml-2 font-mono tabular-nums">
+                    {user.unreadCount}
+                  </Badge>
+                )} */}
+
+                {tabs !== "Contacts" ? (
+                  <>
+                    {user?.unreadCount! > 0 && (
+                      <Badge className="h-5 min-w-5 rounded-full px-1 ml-2 font-mono tabular-nums">
+                        {user.unreadCount}
+                      </Badge>
+                    )}
+
+                    {value > 0 && (
+                      <Badge className="h-5 min-w-5 rounded-full px-1 ml-2 font-mono tabular-nums">
+                        {value}
+                      </Badge>
+                    )}
+                  </>
+                ) : null}
 
               </span>
               {!user.is_group && (

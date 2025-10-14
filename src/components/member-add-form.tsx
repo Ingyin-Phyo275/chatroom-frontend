@@ -5,24 +5,27 @@ import { Input } from "./ui/input";
 import { toast } from "sonner";
 import * as Avatar from "@radix-ui/react-avatar";
 import { useQueryClient } from "@tanstack/react-query";
-import { userListQuery } from "../composables/Queries/userListQuery";
 import { addMembers } from "../http/api/groupChat/addMember";
 import { createChatroom } from "../http/api/groupChat/createChatroom";
-import { getNonGroupMembers } from "../http/api/groupChat/get-non-groupMembers";
+import { useNonMemberQuery } from "../composables/Queries/useNonMemberQuery";
 
 interface MemberAddFormProps {
   action?: "add" | "create";
   chatroomId?: string;
-
 }
-
 export default function MemberAddForm({ action = "create", chatroomId }: MemberAddFormProps) {
   const [groupName, setGroupName] = useState(""); // State for group name
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedContacts, setSelectedContacts] = useState<UserListResponse[]>([]);
   const queryClient = useQueryClient();
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value);
-  const { userListData: contacts = [] } = userListQuery();
+
+  //retrieve contacts
+  // const { userListData: contacts = [] } = userListQuery();
+
+    //retrieve non-gp-member
+  const { nonMemberListData: nonGroupMembers = []} = useNonMemberQuery(chatroomId!);
+
   const toggleContact = (contact: UserListResponse) => {
     setSelectedContacts(prev =>
       prev.find(c => c.id === contact.id)
@@ -32,13 +35,11 @@ export default function MemberAddForm({ action = "create", chatroomId }: MemberA
   };
 
   const removeContact = (id: string) => setSelectedContacts(prev => prev.filter(c => c.id !== id));
-  const filteredContacts = contacts.filter(contact =>
-    contact.username.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredContacts = nonGroupMembers.filter((nonGroupMembers : UserListResponse) =>
+    nonGroupMembers.username.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  //retrieve non-gp-member
-  const nonGroupMembers = getNonGroupMembers(chatroomId!);
-  console.log("non group member", nonGroupMembers)
+
 
   const handleSubmit = async () => {
     if (action === "create" && !groupName.trim()) {
@@ -56,11 +57,9 @@ export default function MemberAddForm({ action = "create", chatroomId }: MemberA
           userIds: selectedContacts.map(c => c.id),
         });
         toast.success(`Added ${selectedContacts.length} member(s)`);
-
-        // console.log("form update", chatroomId)
-        // console.log("Invalidating key:", ["chatroomDetails", String(chatroomId)]);
         await queryClient.invalidateQueries({ queryKey: ["chatroomDetails", String(chatroomId)] });
         await queryClient.refetchQueries({ queryKey: ["chatroomDetails", String(chatroomId)] });
+        await queryClient.invalidateQueries({ queryKey: ["nonMemberList", String(chatroomId)] });
       } else {
         const response = await createChatroom({
           name: groupName,
@@ -130,7 +129,7 @@ export default function MemberAddForm({ action = "create", chatroomId }: MemberA
       {/* Contact List */}
       <div className="flex flex-col space-y-2 overflow-y-auto max-h-64 border border-gray-200 rounded p-2">
         {filteredContacts.length > 0 ? (
-          filteredContacts.map(contact => {
+          filteredContacts.map((contact : UserListResponse) => {
             const isSelected = selectedContacts.some(c => c.id === contact.id);
             return (
               <label

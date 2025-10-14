@@ -1,4 +1,4 @@
-import { Card, CardContent } from "./ui/card";
+import { Card, CardContent } from "../ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import * as Avatar from "@radix-ui/react-avatar";
 import {
@@ -8,10 +8,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { EllipsisVertical } from "lucide-react";
-import { Button } from "./ui/button";
+import { Button } from "../ui/button";
 import { Separator } from "@radix-ui/react-dropdown-menu";
 import { useQueryClient } from "@tanstack/react-query";
-import { removeMembers } from "../http/api/groupChat/removeMember";
+import { removeMembers } from "../../http/api/groupChat/removeMember";
 
 interface User {
   id: string;

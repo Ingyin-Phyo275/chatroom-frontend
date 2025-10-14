@@ -13,42 +13,42 @@ import GroupMessages from "./groupChatroom/MessageList";
 import PendingAttachments from "./groupChatroom/PendingAttachments";
 import type { Attachment } from "@/dto/types/Attachments";
 import ChatInput from "./groupChatroom/ChatInput";
+import useCounterStore from "../store/UnreadCount";
 
-// type Attachment = { type: string; file: File; url?: string };
-type Props = { user: ChatUserType; loginUser: loginResponse };
+type Props = { user: ChatUserType; loginUser: loginResponse; };
 
 export default function GroupChatRoom({ user, loginUser }: Props) {
   const [messages, setMessages] = useState<GetAllMessage[]>([]);
   const [text, setText] = useState("");
   const [pendingAttachments, setPendingAttachments] = useState<Attachment[]>([]);
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
-  const [previewModal, setPreviewModal] = useState<{
-    type: string;
-    url: string;
-  } | null>(null);
+  const [previewModal, setPreviewModal] = useState<{ type: string; url: string } | null>(null);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [messagesLoaded, setMessagesLoaded] = useState(false);
-    //@ts-ignore
   const [attachmentType, setattachmentType] = useState("image");
 
-  //api call variables
   const [page, setPage] = useState(1);
   const [pageSize] = useState(10);
-  //@ts-ignore
   const [totalPages, setTotalPages] = useState(1);
   const [loadingMore, setLoadingMore] = useState(false);
-
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [newMessageCount, setNewMessageCount] = useState(0);
 
-  //accathments input
   const listRef = useRef<HTMLDivElement>(null);
-  const imageInputRef = React.useRef<HTMLInputElement>(null);
-  const videoInputRef = React.useRef<HTMLInputElement>(null);
-  const audioInputRef = React.useRef<HTMLInputElement>(null);
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
+  const audioInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Join chatroom
+
+  const [unreadCount, setUnreadCount] = useState(0);
+  const loginId = loginUser.user.id.toString();
+
+
+  //zustand store
+  const { value, setValue } = useCounterStore();
+
+  // 🔹 Join chatroom
   useEffect(() => {
     if (!user.id || !loginUser.user.id) return;
     socket.emit("join-room", {
@@ -57,58 +57,76 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
     });
   }, [user.id, loginUser.user.id]);
 
+  // Listen for "message-delivered-confirm" (sender side)
+  useEffect(() => {
+    const handleMessageDeliveredConfirm = ({ messageId }: { messageId: string | number }) => {
+      setMessages(prev =>
+        prev.map(msg =>
+          Number(msg.id) === Number(messageId) ? { ...msg, is_delivered: true } : msg
+        )
+      );
+    };
 
-useEffect(() => {
-  const handleMessageEdited = ({ message_id, new_content }: any) => {
-    setMessages(prev =>
-      prev.map(msg =>
-        Number(msg.id) === Number(message_id)
-          ? { ...msg, content: new_content, isEdited: true }
-          : msg
-      )
-    );
-  };
+    socket.on("message-delivered-confirm", handleMessageDeliveredConfirm);
+    return () => { socket.off("message-delivered-confirm", handleMessageDeliveredConfirm); };
+  }, []);
 
-  socket.on("message-edited", handleMessageEdited);
-  return () => {socket.off("message-edited", handleMessageEdited)};
-}, []);
+  // 🔹 Listen for message edits
+  useEffect(() => {
+    const handleMessageEdited = ({ message_id, new_content }: any) => {
+      setMessages(prev =>
+        prev.map(msg =>
+          Number(msg.id) === Number(message_id)
+            ? { ...msg, content: new_content, isEdited: true }
+            : msg
+        )
+      );
+    };
 
+    socket.on("message-edited", handleMessageEdited);
+    return () => { socket.off("message-edited", handleMessageEdited); };
+  }, []);
 
-
+  //  Listen for new messages (receiver side)
 useEffect(() => {
   const handleNewMessage = (msg: GetAllMessage) => {
+    console.log("new message", msg)
     const senderId = msg.sender?.id?.toString();
-    const chatroomId = msg.chatroom?.id?.toString();
-    const userId = user.id.toString();
-    const loginId = loginUser.user.id.toString();
 
-    if (!msg.is_group || (senderId === userId && chatroomId === loginId) || (senderId === loginId && chatroomId === userId)) {
-      setMessages((prev) => dedupeMessages([...prev, msg]));
+    // Add all messages from server (including the ones I just sent)
+    setMessages(prev => dedupeMessages([...prev, msg]));
+    setUnreadCount(msg?.unreadCount || 0);
+    setValue(msg?.unreadCount! );
 
-      // Increment new message count **only if user is not at bottom**
-      setNewMessageCount((prevCount) => (isAtBottom ? 0 : prevCount + 1));
+    // If message is from someone else, notify server it's delivered
+    if (senderId !== loginId) {
+      socket.emit("message-delivered", { messageId: msg.id, receiverId: loginId });
+      setNewMessageCount(prev => (isAtBottom ? 0 : prev + 1));
     }
   };
 
   socket.on("receive-message", handleNewMessage);
-  return () => {socket.off("receive-message", handleNewMessage)};
-}, [user.id, loginUser.user.id, isAtBottom]);
+  socket.on("message-sent", handleNewMessage);
 
-  // Fetch a specific page
+  return () => {
+    socket.off("receive-message", handleNewMessage);
+    socket.off("message-sent", handleNewMessage);
+  };
+}, [isAtBottom, loginId]);
+
+
+  // 🔹 Fetch messages (pagination)
   const fetchPage = async (pageNumber: number) => {
     const chatroom = await getChatroomDetails({
       chatroomId: Number(user.id),
       page: pageNumber,
       pageSize,
     });
-    //console.log("fetch response", chatroom?.messages)
+
     const chatMessages: GetAllMessage[] = chatroom.messages.map((m: any) => ({
       id: m.id,
       sender: { id: m.sender?.id, username: m.sender?.username },
-      chatroom: m.receiver && {
-        id: m.receiver.id,
-        username: m.receiver.username,
-      },
+      chatroom: m.receiver && { id: m.receiver.id, username: m.receiver.username },
       content: m.content ?? "",
       created_at: m.created_at ?? new Date().toISOString(),
       attachment_url: Array.isArray(m.attachment_url)
@@ -119,12 +137,13 @@ useEffect(() => {
       is_delivered: m.is_delivered ?? false,
       is_pinned: m.is_pinned ?? false,
       is_edit: m.is_edit,
+      is_group: true,
     }));
 
     return { chatMessages, totalPage: chatroom.totalPage ?? 1 };
   };
 
-  // Load latest messages
+  //  Load latest messages
   useEffect(() => {
     const loadLatestMessages = async () => {
       if (!user.id) return;
@@ -138,15 +157,11 @@ useEffect(() => {
 
         while (!scrollable && currentPage > 0) {
           const { chatMessages } = await fetchPage(currentPage);
-          //console.log(`Call api second time ${currentPage}`)
           allMessages = [...chatMessages, ...allMessages];
           setMessages(dedupeMessages([...allMessages]));
-          await new Promise((r) => setTimeout(r, 50));
+          await new Promise(r => setTimeout(r, 50));
 
-          if (
-            listRef.current &&
-            listRef.current.scrollHeight > listRef.current.clientHeight
-          ) {
+          if (listRef.current && listRef.current.scrollHeight > listRef.current.clientHeight) {
             scrollable = true;
           } else {
             currentPage--;
@@ -154,128 +169,79 @@ useEffect(() => {
         }
         scrollToBottom();
         setPage(currentPage);
-        setMessagesLoaded(true); 
+        setMessagesLoaded(true);
       } catch (err) {
         console.error("Failed to load latest messages:", err);
       }
     };
-
     loadLatestMessages();
   }, [user.id]);
 
-  // useEffect(() => {
-  //   if (!messagesLoaded) return; 
-  //   const handleScroll = async () => {
-  //     // console.log("Scroll event");
-  //     if (!listRef.current) return;
-  //     const { scrollTop, scrollHeight, clientHeight } = listRef.current;
-  //     const atBottom = scrollHeight - (scrollTop + clientHeight) < 50;
-  //     setIsAtBottom(atBottom);
-  //     if (atBottom) setNewMessageCount(0);
+  //  Scroll listener (read receipts + pagination)
+  useEffect(() => {
+    if (!messagesLoaded) return;
+    const readMessagesRef = new Set<string>();
 
-  //     if (scrollTop < 50 && !loadingMore && page > 1) {
-  //       setLoadingMore(true);
-  //       const nextPage = page - 1;
-  //       try {
-  //         // console.log(`Call api in scroll ${nextPage}`)
-  //         const { chatMessages } = await fetchPage(nextPage);
-  //         const currentScrollHeight = listRef.current.scrollHeight;
-  //         setMessages((prev) => dedupeMessages([...chatMessages, ...prev]));
-  //         setPage(nextPage);
-  //         setTimeout(() => {
-  //           if (listRef.current)
-  //             listRef.current.scrollTop =
-  //               listRef.current.scrollHeight - currentScrollHeight;
-  //         }, 50);
-  //       } catch (err) {
-  //         console.error("Failed to load older messages:", err);
-  //       } finally {
-  //         setLoadingMore(false);
-  //       }
-  //     }
-  //   };
+    const handleScroll = async () => {
+      if (!listRef.current) return;
+      const { scrollTop, scrollHeight, clientHeight } = listRef.current;
+      const atBottom = scrollHeight - (scrollTop + clientHeight) < 50;
+      setIsAtBottom(atBottom);
+      if (atBottom) setNewMessageCount(0);
 
-  //   const currentList = listRef.current;
-  //   if (currentList) currentList.addEventListener("scroll", handleScroll);
-  //   return () => currentList?.removeEventListener("scroll", handleScroll);
-  // }, [messagesLoaded, page, loadingMore, user.id]);
-
-useEffect(() => {
-  if (!messagesLoaded) return;
-
-  const readMessagesRef = new Set<string>();
-
-  const handleScroll = async () => {
-    if (!listRef.current) return;
-
-    const { scrollTop, scrollHeight, clientHeight } = listRef.current;
-    const atBottom = scrollHeight - (scrollTop + clientHeight) < 50;
-    setIsAtBottom(atBottom);
-    if (atBottom) setNewMessageCount(0);
-
-    // ---- Emit "message-read" for visible messages ----
-    requestAnimationFrame(() => {
-      const messageElements = Array.from(
-        listRef.current!.querySelectorAll<HTMLDivElement>(".message-item")
-      );
-
-      messageElements.forEach((el) => {
-        const msgId = el.dataset.id;
-        if (!msgId || readMessagesRef.has(msgId)) return;
-
-        socket.emit("message-read", { messageId: Number(msgId) });
-        readMessagesRef.add(msgId);
+      // mark visible messages as read (receiver only)
+      requestAnimationFrame(() => {
+        const messageElements = Array.from(listRef.current!.querySelectorAll<HTMLDivElement>(".message-item"));
+        messageElements.forEach(el => {
+          const msgId = el.dataset.id;
+          const senderId = el.dataset.senderId;
+          if (!msgId || readMessagesRef.has(msgId) || senderId === loginId) return;
+          socket.emit("message-read", { messageId: Number(msgId), readerId: loginId });
+          readMessagesRef.add(msgId);
+        });
       });
-    });
 
-    // ---- Load older messages if scrollTop < 50 ----
-    if (scrollTop < 50 && !loadingMore && page > 1) {
-      setLoadingMore(true);
-      const nextPage = page - 1;
-      try {
-        const { chatMessages } = await fetchPage(nextPage);
-        const currentScrollHeight = listRef.current.scrollHeight;
-        setMessages((prev) => dedupeMessages([...chatMessages, ...prev]));
-        setPage(nextPage);
-        setTimeout(() => {
-          if (listRef.current)
-            listRef.current.scrollTop =
-              listRef.current.scrollHeight - currentScrollHeight;
-        }, 50);
-      } catch (err) {
-        console.error("Failed to load older messages:", err);
-      } finally {
-        setLoadingMore(false);
+      // load older messages if near top
+      if (scrollTop < 50 && !loadingMore && page > 1) {
+        setLoadingMore(true);
+        const nextPage = page - 1;
+        try {
+          const { chatMessages } = await fetchPage(nextPage);
+          const currentScrollHeight = listRef.current.scrollHeight;
+          setMessages(prev => dedupeMessages([...chatMessages, ...prev]));
+          setPage(nextPage);
+          setTimeout(() => {
+            if (listRef.current)
+              listRef.current.scrollTop = listRef.current.scrollHeight - currentScrollHeight;
+          }, 50);
+        } catch (err) {
+          console.error("Failed to load older messages:", err);
+        } finally {
+          setLoadingMore(false);
+        }
       }
-    }
-  };
+    };
 
-  const currentList = listRef.current;
-  if (currentList) currentList.addEventListener("scroll", handleScroll);
+    const currentList = listRef.current;
+    if (currentList) currentList.addEventListener("scroll", handleScroll);
+    handleScroll();
+    return () => currentList?.removeEventListener("scroll", handleScroll);
+  }, [messagesLoaded, page, loadingMore, loginId]);
 
-  // Trigger once on mount to mark visible messages as read
-  handleScroll();
-
-  return () => currentList?.removeEventListener("scroll", handleScroll);
-}, [messagesLoaded, page, loadingMore, user.id]);
-
-
-  
   const scrollToBottom = () => {
     if (listRef.current)
       listRef.current.scrollTop = listRef.current.scrollHeight;
   };
 
-
-  //send message with single socket call for multiple attachments by using array of imagePath
+  // 🔹 Send message
   const sendMessage = async () => {
     if (!text.trim() && pendingAttachments.length === 0) return;
 
-    // Edit mode
+    // edit mode
     if (editingMessageId) {
-      setMessages((prev) =>
+      setMessages(prev =>
         dedupeMessages(
-          prev.map((m) =>
+          prev.map(m =>
             m.id === editingMessageId ? { ...m, content: text.trim() } : m
           )
         )
@@ -289,35 +255,23 @@ useEffect(() => {
       return;
     }
 
-    let uploadedAttachments: {
-      attachment_url?: string;
-      imagePath?: string;
-      attachment_type?: string;
-    }[] = [];
+    let uploadedAttachments: { attachment_url?: string; imagePath?: string; attachment_type?: string }[] = [];
 
     if (pendingAttachments.length > 0) {
-      // Upload all attachments in parallel
       try {
         const uploadResults = await Promise.all(
-          pendingAttachments.map((att) =>
-            ChatroomUploadFile(att.file, user?.id, text.trim())
-          )
+          pendingAttachments.map(att => ChatroomUploadFile(att.file, user?.id, text.trim()))
         );
 
-        uploadedAttachments = uploadResults.map((result) => {
+        uploadedAttachments = uploadResults.map(result => {
           const uploadedUrl = result?.data?.attachment_url?.[0] ?? null;
           const imagePath = result?.data?.imagePath?.[0] ?? null;
-          const attachmentTypeToSend =
-            result?.data?.[0]?.attachment_type ?? attachmentType;
-          return {
-            attachment_url: uploadedUrl,
-            imagePath,
-            attachment_type: attachmentTypeToSend,
-          };
+          const attachmentTypeToSend = result?.data?.[0]?.attachment_type ?? attachmentType;
+          return { attachment_url: uploadedUrl, imagePath, attachment_type: attachmentTypeToSend };
         });
       } catch (error) {
         console.error("Attachment upload failed:", error);
-        toast?.error?.("Attachment upload failed");
+        toast.error("Attachment upload failed");
         return;
       }
     }
@@ -328,77 +282,51 @@ useEffect(() => {
       chatroom: { id: user.id, username: user.username },
       content: text.trim(),
       created_at: new Date().toISOString(),
-      attachment_urls: uploadedAttachments
-        .map((a) => a.attachment_url)
-        .filter(Boolean) as string[],
-      attachment_url: uploadedAttachments
-        .map((a) => a.attachment_url)
-        .filter(Boolean) as string[], 
-      imagePaths: uploadedAttachments.map((a) => a.imagePath).filter(Boolean) as string[],
-      attachment_types: uploadedAttachments
-        .map((a) => a.attachment_type!)
-        .filter(Boolean),
-      is_delivered: true,
+      attachment_url: uploadedAttachments.map(a => a.attachment_url!).filter(Boolean),
+      is_delivered: false,
       is_pinned: false,
       is_group: true,
       is_edit: false,
     };
 
-    setMessages((prev) => dedupeMessages([...prev, newMsg]));
+    //setMessages(prev => dedupeMessages([...prev, newMsg]));
     scrollToBottom();
-    socket.emit("chat-message", {
-      sender_id: newMsg.sender?.id,
-      chatroom_id: newMsg.chatroom?.id,
-      content: newMsg.content,
-      attachment_urls: uploadedAttachments
-        .map((a) => a.attachment_url)
-        .filter(Boolean),
-      imagePath: uploadedAttachments.map((a) => a.imagePath).filter(Boolean), // send array
-      attachment_types: uploadedAttachments
-        .map((a) => a.attachment_type)
-        .filter(Boolean), // send array
-      is_group: true,
-    });
-
     setText("");
     setPendingAttachments([]);
+
+    socket.emit("chat-message", {
+      sender_id: newMsg?.sender?.id,
+      chatroom_id: newMsg?.chatroom?.id,
+      content: newMsg.content,
+      attachment_urls: uploadedAttachments.map(a => a.attachment_url).filter(Boolean),
+      imagePath: uploadedAttachments.map(a => a.imagePath).filter(Boolean),
+      attachment_types: uploadedAttachments.map(a => a.attachment_type).filter(Boolean),
+      is_group: true,
+    });
   };
 
-  // Handle attachments
+  //  Attachments
   const handleAttachmentClick = (type: string) => {
     switch (type) {
-      case "image":
-        imageInputRef.current?.click();
-        break;
-      case "video":
-        videoInputRef.current?.click();
-        break;
-      case "audio":
-        audioInputRef.current?.click();
-        break;
-      case "file":
-        fileInputRef.current?.click();
-        break;
+      case "image": imageInputRef.current?.click(); break;
+      case "video": videoInputRef.current?.click(); break;
+      case "audio": audioInputRef.current?.click(); break;
+      case "file": fileInputRef.current?.click(); break;
     }
   };
 
-  const handleFileSelect = (
-    e: React.ChangeEvent<HTMLInputElement>,
-    type: string
-  ) => {
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>, type: string) => {
     const files = e.target.files;
     if (!files) return;
 
-    const attachments: Attachment[] = Array.from(files).map((f) => ({
+    const attachments: Attachment[] = Array.from(files).map(f => ({
       type: type as "image" | "video" | "audio" | "file",
       file: f,
       url: URL.createObjectURL(f),
     }));
 
-    setPendingAttachments((prev) => [...prev, ...attachments]);
+    setPendingAttachments(prev => [...prev, ...attachments]);
     setShowAttachmentMenu(false);
-
-    // Allow selecting same file again
     e.target.value = "";
   };
 
@@ -407,72 +335,56 @@ useEffect(() => {
     setText(currentText);
   };
 
+  const saveEditedMessage = async () => {
+    if (!editingMessageId) return;
+    const messageIdNumber = Number(editingMessageId);
 
-const saveEditedMessage = async () => {
-  if (!editingMessageId) return;
+    try {
+      const result = await editGroupChatMessage({
+        chatroomId: Number(user.id),
+        messageId: messageIdNumber,
+        message: text.trim(),
+      });
 
-  // Ensure editingMessageId is a number
-  const messageIdNumber = Number(editingMessageId);
+      toast.success(result?.message || "Message updated");
 
-  try {
-    // 1️ Update DB via API
-    const result = await editGroupChatMessage({
-      chatroomId: Number(user.id),
-      messageId: messageIdNumber,
-      message: text.trim(),
-    });
+      setMessages(prev =>
+        prev.map(msg =>
+          Number(msg.id) === messageIdNumber
+            ? { ...msg, content: text.trim(), isEdited: true }
+            : msg
+        )
+      );
 
-    toast.success(result?.message || "Message updated");
+      socket.emit("edit-message", {
+        message_id: messageIdNumber,
+        new_content: text.trim(),
+        chatroom_id: Number(user.id),
+        editor_id: Number(loginUser.user.id),
+      });
 
-    // 2️ Update sender UI immediately
-    setMessages(prev =>
-      prev.map(msg =>
-        Number(msg.id) === messageIdNumber
-          ? { ...msg, content: text.trim(), isEdited: true }
-          : msg
-      )
-    );
-
-    // 3 Emit edit event to other members
-    socket.emit("edit-message", {
-      message_id: messageIdNumber,
-      new_content: text.trim(),
-      chatroom_id: Number(user.id),
-      editor_id: Number(loginUser.user.id),
-    });
-
-    // 4 Reset editing state
-    setEditingMessageId(null);
-    setText("");
-  } catch (err: any) {
-    toast.error(err?.message || "Failed to edit message");
-  }
-};
-
+      setEditingMessageId(null);
+      setText("");
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to edit message");
+    }
+  };
 
   useEffect(() => {
-    if (!listRef.current) return;
-    if (isAtBottom) {
+    if (isAtBottom && listRef.current)
       listRef.current.scrollTop = listRef.current.scrollHeight;
-    }
   }, [messages, isAtBottom]);
 
-  const groupedMessages: Record<string, GetAllMessage[]> = messages.reduce(
-    (groups: Record<string, GetAllMessage[]>, msg) => {
-      if (!msg.created_at) return groups;
-      const dayKey = new Date(msg.created_at).toDateString();
-      if (!groups[dayKey]) groups[dayKey] = [];
-      groups[dayKey].push(msg);
-      return groups;
-    },
-    {}
-  );
-
- // console.log("group", groupedMessages)
+  const groupedMessages = messages.reduce<Record<string, GetAllMessage[]>>((groups, msg) => {
+    if (!msg.created_at) return groups;
+    const dayKey = new Date(msg.created_at).toDateString();
+    if (!groups[dayKey]) groups[dayKey] = [];
+    groups[dayKey].push(msg);
+    return groups;
+  }, {});
 
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)] relative">
-      {/* Messages */}
       <div ref={listRef} className="flex-1 overflow-auto p-4 space-y-3">
         <GroupMessages
           groupedMessages={groupedMessages}
@@ -481,7 +393,6 @@ const saveEditedMessage = async () => {
         />
       </div>
 
-      {/* New message indicator */}
       {!isAtBottom && newMessageCount > 0 && (
         <div
           onClick={scrollToBottom}
@@ -491,14 +402,12 @@ const saveEditedMessage = async () => {
         </div>
       )}
 
-      {/* Pending attachments */}
       <PendingAttachments
         pendingAttachments={pendingAttachments}
         setPendingAttachments={setPendingAttachments}
         setPreviewModal={setPreviewModal}
       />
 
-      {/* Input & Attachments */}
       <ChatInput
         text={text}
         setText={setText}
@@ -521,7 +430,6 @@ const saveEditedMessage = async () => {
         setShowAttachmentMenu={setShowAttachmentMenu}
       />
 
-      {/* Fullscreen preview modal */}
       {previewModal && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
           <button
@@ -531,19 +439,10 @@ const saveEditedMessage = async () => {
             <X className="w-6 h-6" />
           </button>
           {previewModal.type === "image" && (
-            <img
-              src={previewModal.url}
-              alt="preview"
-              className="max-w-[90%] max-h-[90%] rounded-lg"
-            />
+            <img src={previewModal.url} alt="preview" className="max-w-[90%] max-h-[90%] rounded-lg" />
           )}
           {previewModal.type === "video" && (
-            <video
-              src={previewModal.url}
-              controls
-              autoPlay
-              className="max-w-[90%] max-h-[90%] rounded-lg"
-            />
+            <video src={previewModal.url} controls autoPlay className="max-w-[90%] max-h-[90%] rounded-lg" />
           )}
         </div>
       )}

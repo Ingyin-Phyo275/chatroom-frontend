@@ -5,5 +5,6 @@ export interface UserListResponse {
     avatar_url?: string;
     phone_no?: string;
     status?: boolean | "Offline";
-    is_group: false
+    is_group: false;
+    unreadCount?: number
 }

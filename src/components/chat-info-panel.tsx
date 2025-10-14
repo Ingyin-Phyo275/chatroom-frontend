@@ -1,7 +1,7 @@
 import {  useEffect, useState } from "react";
 import { Button } from "./ui/button";
 import { Bell, Contact, CirclePlus } from "lucide-react";
-import ChatMembersCard from "./chat-member-card";
+import ChatMembersCard from "./InfoPanel/chat-member-card";
 import * as Avatar from "@radix-ui/react-avatar";
 import {
   DropdownMenu,
@@ -15,6 +15,8 @@ import type { loginResponse } from "../dto/response/LoginResponse";
 import type { UserListResponse } from "../dto/response/UserListResponse";
 import type { ChatroomDetails } from "../dto/response/ChatroomDetails";
 import { useChatroomDetails } from "../composables/Queries/useChatroomDetails";
+import { DialogTitle } from "@radix-ui/react-dialog";
+import ChatInfoViewMedia from "./InfoPanel/chat-info-viewMedia";
 
 interface ChatInfoProps {
   selectedUser: loginResponse | UserListResponse | any;
@@ -24,7 +26,13 @@ export default function ChatInfoPanel({ selectedUser }: ChatInfoProps) {
   const [chatroom, setChatroom] = useState<ChatroomDetails | null>(null);
   const page = 1;
   const pageSize = 10;
-  const { data, error, isLoading } = useChatroomDetails({chatroomId:selectedUser?.id, page, pageSize});
+  const isGroup = selectedUser?.is_group === true || selectedUser?.is_group === "true";
+
+const { data, error, isLoading } = useChatroomDetails({
+  chatroomId: isGroup ? selectedUser?.id : undefined,
+  page,
+  pageSize
+});
   //console.log("ChatInfoPanel query key:", ["chatroomDetails", selectedUser?.id]);
 
   useEffect(() => {
@@ -36,7 +44,9 @@ export default function ChatInfoPanel({ selectedUser }: ChatInfoProps) {
   if (isLoading) return <div>Loading...</div>;
   if (error) return <div>Failed to fetch chatroom details</div>;
   const members: any = chatroom?.members ?? [];
+  const messages: any = chatroom?.messages ?? [];
 
+  // console.log("check group or not", selectedUser)
   return (
     <>
       <div className="flex flex-col items-center">
@@ -55,7 +65,7 @@ export default function ChatInfoPanel({ selectedUser }: ChatInfoProps) {
         </Avatar.Root>
         <p className="font-medium mt-2">{selectedUser?.username}</p>
         <div className="flex flex-row gap-4 mt-4">
-          {selectedUser?.is_group ? (
+          {isGroup  ? (
             <div className="flex flex-col items-center">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -80,6 +90,7 @@ export default function ChatInfoPanel({ selectedUser }: ChatInfoProps) {
               <Dialog open={isOpen} onOpenChange={setIsOpen}>
                 <DialogContent className="w-full max-w-md sm:max-w-lg max-h-[90vh] overflow-auto rounded-lg p-6 bg-white">
                   <DialogHeader title="Add Members" />
+                  <DialogTitle></DialogTitle>
                   <div className="mt-4">
                     <MemberAddForm
                       action="add"
@@ -122,9 +133,10 @@ export default function ChatInfoPanel({ selectedUser }: ChatInfoProps) {
         </div>
       </div>
 
-      {selectedUser?.is_group && (
+      {isGroup && (
         <ChatMembersCard chatMembers={members} chatroomId={selectedUser?.id} />
       )}
+      <ChatInfoViewMedia messages={messages} chatroomId={selectedUser?.id}/>
     </>
   );
 }
