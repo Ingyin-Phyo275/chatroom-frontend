@@ -12,12 +12,14 @@ import { Button } from "../ui/button";
 import { Separator } from "@radix-ui/react-dropdown-menu";
 import { useQueryClient } from "@tanstack/react-query";
 import { removeMembers } from "../../http/api/groupChat/removeMember";
+import formatLastSeen from "@/utils/helper";
 
 interface User {
   id: string;
   username?: string;
   avatar_url?: string;
   status?: string;
+  last_seen?: string
 }
 
 interface ChatMember {
@@ -51,6 +53,8 @@ export function MemberAvatar({ member }: { member?: ChatMember }) {
 
 export default function ChatMembersCard({ chatMembers, chatroomId }: ChatMembersCardProps) {
   const queryClient = useQueryClient();
+
+  //console.log("check members", chatMembers)
   const handleRemoveMember = async (memberId: string) => {
     try {
       // Wait for the member to be removed
@@ -99,7 +103,7 @@ export default function ChatMembersCard({ chatMembers, chatroomId }: ChatMembers
                       {/* {member.user?.username || "Unknown"} */}
                     </p>
                     <p className="text-xs text-gray-500 dark:text-gray-400 truncate max-w-xs">
-                      {member.user?.status || "No status"}
+                      {member.user?.status === "offline" ? formatLastSeen(member?.user?.last_seen) : member?.user?.status}
                     </p>
                   </div>
                 </div>

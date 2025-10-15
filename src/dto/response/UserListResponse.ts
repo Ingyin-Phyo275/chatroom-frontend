@@ -6,5 +6,6 @@ export interface UserListResponse {
     phone_no?: string;
     status?: boolean | "Offline";
     is_group: false;
-    unreadCount?: number
+    unreadCount?: number;
+    last_seen?: string
 }

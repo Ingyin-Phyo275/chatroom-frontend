@@ -15,7 +15,7 @@ import type { Attachment } from "@/dto/types/Attachments";
 import ChatInput from "./groupChatroom/ChatInput";
 import useCounterStore from "../store/UnreadCount";
 
-type Props = { user: ChatUserType; loginUser: loginResponse; };
+type Props = { user: ChatUserType; loginUser: loginResponse; key: string };
 
 export default function GroupChatRoom({ user, loginUser }: Props) {
   const [messages, setMessages] = useState<GetAllMessage[]>([]);
@@ -44,11 +44,19 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
   const [unreadCount, setUnreadCount] = useState(0);
   const loginId = loginUser.user.id.toString();
 
-
   //zustand store
-  const { value, setValue } = useCounterStore();
+  const { setValue } = useCounterStore();
 
-  // 🔹 Join chatroom
+  //reset after selected group change
+  useEffect(() => {
+  setMessages([]);
+  setPendingAttachments([]);
+  setEditingMessageId(null);
+  setNewMessageCount(0);
+  setUnreadCount(0);
+}, [user.id]);
+
+  //  Join chatroom
   useEffect(() => {
     if (!user.id || !loginUser.user.id) return;
     socket.emit("join-room", {
@@ -66,12 +74,11 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
         )
       );
     };
-
     socket.on("message-delivered-confirm", handleMessageDeliveredConfirm);
     return () => { socket.off("message-delivered-confirm", handleMessageDeliveredConfirm); };
   }, []);
 
-  // 🔹 Listen for message edits
+  // Listen for message edits
   useEffect(() => {
     const handleMessageEdited = ({ message_id, new_content }: any) => {
       setMessages(prev =>
@@ -82,7 +89,6 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
         )
       );
     };
-
     socket.on("message-edited", handleMessageEdited);
     return () => { socket.off("message-edited", handleMessageEdited); };
   }, []);
@@ -95,29 +101,22 @@ useEffect(() => {
 
     // Add all messages from server (including the ones I just sent)
     setMessages(prev => dedupeMessages([...prev, msg]));
-    // setUnreadCount(msg?.unreadCount || 0);
     (msg?.unreadCount!).map((m: any) => {
-      // console.log("message id", m.userId)
-      // console.log("loginuser", loginUser?.user?.id)
       if(m?.userId === loginUser?.user?.id){
-        console.log("enter 1")
-        setValue(m?.unreadCount);
+        setValue(user?.id,m?.unreadCount);
         setUnreadCount(m?.unreadCount);
-        console.log("value form socket",value)
+       // console.log("value form socket",value)
       }
     })
-    //setValue(msg?.unreadCount! );
 
-    // If message is from someone else, notify server it's delivered
+    // If message is from other, send back to  server delivered socket
     if (senderId !== loginId) {
       socket.emit("message-delivered", { messageId: msg.id, receiverId: loginId });
       setNewMessageCount(prev => (isAtBottom ? 0 : prev + 1));
     }
   };
-
   socket.on("receive-message", handleNewMessage);
   socket.on("message-sent", handleNewMessage);
-
   return () => {
     socket.off("receive-message", handleNewMessage);
     socket.off("message-sent", handleNewMessage);
@@ -125,7 +124,7 @@ useEffect(() => {
 }, [isAtBottom, loginId]);
 
 
-  // 🔹 Fetch messages (pagination)
+  //  Fetch messages (pagination)
   const fetchPage = async (pageNumber: number) => {
     const chatroom = await getChatroomDetails({
       chatroomId: Number(user.id),
@@ -148,6 +147,7 @@ useEffect(() => {
       is_pinned: m.is_pinned ?? false,
       is_edit: m.is_edit,
       is_group: true,
+      isRead: m.isRead,
     }));
 
     return { chatMessages, totalPage: chatroom.totalPage ?? 1 };
@@ -243,7 +243,7 @@ useEffect(() => {
       listRef.current.scrollTop = listRef.current.scrollHeight;
   };
 
-  // 🔹 Send message
+  // Send message
   const sendMessage = async () => {
     if (!text.trim() && pendingAttachments.length === 0) return;
 
@@ -266,7 +266,6 @@ useEffect(() => {
     }
 
     let uploadedAttachments: { attachment_url?: string; imagePath?: string; attachment_type?: string }[] = [];
-
     if (pendingAttachments.length > 0) {
       try {
         const uploadResults = await Promise.all(
@@ -297,6 +296,7 @@ useEffect(() => {
       is_pinned: false,
       is_group: true,
       is_edit: false,
+      isRead: false,
     };
 
     //setMessages(prev => dedupeMessages([...prev, newMsg]));
@@ -355,7 +355,6 @@ useEffect(() => {
         messageId: messageIdNumber,
         message: text.trim(),
       });
-
       toast.success(result?.message || "Message updated");
 
       setMessages(prev =>

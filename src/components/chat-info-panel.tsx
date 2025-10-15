@@ -17,6 +17,7 @@ import type { ChatroomDetails } from "../dto/response/ChatroomDetails";
 import { useChatroomDetails } from "../composables/Queries/useChatroomDetails";
 import { DialogTitle } from "@radix-ui/react-dialog";
 import ChatInfoViewMedia from "./InfoPanel/chat-info-viewMedia";
+import { ScrollArea } from "./ui/scroll-area";
 
 interface ChatInfoProps {
   selectedUser: loginResponse | UserListResponse | any;
@@ -45,7 +46,7 @@ const { data, error, isLoading } = useChatroomDetails({
   if (error) return <div>Failed to fetch chatroom details</div>;
   const members: any = chatroom?.members ?? [];
   const messages: any = chatroom?.messages ?? [];
-
+  //console.log("check chatroom messages", messages)
   // console.log("check group or not", selectedUser)
   return (
     <>
@@ -133,6 +134,12 @@ const { data, error, isLoading } = useChatroomDetails({
         </div>
       </div>
 
+{/* <ScrollArea className="h-[200px] w-full rounded-lg p-4">
+   {isGroup && (
+        <ChatMembersCard chatMembers={members} chatroomId={selectedUser?.id} />
+      )}
+      <ChatInfoViewMedia messages={messages} chatroomId={selectedUser?.id}/>
+</ScrollArea> */}
       {isGroup && (
         <ChatMembersCard chatMembers={members} chatroomId={selectedUser?.id} />
       )}

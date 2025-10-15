@@ -10,6 +10,7 @@ import * as Avatar from "@radix-ui/react-avatar";
 import ChatRoom from "../chatroom";
 import GroupChatRoom from "./groupChatroom";
 import GroupCall from "./groupCall/GroupCall";
+import formatLastSeen from "@/utils/helper";
 
 type chatroomPageProps = {
   selectedUser: ChatUserType;
@@ -45,7 +46,7 @@ export default function ChatroomPage({ selectedUser, loginUser }: chatroomPagePr
             <div className="flex flex-col">
               <span className="font-medium">{selectedUser.username}</span>
               <span className={`text-xs ${selectedUser.status === "online" ? "text-green-500" : "text-gray-400 dark:text-gray-300"}`}>
-                {selectedUser.status === "online" ? "Online" : "Offline"}
+                {selectedUser.status === "online" ? "Online" : formatLastSeen(selectedUser?.last_seen)}
               </span>
             </div>
           </div>
@@ -68,7 +69,7 @@ export default function ChatroomPage({ selectedUser, loginUser }: chatroomPagePr
       </header>
 
       {/* Group Call Modal */}
-{showGroupCall && selectedUser && (
+{showGroupCall  && (
   <div className="fixed inset-0 z-50 flex items-center justify-center">
     {/* Blurred Background */}
     <div
@@ -79,30 +80,28 @@ export default function ChatroomPage({ selectedUser, loginUser }: chatroomPagePr
     {/* Modal */}
     <div className="relative w-full max-w-3xl h-[80vh] bg-white/80 dark:bg-slate-800/80 rounded-lg shadow-lg overflow-hidden backdrop-blur-md animate-fade-in">
       {/* Close Button */}
-      <button
-        className="absolute top-3 right-3 p-2 bg-gray-200/70 dark:bg-slate-700/70 rounded-full hover:bg-gray-300 dark:hover:bg-slate-600 transition-colors"
-        onClick={() => setShowGroupCall(false)}
-      >
-        <X className="w-5 h-5 text-gray-600 dark:text-gray-300" />
-      </button>
-
+<button
+  className="absolute cursor-pointer top-3 right-3 p-2 bg-gray-200/70 dark:bg-slate-700/70 hover:bg-gray-300 dark:hover:bg-slate-600 transition-colors"
+  onClick={() => setShowGroupCall(false)}
+>
+  <X className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+</button>
       {/* GroupCall Component */}
       <div className="w-full h-full p-4 overflow-hidden">
-        <GroupCall userId={loginUser.user.id} chatroomId={selectedUser.id} autoStart="audio"/>
+        <GroupCall userId={loginUser.user.id} chatroomId={selectedUser.id} autoStart="audio" setShowGroupCall={setShowGroupCall}  />
       </div>
     </div>
   </div>
 )}
-
       {/* Chat + Info layout */}
       <div className="flex-1 flex border-l h-[calc(100vh-4rem)]">
         {/* Chat Room */}
         <div className={`flex-1 border-r lg:block ${showInfo ? "hidden lg:block" : "block"}`}>
           {selectedUser ? (
             selectedUser.is_group ? (
-              <GroupChatRoom user={selectedUser} loginUser={loginUser} />
+              <GroupChatRoom user={selectedUser} loginUser={loginUser}  key={`group-${selectedUser.id}`}  />
             ) : (
-              <ChatRoom user={selectedUser} loginUser={loginUser} />
+              <ChatRoom user={selectedUser} loginUser={loginUser} key={`private-${selectedUser?.id}`}/>
             )
           ) : (
             <div className="flex h-full items-center justify-center text-gray-400">

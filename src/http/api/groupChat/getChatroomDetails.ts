@@ -21,7 +21,8 @@ export const getChatroomDetails = async ({chatroomId, page, pageSize}: ChatroomD
       is_edit: chatroom.is_edit,
       members: chatroom.members,
       messages: chatroom.messages ?? [],
-      totalPage: chatroom.totalPage
+      totalPage: chatroom.totalPage,
+      isRead: chatroom.isRead
     };
   } catch (error) {
     if (error instanceof AxiosError) {

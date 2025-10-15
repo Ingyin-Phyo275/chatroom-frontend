@@ -7,7 +7,8 @@ export const useNonMemberQuery = (chatroomdId : string) => {
         queryFn: async () => {
             const response = await getNonGroupMembers(chatroomdId);
             return response;
-        }
+        },
+        enabled: !!chatroomdId
     })
 
     return {

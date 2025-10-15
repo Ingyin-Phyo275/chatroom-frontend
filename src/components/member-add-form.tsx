@@ -8,23 +8,35 @@ import { useQueryClient } from "@tanstack/react-query";
 import { addMembers } from "../http/api/groupChat/addMember";
 import { createChatroom } from "../http/api/groupChat/createChatroom";
 import { useNonMemberQuery } from "../composables/Queries/useNonMemberQuery";
+import { userListQuery } from "@/composables/Queries/userListQuery";
 
 interface MemberAddFormProps {
   action?: "add" | "create";
   chatroomId?: string;
+  onClose?: () => void;
 }
-export default function MemberAddForm({ action = "create", chatroomId }: MemberAddFormProps) {
-  const [groupName, setGroupName] = useState(""); // State for group name
+
+export default function MemberAddForm({ action = "create", chatroomId, onClose }: MemberAddFormProps) {
+  const [groupName, setGroupName] = useState(""); 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedContacts, setSelectedContacts] = useState<UserListResponse[]>([]);
   const queryClient = useQueryClient();
+
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value);
 
-  //retrieve contacts
-  // const { userListData: contacts = [] } = userListQuery();
+  // retrieve contacts
+  const { userListData: contacts = [] } = userListQuery();
 
-    //retrieve non-gp-member
-  const { nonMemberListData: nonGroupMembers = []} = useNonMemberQuery(chatroomId!);
+  // retrieve non-group members
+  const { nonMemberListData: nonGroupMembers = [] } = useNonMemberQuery(chatroomId!);
+
+  // determine source list based on action
+  const sourceList = action === "create" ? contacts : nonGroupMembers;
+
+  // filter source list based on search term
+  const filteredContacts = sourceList.filter((user: UserListResponse) =>
+    user.username.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   const toggleContact = (contact: UserListResponse) => {
     setSelectedContacts(prev =>
@@ -35,11 +47,6 @@ export default function MemberAddForm({ action = "create", chatroomId }: MemberA
   };
 
   const removeContact = (id: string) => setSelectedContacts(prev => prev.filter(c => c.id !== id));
-  const filteredContacts = nonGroupMembers.filter((nonGroupMembers : UserListResponse) =>
-    nonGroupMembers.username.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-
 
   const handleSubmit = async () => {
     if (action === "create" && !groupName.trim()) {
@@ -58,13 +65,11 @@ export default function MemberAddForm({ action = "create", chatroomId }: MemberA
         });
         toast.success(`Added ${selectedContacts.length} member(s)`);
         await queryClient.invalidateQueries({ queryKey: ["chatroomDetails", String(chatroomId)] });
-        await queryClient.refetchQueries({ queryKey: ["chatroomDetails", String(chatroomId)] });
         await queryClient.invalidateQueries({ queryKey: ["nonMemberList", String(chatroomId)] });
       } else {
         const response = await createChatroom({
           name: groupName,
           memberIds: selectedContacts.map(c => c.id),
-          
         });
         queryClient.invalidateQueries({ queryKey: ["groupChatList"] });
         toast.success(response.message || response.data?.message || "Group created");
@@ -72,10 +77,12 @@ export default function MemberAddForm({ action = "create", chatroomId }: MemberA
 
       queryClient.invalidateQueries({ queryKey: ["chatroomDetails", chatroomId] });
       queryClient.invalidateQueries({ queryKey: ["userList"] });
+      
       // Reset form
       setGroupName("");
       setSelectedContacts([]);
       setSearchTerm("");
+      if(onClose) onClose();
     } catch (error) {
       console.error(error);
       toast.error("Operation failed");
@@ -129,7 +136,7 @@ export default function MemberAddForm({ action = "create", chatroomId }: MemberA
       {/* Contact List */}
       <div className="flex flex-col space-y-2 overflow-y-auto max-h-64 border border-gray-200 rounded p-2">
         {filteredContacts.length > 0 ? (
-          filteredContacts.map((contact : UserListResponse) => {
+          filteredContacts.map((contact: UserListResponse) => {
             const isSelected = selectedContacts.some(c => c.id === contact.id);
             return (
               <label

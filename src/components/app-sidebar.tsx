@@ -51,7 +51,6 @@ export function AppSidebar({
     }
   }
 
-
   return (
     <Sidebar variant="inset" {...props}>
       <SidebarHeader className="flex items-center justify-center w-full mx-auto">
@@ -78,7 +77,7 @@ export function AppSidebar({
           </DialogHeader>
 
           <div className="mt-4">
-            <MemberAddForm  />
+            <MemberAddForm  onClose={() => setIsOpen(false)}/>
           </div>
 
           <div className="mt-4 flex justify-end">

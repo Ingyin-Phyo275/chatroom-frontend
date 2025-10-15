@@ -43,6 +43,14 @@ export default function ChatRoom({ user, loginUser }: { user: any; loginUser: an
   const [hasMore, setHasMore] = useState(true);
   const pageRef = useRef(1);
 
+    //reset after selected person change
+    useEffect(() => {
+    setMessages([]);
+    setPendingAttachments([]);
+    setEditingMessageId(null);
+    setNewMessageCount(0);
+  }, [user.id]);
+
   // Transform API message to local format
   const transformMessageFromApi = (m: any): PrivateChatMessage => ({
     id: String(m.id),

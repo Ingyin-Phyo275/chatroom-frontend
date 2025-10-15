@@ -17,7 +17,8 @@ export const userList = async () => {
             avatar_url: user.avatar_url, 
             phone_no: user.phone_no,
             status: user.status,
-            is_group: false
+            is_group: false,
+            last_seen: user?.last_seen
         }));
     return returnData;
     } catch (error: unknown) {

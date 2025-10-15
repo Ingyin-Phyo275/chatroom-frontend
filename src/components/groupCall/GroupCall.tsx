@@ -5,7 +5,8 @@ import { Phone, Video, X } from "lucide-react";
 interface GroupCallProps {
   userId: string;
   chatroomId: string;
-  autoStart?: "audio" | "video"; // 👈 NEW optional prop for auto call start
+  autoStart?: "audio" | "video"; 
+  setShowGroupCall: (show: boolean) => void;
 }
 
 interface Participant {
@@ -30,11 +31,18 @@ interface WebRTCCandidatePayload {
   fromUserId: string;
 }
 
-const GroupCall: React.FC<GroupCallProps> = ({ userId, chatroomId, autoStart }) => {
+const GroupCall: React.FC<GroupCallProps> = ({
+  userId,
+  chatroomId,
+  autoStart,
+  setShowGroupCall
+}) => {
   const [callId, setCallId] = useState<string | null>(null);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [incomingCall, setIncomingCall] = useState<IncomingCallPayload | null>(null);
+  const [incomingCall, setIncomingCall] = useState<IncomingCallPayload | null>(
+    null
+  );
   const [isRinging, setIsRinging] = useState(false);
   const [ringtone, setRingtone] = useState<HTMLAudioElement | null>(null);
 
@@ -58,13 +66,14 @@ const GroupCall: React.FC<GroupCallProps> = ({ userId, chatroomId, autoStart }) 
 
   // Debug socket events
   useEffect(() => {
-    socket.onAny((event, ...args) => console.log("[SOCKET EVENT]", event, args));
+    socket.onAny((event, ...args) =>
+      console.log("[SOCKET EVENT]", event, args)
+    );
   }, []);
 
   useEffect(() => {
-  console.log("participants list changed", participants);
-}, [participants]);
-
+    console.log("participants list changed", participants);
+  }, [participants]);
 
   // Ringing audio setup
   useEffect(() => {
@@ -76,7 +85,7 @@ const GroupCall: React.FC<GroupCallProps> = ({ userId, chatroomId, autoStart }) 
   // Socket event handling
   useEffect(() => {
     const handleIncomingCall = (payload: IncomingCallPayload) => {
-      console.log("📞 Incoming call:", payload);
+      console.log(" Incoming call:", payload);
       setIncomingCall(payload);
       setIsRinging(true);
       ringtone?.play().catch(() => {});
@@ -89,7 +98,7 @@ const GroupCall: React.FC<GroupCallProps> = ({ userId, chatroomId, autoStart }) 
       callId: string;
       userId: string;
     }) => {
-      console.log("enter handle participants")
+      console.log("enter handle participants");
       if (joinedCallId === callId && joinedUserId !== userId) {
         const peer = createPeer(
           joinedUserId,
@@ -97,12 +106,13 @@ const GroupCall: React.FC<GroupCallProps> = ({ userId, chatroomId, autoStart }) 
           localStreamRef.current?.srcObject as MediaStream | null
         );
         peersRef.current[joinedUserId] = peer;
-        console.log("participants list", participants)
-setParticipants((prev) => {
-  const updated = [...prev, { id: joinedUserId }];
-  console.log("participants list", updated); // now logs the updated list
-  return updated;
-});      }
+        console.log("participants list", participants);
+        setParticipants((prev) => {
+          const updated = [...prev, { id: joinedUserId }];
+          console.log("participants list", updated); // now logs the updated list
+          return updated;
+        });
+      }
     };
 
     const handleWebRTCOffer = async ({
@@ -122,7 +132,10 @@ setParticipants((prev) => {
       });
     };
 
-    const handleWebRTCAnswer = async ({ fromUserId, sdp }: WebRTCOfferPayload) => {
+    const handleWebRTCAnswer = async ({
+      fromUserId,
+      sdp,
+    }: WebRTCOfferPayload) => {
       const peer = peersRef.current[fromUserId];
       if (peer) await peer.setRemoteDescription(new RTCSessionDescription(sdp));
     };
@@ -132,7 +145,8 @@ setParticipants((prev) => {
       candidate,
     }: WebRTCCandidatePayload) => {
       const peer = peersRef.current[fromUserId];
-      if (peer && candidate) peer.addIceCandidate(new RTCIceCandidate(candidate));
+      if (peer && candidate)
+        peer.addIceCandidate(new RTCIceCandidate(candidate));
     };
 
     socket.on("incoming-group-call", handleIncomingCall);
@@ -158,7 +172,8 @@ setParticipants((prev) => {
   ) => {
     const peer = new RTCPeerConnection();
 
-    if (stream) stream.getTracks().forEach((track) => peer.addTrack(track, stream));
+    if (stream)
+      stream.getTracks().forEach((track) => peer.addTrack(track, stream));
 
     peer.onicecandidate = (event) => {
       if (event.candidate) {
@@ -199,8 +214,13 @@ setParticipants((prev) => {
   // Start outgoing call
   const startCall = async (type: "video" | "audio" | "none" = "none") => {
     const stream = await getMediaStream(type);
-    if (stream && localStreamRef.current) localStreamRef.current.srcObject = stream;
-    socket.emit("group-call-initiate", { initiatorId: userId, chatroomId, type });
+    if (stream && localStreamRef.current)
+      localStreamRef.current.srcObject = stream;
+    socket.emit("group-call-initiate", {
+      initiatorId: userId,
+      chatroomId,
+      type,
+    });
     setError(null);
   };
 
@@ -209,8 +229,11 @@ setParticipants((prev) => {
     if (!incomingCall) return;
     ringtone?.pause();
     setIsRinging(false);
-    const stream = await getMediaStream(incomingCall.type as "audio" | "video" | "none");
-    if (stream && localStreamRef.current) localStreamRef.current.srcObject = stream;
+    const stream = await getMediaStream(
+      incomingCall.type as "audio" | "video" | "none"
+    );
+    if (stream && localStreamRef.current)
+      localStreamRef.current.srcObject = stream;
     setCallId(incomingCall.callId);
     socket.emit("group-call-join", { callId: incomingCall.callId, userId });
     setIncomingCall(null);
@@ -224,16 +247,20 @@ setParticipants((prev) => {
   };
 
   const leaveCall = () => {
-    if (!callId) return;
+    alert(`You left the call.${callId}`);
+    //if (!callId) return;
     socket.emit("group-call-leave", { callId, userId });
     Object.values(peersRef.current).forEach((peer) => peer.close());
     peersRef.current = {};
     setCallId(null);
     setParticipants([]);
     if (localStreamRef.current?.srcObject) {
-      (localStreamRef.current.srcObject as MediaStream).getTracks().forEach((track) => track.stop());
+      (localStreamRef.current.srcObject as MediaStream)
+        .getTracks()
+        .forEach((track) => track.stop());
       localStreamRef.current.srcObject = null;
     }
+    setShowGroupCall(false);
   };
 
   //  Auto-start the call when UI is shown
@@ -302,11 +329,26 @@ setParticipants((prev) => {
           </button>
         </div>
       )} */}
+      <div className="flex gap-2 mb-4">
+        <button
+          onClick={() => leaveCall()}
+          className="flex flex-col items-center px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+        >
+          <X className="mb-1" />
+          <span className="text-sm">Leave</span>
+        </button>
+      </div>
 
       <div className="flex gap-4 overflow-x-auto">
         <div className="flex-shrink-0">
           <h3 className="text-sm mb-1">You</h3>
-          <video ref={localStreamRef} autoPlay playsInline muted className="w-48 h-32 bg-black rounded" />
+          <video
+            ref={localStreamRef}
+            autoPlay
+            playsInline
+            muted
+            className="w-48 h-32 bg-black rounded"
+          />
         </div>
 
         {participants.map((p) => (

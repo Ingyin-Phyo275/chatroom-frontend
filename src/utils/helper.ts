@@ -49,8 +49,6 @@ export const groupMessagesByDay = (messages: PrivateChatMessage[]) => {
 };
 
 
-
-
 // Ensures no duplicate messages by id
 export const dedupeMessages = (messages: GetAllMessage[]): GetAllMessage[] => {
   const seen = new Set<string>();
@@ -71,5 +69,39 @@ export const filterMessages = (messages: PrivateChatMessage[]): PrivateChatMessa
     return true;
   });
 };
+
+
+export default function formatLastSeen(isoString: any) {
+  if (!isoString) return "Offline";
+
+  const date = new Date(isoString);
+  const now = new Date();
+
+  const isToday = date.toDateString() === now.toDateString();
+
+  // Check if it was yesterday
+  const yesterday = new Date();
+  yesterday.setDate(now.getDate() - 1);
+  const isYesterday = date.toDateString() === yesterday.toDateString();
+
+  const timeString = date.toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  });
+
+  if (isToday) {
+    return `Last seen today at ${timeString}`;
+  } else if (isYesterday) {
+    return `Last seen yesterday at ${timeString}`;
+  } else {
+    const dateString = date.toLocaleDateString([], {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+    return `Last seen on ${dateString} at ${timeString}`;
+  }
+}
 
 

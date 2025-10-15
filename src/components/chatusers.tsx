@@ -9,26 +9,23 @@ import type { GroupChatResponse } from "../dto/response/ChatRoom";
 import { useGroupChatList } from "../composables/Queries/useGroupChatList";
 import { userListQuery } from "../composables/Queries/userListQuery";
 import { chatUserListQuery } from "../composables/Queries/ChatUserListQuery";
-import { Badge } from "@/components/ui/badge"
+import { Badge } from "@/components/ui/badge";
 import useCounterStore from "../store/UnreadCount";
+import formatLastSeen from "@/utils/helper";
 
 interface ChatUsersProps {
   tabs: string;
   onSelectUser: (user: ChatUserType) => void;
 }
 
-export default function ChatUsers({
-  tabs,
-  onSelectUser,
-}: ChatUsersProps) {
-
-  const [unreadCount, setUnreadCount] = useState(0);
-  const { value, setValue } = useCounterStore();
+export default function ChatUsers({ tabs, onSelectUser }: ChatUsersProps) {
+  
+  const {  setValue, getValue } = useCounterStore();
   const [searchTerm, setSearchTerm] = React.useState("");
   const [filteredUsers, setFilteredUsers] = useState<ChatUserType[]>([]);
-
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(13);
+  
   //group chats list
   const { groupChatListQuery: groupChatList = [] as GroupChatResponse[] } = useGroupChatList({ page, pageSize });
 
@@ -37,12 +34,11 @@ export default function ChatUsers({
 
   //user's personal chat list
   const { userListData: users = [] as ChatUserType[] } = chatUserListQuery();
-  //console.log("result in chat users", users);
+ // console.log("result in chat users", users);
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
   };
-
 
   //zustand
   //console.log("zustand value", value)
@@ -65,7 +61,8 @@ export default function ChatUsers({
           is_group: true,
           tabs: "Group",
           avatar_url: "",
-          unreadCount: g.unreadCount
+          unreadCount: g.unreadCount,
+          last_seen: g.last_seen
         }));
     } else {
       newFiltered = users
@@ -79,28 +76,20 @@ export default function ChatUsers({
       if (JSON.stringify(prev) === JSON.stringify(newFiltered)) return prev;
       return newFiltered;
     });
-
   }, [tabs, users, contact, groupChatList, searchTerm]);
 
   const handleClick = async (user: ChatUserType) => {
     onSelectUser(user);
-
   };
 
-React.useEffect(() => {
-  const totalUnread = filteredUsers.reduce((sum, user) => sum + (user.unreadCount || 0), 0);
-  setUnreadCount(totalUnread);
-  setValue(totalUnread); // update zustand store
-  console.log("unread count", unreadCount, value)
-}, [filteredUsers, setValue]);
+  React.useEffect(() => {
+    filteredUsers.forEach((user) => {
+      setValue(user.id, user?.unreadCount || 0);
+    });
+  }, [filteredUsers, setValue]);
 
-  // console.log("unread count in chatuser", unreadCount)
-  // if(unreadCount > 0) {
-  //   setValue(unreadCount);
-  //       console.log("value test", value)
 
-  // }
-  //console.log("filter user", filteredUsers)
+ // console.log("filter users", filteredUsers)
 
   return (
     <div className="flex flex-col h-full w-full">
@@ -126,8 +115,9 @@ React.useEffect(() => {
           >
             {/* Avatar */}
             <div
-              className={`relative w-10 h-10 ${user.status === "online" ? "ring-2 ring-green-500" : ""
-                } rounded-full`}
+              className={`relative w-10 h-10 ${
+                user.status === "online" ? "ring-2 ring-green-500" : ""
+              } rounded-full`}
             >
               <Avatar.Root className="w-10 h-10 rounded-full overflow-hidden">
                 <Avatar.Image
@@ -143,38 +133,27 @@ React.useEffect(() => {
 
             {/* Name + status */}
             <div className="flex flex-col">
-              <span className="font-medium">{user.username}
-                {/* {tabs !== "Contacts" && user?.unreadCount! > 0 && (
-                  <Badge className="h-5 min-w-5 rounded-full px-1 ml-2 font-mono tabular-nums">
-                    {user.unreadCount}
-                  </Badge>
-                )} */}
-
+              <span className="font-medium">
+                {user.username}
                 {tabs !== "Contacts" ? (
                   <>
-                    {/* {user?.unreadCount! > 0 && (
+                    {getValue(user.id) > 0 && (
                       <Badge className="h-5 min-w-5 rounded-full px-1 ml-2 font-mono tabular-nums">
-                        {user.unreadCount}
-                      </Badge>
-                    )} */}
-
-                    {value > 0 && (
-                      <Badge className="h-5 min-w-5 rounded-full px-1 ml-2 font-mono tabular-nums">
-                        {value}
+                        {getValue(user.id)}
                       </Badge>
                     )}
                   </>
                 ) : null}
-
               </span>
               {!user.is_group && (
                 <span
-                  className={`text-xs ${user.status === "online"
-                    ? "text-green-500"
-                    : "text-gray-400 dark:text-gray-300"
-                    }`}
+                  className={`text-xs ${
+                    user.status === "online"
+                      ? "text-green-500"
+                      : "text-gray-400 dark:text-gray-300"
+                  }`}
                 >
-                  {user.status === "online" ? "Online" : "Offline"}
+                  {user.status === "online" ? "Online" : formatLastSeen(user?.last_seen)}
                 </span>
               )}
             </div>

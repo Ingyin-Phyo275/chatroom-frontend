@@ -7,6 +7,7 @@ export type ChatUserType = {
   is_group?: boolean;
   avatar_url?: string;
   unreadCount?: number;
+  last_seen?: string
 };
 
 

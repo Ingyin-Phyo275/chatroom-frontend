@@ -18,7 +18,8 @@ export const getChatUserList = async () => {
             phone_no: user.phone_no,
             status: user.status,
             is_group: false,
-            unreadCount: user?.unreadCount
+            unreadCount: user?.unreadCount,
+            last_seen: user?.last_seen
         }));
     return returnData;
     } catch (error: unknown) {
