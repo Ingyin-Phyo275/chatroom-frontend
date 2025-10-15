@@ -88,7 +88,7 @@ export default function ChatroomPage({ selectedUser, loginUser }: chatroomPagePr
 
       {/* GroupCall Component */}
       <div className="w-full h-full p-4 overflow-hidden">
-        <GroupCall userId={loginUser.user.id} chatroomId={selectedUser.id} />
+        <GroupCall userId={loginUser.user.id} chatroomId={selectedUser.id} autoStart="audio"/>
       </div>
     </div>
   </div>

@@ -95,8 +95,18 @@ useEffect(() => {
 
     // Add all messages from server (including the ones I just sent)
     setMessages(prev => dedupeMessages([...prev, msg]));
-    setUnreadCount(msg?.unreadCount || 0);
-    setValue(msg?.unreadCount! );
+    // setUnreadCount(msg?.unreadCount || 0);
+    (msg?.unreadCount!).map((m: any) => {
+      // console.log("message id", m.userId)
+      // console.log("loginuser", loginUser?.user?.id)
+      if(m?.userId === loginUser?.user?.id){
+        console.log("enter 1")
+        setValue(m?.unreadCount);
+        setUnreadCount(m?.unreadCount);
+        console.log("value form socket",value)
+      }
+    })
+    //setValue(msg?.unreadCount! );
 
     // If message is from someone else, notify server it's delivered
     if (senderId !== loginId) {

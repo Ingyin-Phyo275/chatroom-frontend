@@ -22,6 +22,7 @@ export default function ChatUsers({
   onSelectUser,
 }: ChatUsersProps) {
 
+  const [unreadCount, setUnreadCount] = useState(0);
   const { value, setValue } = useCounterStore();
   const [searchTerm, setSearchTerm] = React.useState("");
   const [filteredUsers, setFilteredUsers] = useState<ChatUserType[]>([]);
@@ -78,6 +79,7 @@ export default function ChatUsers({
       if (JSON.stringify(prev) === JSON.stringify(newFiltered)) return prev;
       return newFiltered;
     });
+
   }, [tabs, users, contact, groupChatList, searchTerm]);
 
   const handleClick = async (user: ChatUserType) => {
@@ -85,6 +87,19 @@ export default function ChatUsers({
 
   };
 
+React.useEffect(() => {
+  const totalUnread = filteredUsers.reduce((sum, user) => sum + (user.unreadCount || 0), 0);
+  setUnreadCount(totalUnread);
+  setValue(totalUnread); // update zustand store
+  console.log("unread count", unreadCount, value)
+}, [filteredUsers, setValue]);
+
+  // console.log("unread count in chatuser", unreadCount)
+  // if(unreadCount > 0) {
+  //   setValue(unreadCount);
+  //       console.log("value test", value)
+
+  // }
   //console.log("filter user", filteredUsers)
 
   return (
@@ -137,11 +152,11 @@ export default function ChatUsers({
 
                 {tabs !== "Contacts" ? (
                   <>
-                    {user?.unreadCount! > 0 && (
+                    {/* {user?.unreadCount! > 0 && (
                       <Badge className="h-5 min-w-5 rounded-full px-1 ml-2 font-mono tabular-nums">
                         {user.unreadCount}
                       </Badge>
-                    )}
+                    )} */}
 
                     {value > 0 && (
                       <Badge className="h-5 min-w-5 rounded-full px-1 ml-2 font-mono tabular-nums">

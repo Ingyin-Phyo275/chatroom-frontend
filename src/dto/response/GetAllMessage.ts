@@ -14,5 +14,5 @@ export interface GetAllMessage {
     is_pinned?: boolean;
     is_group?: boolean;
     is_edit?: boolean;
-    unreadCount?: number;
+    unreadCount?: {userId: number, unreadCount: number}[];
 }
