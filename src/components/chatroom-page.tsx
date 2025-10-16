@@ -22,33 +22,38 @@ export default function ChatroomPage({ selectedUser, loginUser }: chatroomPagePr
   const [showGroupCall, setShowGroupCall] = useState(false);
   const [incomingCall, setIncomingCall] = useState<any>(null);
 
-  const currentUser = {
-    userId: Number(loginUser.user?.id),
-    username: loginUser.user?.name,
-  };
-  // 🔔 Listen globally for incoming calls
+
+  // Listen globally for incoming calls
   useEffect(() => {
-    // console.log("🔔 Registering global incoming-group-call listener...");
+    // console.log("Registering global incoming-group-call listener...");
     const handleIncomingGroupCall = (payload: any) => {
       const data = Array.isArray(payload) ? payload[0] : payload;
-      console.log("📞 Incoming group call:", data);
+      //console.log("Incoming group call:", data);
 
       // Ignore if the user is the initiator (so they don't get self-call)
       if (data.initiatorId === loginUser.user.id) return;
-
       // Store call info and open the modal automatically
-      setIncomingCall(data);
+      setIncomingCall({
+      callId: data.callId,
+      chatroomId: data.chatroomId,
+      initiatorId: data.initiatorId,
+      initiatorName: data.initiatorName,   // caller name
+      chatroomName: data.chatroomName,     // group chat name
+      type: data.type,
+      timestamp: data.timestamp,
+    });
+
       setShowGroupCall(true);
     };
 
     socket.on("incoming-group-call", handleIncomingGroupCall);
-
     return () => {
-      console.log("🧹 Cleaning up incoming-group-call listener...");
+      console.log("Off incoming-group-call listener...");
       socket.off("incoming-group-call", handleIncomingGroupCall);
     };
   }, [loginUser.user.id]);
 
+  console.log("incoming call", incomingCall)
   return (
     <>
       {/* Header */}
@@ -138,7 +143,7 @@ export default function ChatroomPage({ selectedUser, loginUser }: chatroomPagePr
           {/* Blurred Background */}
           <div
             className="absolute inset-0 bg-transparent bg-opacity-30 dark:bg-black dark:bg-opacity-50 backdrop-blur-sm"
-            onClick={() => setShowGroupCall(false)}
+            onClick={(e) => e.stopPropagation()}
           ></div>
 
           {/* Modal */}
@@ -153,6 +158,7 @@ export default function ChatroomPage({ selectedUser, loginUser }: chatroomPagePr
 
             {/* GroupCall Component */}
             <div className="w-full h-full p-4 overflow-hidden">
+              
               <GroupCall
                 userId={Number(loginUser.user.id)}
                 chatroomId={incomingCall?.chatroomId || selectedUser.id}

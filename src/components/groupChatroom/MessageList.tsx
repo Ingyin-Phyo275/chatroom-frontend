@@ -96,6 +96,7 @@ export default function GroupMessages({
                           {new Date(m.created_at!).toLocaleTimeString([], {
                             hour: "2-digit",
                             minute: "2-digit",
+                            hour12: true,
                           })}
                         </span>
                         {/* {isOwn && m.is_delivered && (
