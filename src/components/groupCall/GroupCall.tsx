@@ -1,370 +1,239 @@
-import React, { useEffect, useRef, useState } from "react";
-import { socket } from "../../socket/socket";
-import { Phone, Video, X } from "lucide-react";
+"use client";
 
-interface GroupCallProps {
-  userId: string;
+import { useEffect, useState, useRef } from "react";
+import { Phone, PhoneOff, Video, Mic, MicOff, User, VideoOff } from "lucide-react";
+import { socket } from "@/socket/socket";
+
+type GroupCallProps = {
+  userId: number;
   chatroomId: string;
-  autoStart?: "audio" | "video"; 
-  setShowGroupCall: (show: boolean) => void;
-}
+  autoStart?: "audio" | "video";
+  incomingCall?: any;
+  setShowGroupCall: (val: boolean) => void;
+};
 
-interface Participant {
-  id: string;
-}
-
-interface IncomingCallPayload {
-  callId: string;
-  initiatorId: string;
-  type: string;
-}
-
-interface WebRTCOfferPayload {
-  callId: string;
-  sdp: RTCSessionDescriptionInit;
-  fromUserId: string;
-}
-
-interface WebRTCCandidatePayload {
-  callId: string;
-  candidate: RTCIceCandidateInit;
-  fromUserId: string;
-}
-
-const GroupCall: React.FC<GroupCallProps> = ({
+export default function GroupCall({
   userId,
   chatroomId,
-  autoStart,
-  setShowGroupCall
-}) => {
-  const [callId, setCallId] = useState<string | null>(null);
-  const [participants, setParticipants] = useState<Participant[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [incomingCall, setIncomingCall] = useState<IncomingCallPayload | null>(
-    null
-  );
+  autoStart = "audio",
+  incomingCall,
+  setShowGroupCall,
+}: GroupCallProps) {
+  const [isMuted, setIsMuted] = useState(false);
+  const [isVideoOn, setIsVideoOn] = useState(autoStart === "video");
   const [isRinging, setIsRinging] = useState(false);
-  const [ringtone, setRingtone] = useState<HTMLAudioElement | null>(null);
+  const [participants, setParticipants] = useState<any[]>([]);
+  const [callStarted, setCallStarted] = useState(false);
 
-  const localStreamRef = useRef<HTMLVideoElement | null>(null);
-  const peersRef = useRef<Record<string, RTCPeerConnection>>({});
+  const localStreamRef = useRef<MediaStream | null>(null);
+  const localVideoRef = useRef<HTMLVideoElement | null>(null);
+  const ringtone = useRef<HTMLAudioElement | null>(null);
 
-  // Helper: get media stream
-  const getMediaStream = async (type: "video" | "audio" | "none") => {
-    try {
-      if (type === "none") return null;
-      const constraints: MediaStreamConstraints = {
-        video: type === "video",
-        audio: true,
-      };
-      return await navigator.mediaDevices.getUserMedia(constraints);
-    } catch (err: any) {
-      console.warn("Media devices unavailable:", err);
-      return null;
-    }
-  };
-
-  // Debug socket events
+  /** Load ringtone */
   useEffect(() => {
-    socket.onAny((event, ...args) =>
-      console.log("[SOCKET EVENT]", event, args)
-    );
+    ringtone.current = new Audio("/sounds/ringtone.mp3");
+    ringtone.current.loop = true;
   }, []);
 
+  /** Socket listeners */
   useEffect(() => {
-    console.log("participants list changed", participants);
-  }, [participants]);
-
-  // Ringing audio setup
-  useEffect(() => {
-    const audio = new Audio("../../assets/ringtone.mp3");
-    audio.loop = true;
-    setRingtone(audio);
-  }, []);
-
-  // Socket event handling
-  useEffect(() => {
-    const handleIncomingCall = (payload: IncomingCallPayload) => {
-      console.log(" Incoming call:", payload);
-      setIncomingCall(payload);
-      setIsRinging(true);
-      ringtone?.play().catch(() => {});
-    };
-
-    const handleParticipantJoined = ({
-      callId: joinedCallId,
-      userId: joinedUserId,
-    }: {
-      callId: string;
-      userId: string;
-    }) => {
-      console.log("enter handle participants");
-      if (joinedCallId === callId && joinedUserId !== userId) {
-        const peer = createPeer(
-          joinedUserId,
-          true,
-          localStreamRef.current?.srcObject as MediaStream | null
-        );
-        peersRef.current[joinedUserId] = peer;
-        console.log("participants list", participants);
-        setParticipants((prev) => {
-          const updated = [...prev, { id: joinedUserId }];
-          console.log("participants list", updated); // now logs the updated list
-          return updated;
-        });
-      }
-    };
-
-    const handleWebRTCOffer = async ({
-      callId: incomingCallId,
-      sdp,
-      fromUserId,
-    }: WebRTCOfferPayload) => {
-      if (incomingCallId !== callId) return;
-      const peer = createPeer(fromUserId, false);
-      await peer.setRemoteDescription(new RTCSessionDescription(sdp));
-      const answer = await peer.createAnswer();
-      await peer.setLocalDescription(answer);
-      socket.emit("group-webrtc-answer", {
-        callId,
-        sdp: answer,
-        fromUserId: userId,
-      });
-    };
-
-    const handleWebRTCAnswer = async ({
-      fromUserId,
-      sdp,
-    }: WebRTCOfferPayload) => {
-      const peer = peersRef.current[fromUserId];
-      if (peer) await peer.setRemoteDescription(new RTCSessionDescription(sdp));
-    };
-
-    const handleWebRTCCandidate = ({
-      fromUserId,
-      candidate,
-    }: WebRTCCandidatePayload) => {
-      const peer = peersRef.current[fromUserId];
-      if (peer && candidate)
-        peer.addIceCandidate(new RTCIceCandidate(candidate));
-    };
-
     socket.on("incoming-group-call", handleIncomingCall);
-    socket.on("group-call-joined", handleParticipantJoined);
-    socket.on("group-webrtc-offer", handleWebRTCOffer);
-    socket.on("group-webrtc-answer", handleWebRTCAnswer);
-    socket.on("group-webrtc-candidate", handleWebRTCCandidate);
+    socket.on("group-call-participants", handleParticipantsUpdate);
 
     return () => {
       socket.off("incoming-group-call", handleIncomingCall);
-      socket.off("group-call-joined", handleParticipantJoined);
-      socket.off("group-webrtc-offer", handleWebRTCOffer);
-      socket.off("group-webrtc-answer", handleWebRTCAnswer);
-      socket.off("group-webrtc-candidate", handleWebRTCCandidate);
+      socket.off("group-call-participants", handleParticipantsUpdate);
     };
-  }, [callId, userId, ringtone]);
+  }, []);
 
-  // Peer creation
-  const createPeer = (
-    remoteUserId: string,
-    isInitiator: boolean,
-    stream: MediaStream | null = null
-  ) => {
-    const peer = new RTCPeerConnection();
-
-    if (stream)
-      stream.getTracks().forEach((track) => peer.addTrack(track, stream));
-
-    peer.onicecandidate = (event) => {
-      if (event.candidate) {
-        socket.emit("group-webrtc-candidate", {
-          callId,
-          candidate: event.candidate,
-          fromUserId: userId,
-        });
-      }
-    };
-
-    peer.ontrack = (event) => {
-      const remoteVideo = document.getElementById(
-        `remoteVideo-${remoteUserId}`
-      ) as HTMLVideoElement | null;
-      if (remoteVideo) remoteVideo.srcObject = event.streams[0];
-    };
-
-    if (isInitiator) {
-      peer.onnegotiationneeded = async () => {
-        try {
-          const offer = await peer.createOffer();
-          await peer.setLocalDescription(offer);
-          socket.emit("group-webrtc-offer", {
-            callId,
-            sdp: offer,
-            fromUserId: userId,
-          });
-        } catch (err) {
-          console.error("Failed to create/send offer:", err);
-        }
-      };
+  /** Auto-initiate call if this user is the initiator */
+  useEffect(() => {
+    if (!incomingCall) {
+      initiateCall();
+    } else {
+      setIsRinging(true);
+      ringtone.current?.play().catch(() => {});
     }
+  }, []);
 
-    return peer;
+  /** INITIATE CALL */
+  const initiateCall = () => {
+    const payload = { chatroomId, initiatorId: userId, type: autoStart };
+    socket.emit("group-call-initiate", payload);
+    setCallStarted(true);
   };
 
-  // Start outgoing call
-  const startCall = async (type: "video" | "audio" | "none" = "none") => {
-    const stream = await getMediaStream(type);
-    if (stream && localStreamRef.current)
-      localStreamRef.current.srcObject = stream;
-    socket.emit("group-call-initiate", {
-      initiatorId: userId,
-      chatroomId,
-      type,
-    });
-    setError(null);
+  /** INCOMING CALL */
+  const handleIncomingCall = (payload: any) => {
+    const data = Array.isArray(payload) ? payload[0] : payload;
+    if (data.initiatorId === userId) return; // ignore self
+    setIsRinging(true);
+    ringtone.current?.play().catch(() => {});
   };
 
-  // Join an incoming call
-  const acceptCall = async () => {
-    if (!incomingCall) return;
-    ringtone?.pause();
-    setIsRinging(false);
-    const stream = await getMediaStream(
-      incomingCall.type as "audio" | "video" | "none"
+  /** PARTICIPANTS UPDATE */
+  const handleParticipantsUpdate = (payload: any) => {
+    // Payload can be an array of participants
+    const participantsList = Array.isArray(payload) ? payload : [];
+    // Remove duplicates
+    const uniqueParticipants = Array.from(
+      new Map(participantsList.map((p: any) => [p.userId, p])).values()
     );
-    if (stream && localStreamRef.current)
-      localStreamRef.current.srcObject = stream;
-    setCallId(incomingCall.callId);
-    socket.emit("group-call-join", { callId: incomingCall.callId, userId });
-    setIncomingCall(null);
+    setParticipants(uniqueParticipants);
   };
 
-  const rejectCall = () => {
-    ringtone?.pause();
+  /** ACCEPT CALL */
+  const handleAccept = async () => {
     setIsRinging(false);
-    setIncomingCall(null);
-    socket.emit("group-call-decline", { callId: incomingCall?.callId, userId });
+    ringtone.current?.pause();
+
+    try {
+      const constraints = { audio: true, video: autoStart === "video" };
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      localStreamRef.current = stream;
+
+      if (localVideoRef.current && autoStart === "video") {
+        localVideoRef.current.srcObject = stream;
+      }
+
+      socket.emit("group-call-join", { callId: incomingCall.callId, userId });
+      setCallStarted(true);
+    } catch (err) {
+      console.error("Error starting call:", err);
+    }
   };
 
-  const leaveCall = () => {
-    alert(`You left the call.${callId}`);
-    //if (!callId) return;
-    socket.emit("group-call-leave", { callId, userId });
-    Object.values(peersRef.current).forEach((peer) => peer.close());
-    peersRef.current = {};
-    setCallId(null);
-    setParticipants([]);
-    if (localStreamRef.current?.srcObject) {
-      (localStreamRef.current.srcObject as MediaStream)
-        .getTracks()
-        .forEach((track) => track.stop());
-      localStreamRef.current.srcObject = null;
+  /** END CALL */
+  const handleEndCall = () => {
+    if (ringtone.current) ringtone.current.pause();
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach(track => track.stop());
     }
+    socket.emit("group-call-leave", { callId: incomingCall?.callId, userId });
+    setCallStarted(false);
     setShowGroupCall(false);
   };
 
-  //  Auto-start the call when UI is shown
-  useEffect(() => {
-    if (autoStart) {
-      const timer = setTimeout(() => {
-        startCall(autoStart);
-      }, 500);
-      return () => clearTimeout(timer);
-    }
-  }, [autoStart]);
-
   return (
-    <div className="h-full flex flex-col relative">
-      <h2 className="text-lg font-semibold mb-2">Group Call</h2>
-
-      {error && <div className="text-red-500 mb-2">{error}</div>}
-
-      {/* Incoming call popup */}
-      {incomingCall && (
-        <div className="absolute inset-0 bg-black bg-opacity-70 flex flex-col items-center justify-center text-white z-50">
-          <h3 className="text-xl mb-2">Incoming {incomingCall.type} call</h3>
-          <p className="text-sm mb-4">from {incomingCall.initiatorId}</p>
+    <div className="relative flex flex-col items-center justify-center h-full p-4">
+      {/* RINGING */}
+      {isRinging && !callStarted && (
+        <div className="flex flex-col items-center space-y-6">
+          <User className="w-16 h-16 text-blue-500 animate-pulse" />
+          <p className="text-lg font-semibold">Incoming {autoStart} call...</p>
           <div className="flex gap-4">
             <button
-              onClick={acceptCall}
-              className="bg-green-600 px-4 py-2 rounded hover:bg-green-700"
+              onClick={handleAccept}
+              className="p-3 bg-green-500 rounded-full hover:bg-green-600 transition"
             >
-              Accept
+              <Phone className="w-6 h-6 text-white" />
             </button>
             <button
-              onClick={rejectCall}
-              className="bg-red-600 px-4 py-2 rounded hover:bg-red-700"
+              onClick={handleEndCall}
+              className="p-3 bg-red-500 rounded-full hover:bg-red-600 transition"
             >
-              Reject
+              <PhoneOff className="w-6 h-6 text-white" />
             </button>
           </div>
         </div>
       )}
 
-      {/* Only show manual buttons if not auto-started */}
-      {/* {!autoStart && (
-        <div className="flex gap-2 mb-4">
-          <button
-            onClick={() => startCall("audio")}
-            className="flex flex-col items-center px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
-          >
-            <Phone className="mb-1" />
-            <span className="text-sm">Start Audio</span>
-          </button>
-
-          <button
-            onClick={() => startCall("video")}
-            className="flex flex-col items-center px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
-          >
-            <Video className="mb-1" />
-            <span className="text-sm">Start Video</span>
-          </button>
-
-          <button
-            onClick={leaveCall}
-            className="flex flex-col items-center px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
-          >
-            <X className="mb-1" />
-            <span className="text-sm">Leave</span>
-          </button>
-        </div>
-      )} */}
-      <div className="flex gap-2 mb-4">
-        <button
-          onClick={() => leaveCall()}
-          className="flex flex-col items-center px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
-        >
-          <X className="mb-1" />
-          <span className="text-sm">Leave</span>
-        </button>
-      </div>
-
-      <div className="flex gap-4 overflow-x-auto">
-        <div className="flex-shrink-0">
-          <h3 className="text-sm mb-1">You</h3>
-          <video
-            ref={localStreamRef}
-            autoPlay
-            playsInline
-            muted
-            className="w-48 h-32 bg-black rounded"
-          />
-        </div>
-
-        {participants.map((p) => (
-          <div key={p.id} className="flex-shrink-0">
-            <h3 className="text-sm mb-1">{p.id}</h3>
+      {/* CALL ACTIVE */}
+      {callStarted && (
+        <div className="flex flex-col items-center w-full h-full">
+          {/* Local Video */}
+          {autoStart === "video" && (
             <video
-              id={`remoteVideo-${p.id}`}
+              ref={localVideoRef}
               autoPlay
+              muted
               playsInline
-              className="w-48 h-32 bg-black rounded"
+              className="rounded-lg w-64 h-40 shadow-lg mb-4"
             />
+          )}
+
+          {/* Participants */}
+          <div className="flex flex-wrap justify-center gap-4">
+            {/* You */}
+            <div className="flex flex-col items-center w-24">
+              <div className="w-20 h-20 bg-blue-500 rounded-full flex items-center justify-center text-white font-semibold text-lg">
+                You
+              </div>
+              <span className="mt-1 text-sm text-center">You</span>
+              {autoStart === "video" && (
+                <video
+                  ref={localVideoRef}
+                  autoPlay
+                  muted
+                  playsInline
+                  className="w-20 h-20 rounded-lg mt-1"
+                />
+              )}
+            </div>
+
+            {/* Other participants */}
+            {participants
+              .filter(p => p.userId !== userId)
+              .map((p, idx) => (
+                <div key={`${p.userId}-${idx}`} className="flex flex-col items-center w-24">
+                  <div className="w-20 h-20 bg-gray-300 dark:bg-gray-600 rounded-full flex items-center justify-center text-black dark:text-white font-semibold text-lg">
+                    {p.username.charAt(0).toUpperCase()}
+                  </div>
+                  <span className="mt-1 text-sm text-center">{p.username}</span>
+                  {autoStart === "video" && (
+                    <video
+                      id={`remoteVideo-${p.userId}-${idx}`}
+                      autoPlay
+                      playsInline
+                      className="w-20 h-20 rounded-lg mt-1 bg-black"
+                    />
+                  )}
+                </div>
+              ))}
           </div>
-        ))}
-      </div>
+
+          {/* Controls */}
+          <div className="flex gap-5 mt-6">
+            <button
+              onClick={() => {
+                if (localStreamRef.current) {
+                  localStreamRef.current.getAudioTracks().forEach(track => {
+                    track.enabled = !track.enabled;
+                    setIsMuted(!track.enabled);
+                  });
+                }
+              }}
+              className="p-3 bg-gray-200 dark:bg-gray-700 rounded-full hover:bg-gray-300 dark:hover:bg-gray-600 transition"
+            >
+              {isMuted ? <MicOff className="w-6 h-6 text-red-500" /> : <Mic className="w-6 h-6 text-green-500" />}
+            </button>
+
+            {autoStart === "video" && (
+              <button
+                onClick={() => {
+                  if (localStreamRef.current) {
+                    const videoTrack = localStreamRef.current.getVideoTracks()[0];
+                    if (videoTrack) {
+                      videoTrack.enabled = !videoTrack.enabled;
+                      setIsVideoOn(videoTrack.enabled);
+                    }
+                  }
+                }}
+                className="p-3 bg-gray-200 dark:bg-gray-700 rounded-full hover:bg-gray-300 dark:hover:bg-gray-600 transition"
+              >
+                {isVideoOn ? <Video className="w-6 h-6 text-green-500" /> : <VideoOff className="w-6 h-6 text-red-500" />}
+              </button>
+            )}
+
+            <button
+              onClick={handleEndCall}
+              className="p-3 bg-red-500 rounded-full hover:bg-red-600 transition"
+            >
+              <PhoneOff className="w-6 h-6 text-white" />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
-};
-
-export default GroupCall;
+}
