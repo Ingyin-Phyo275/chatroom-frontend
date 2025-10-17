@@ -22,7 +22,6 @@ export default function ChatroomPage({ selectedUser, loginUser }: chatroomPagePr
   const [showGroupCall, setShowGroupCall] = useState(false);
   const [incomingCall, setIncomingCall] = useState<any>(null);
 
-
   // Listen globally for incoming calls
   useEffect(() => {
     // console.log("Registering global incoming-group-call listener...");
@@ -53,7 +52,6 @@ export default function ChatroomPage({ selectedUser, loginUser }: chatroomPagePr
     };
   }, [loginUser.user.id]);
 
-  console.log("incoming call", incomingCall)
   return (
     <>
       {/* Header */}
@@ -158,7 +156,6 @@ export default function ChatroomPage({ selectedUser, loginUser }: chatroomPagePr
 
             {/* GroupCall Component */}
             <div className="w-full h-full p-4 overflow-hidden">
-              
               <GroupCall
                 userId={Number(loginUser.user.id)}
                 chatroomId={incomingCall?.chatroomId || selectedUser.id}

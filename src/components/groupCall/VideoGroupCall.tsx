@@ -1,5 +1,7 @@
+"use client";
+
 import { useEffect, useState, useRef } from "react";
-import { Phone, PhoneOff, Video, Mic, MicOff, User, VideoOff } from "lucide-react";
+import { Phone, PhoneOff, Video, Mic, MicOff, VideoOff, User } from "lucide-react";
 import { socket } from "@/socket/socket";
 
 type Participant = {
@@ -11,20 +13,32 @@ type Participant = {
 type GroupCallProps = {
   userId: number;
   chatroomId: string;
-  type?: "audio" | "video"; // audio or video
+  autoStart?: "audio" | "video";
   incomingCall?: any;
   setShowGroupCall: (val: boolean) => void;
 };
 
-export default function GroupCall({
+const RemoteVideo = ({ stream, muted }: { stream?: MediaStream; muted?: boolean }) => {
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.srcObject = stream ?? null;
+    }
+  }, [stream]);
+
+  return <video ref={videoRef} autoPlay playsInline muted={muted} className="w-full h-48 rounded-lg" />;
+};
+
+export default function VideoGroupCall({
   userId,
   chatroomId,
-  type = "audio",
+  autoStart = "video",
   incomingCall,
   setShowGroupCall,
 }: GroupCallProps) {
   const [isMuted, setIsMuted] = useState(false);
-  const [isVideoOn, setIsVideoOn] = useState(type === "video");
+  const [isVideoOn, setIsVideoOn] = useState(autoStart === "video");
   const [isRinging, setIsRinging] = useState(false);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [callStarted, setCallStarted] = useState(false);
@@ -48,6 +62,7 @@ export default function GroupCall({
     socket.on("group-webrtc-offer", handleOffer);
     socket.on("group-webrtc-answer", handleAnswer);
     socket.on("group-webrtc-candidate", handleCandidate);
+
     return () => {
       socket.off("incoming-group-call", handleIncomingCall);
       socket.off("group-call-participants", handleParticipantsUpdate);
@@ -57,19 +72,41 @@ export default function GroupCall({
     };
   }, []);
 
-  /** Auto-start call if user is initiator */
+  /** Auto-initiate call if this user is the initiator */
   useEffect(() => {
     if (!incomingCall) {
-      initiateCall();
+      startLocalStream().then(() => {
+        initiateCall();
+      });
     } else {
       setIsRinging(true);
       ringtone.current?.play().catch(() => {});
     }
   }, []);
 
+  /** START LOCAL STREAM */
+  const startLocalStream = async () => {
+    try {
+      const constraints = { audio: true, video: autoStart === "video" };
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      localStreamRef.current = stream;
+
+      if (localVideoRef.current && autoStart === "video") {
+        localVideoRef.current.srcObject = stream;
+      }
+
+      // Add tracks to existing peer connections if any
+      Object.values(peersRef.current).forEach(pc => {
+        stream.getTracks().forEach(track => pc.addTrack(track, stream));
+      });
+    } catch (err) {
+      console.error("Failed to get local media:", err);
+    }
+  };
+
   /** INITIATE CALL */
   const initiateCall = () => {
-    const payload = { chatroomId, initiatorId: userId, type };
+    const payload = { chatroomId, initiatorId: userId, type: autoStart };
     socket.emit("group-call-initiate", payload);
     setCallStarted(true);
   };
@@ -94,19 +131,26 @@ export default function GroupCall({
     }
   };
 
-  /** PEER CONNECTION */
+  /** CREATE PEER CONNECTION */
   const createPeerConnection = (otherUserId: number) => {
     if (peersRef.current[otherUserId]) return peersRef.current[otherUserId];
-    const pc = new RTCPeerConnection({ iceServers: [{ urls: "stun:stun.l.google.com:19302" }] });
+
+    const pc = new RTCPeerConnection({
+      iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+    });
+
     localStreamRef.current?.getTracks().forEach(track => pc.addTrack(track, localStreamRef.current!));
+
     const remoteStream = new MediaStream();
     remoteStreamsRef.current[otherUserId] = remoteStream;
+
     pc.ontrack = event => {
       event.streams[0].getTracks().forEach(track => remoteStream.addTrack(track));
       setParticipants(prev =>
         prev.map(p => (p.userId === otherUserId ? { ...p, stream: remoteStream } : p))
       );
     };
+
     pc.onicecandidate = event => {
       if (event.candidate && incomingCall) {
         socket.emit("group-webrtc-candidate", {
@@ -116,10 +160,12 @@ export default function GroupCall({
         });
       }
     };
+
     peersRef.current[otherUserId] = pc;
     return pc;
   };
 
+  /** INITIATE PEER CONNECTIONS */
   const initiatePeerConnections = async (participantIds: number[]) => {
     if (!incomingCall) return;
     for (let otherUserId of participantIds) {
@@ -127,7 +173,11 @@ export default function GroupCall({
       const pc = createPeerConnection(otherUserId);
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
-      socket.emit("group-webrtc-offer", { callId: incomingCall.callId, sdp: offer, fromUserId: userId });
+      socket.emit("group-webrtc-offer", {
+        callId: incomingCall.callId,
+        sdp: offer,
+        fromUserId: userId,
+      });
     }
   };
 
@@ -140,11 +190,13 @@ export default function GroupCall({
     await pc.setLocalDescription(answer);
     socket.emit("group-webrtc-answer", { callId, sdp: answer, fromUserId: userId });
   };
+
   const handleAnswer = async ({ callId, sdp, fromUserId }: any) => {
     if (callId !== incomingCall?.callId) return;
     const pc = peersRef.current[fromUserId];
     if (pc) await pc.setRemoteDescription(new RTCSessionDescription(sdp));
   };
+
   const handleCandidate = ({ callId, candidate, fromUserId }: any) => {
     if (callId !== incomingCall?.callId) return;
     const pc = peersRef.current[fromUserId];
@@ -155,16 +207,9 @@ export default function GroupCall({
   const handleAccept = async () => {
     setIsRinging(false);
     ringtone.current?.pause();
-    try {
-      const constraints = { audio: true, video: type === "video" };
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      localStreamRef.current = stream;
-      if (localVideoRef.current && type === "video") localVideoRef.current.srcObject = stream;
-      socket.emit("group-call-join", { callId: incomingCall.callId, userId });
-      setCallStarted(true);
-    } catch (err) {
-      console.error("Error starting call:", err);
-    }
+    await startLocalStream();
+    socket.emit("group-call-join", { callId: incomingCall.callId, userId });
+    setCallStarted(true);
   };
 
   /** END CALL */
@@ -172,14 +217,27 @@ export default function GroupCall({
     ringtone.current?.pause();
     localStreamRef.current?.getTracks().forEach(track => track.stop());
     localStreamRef.current = null;
+
     Object.values(peersRef.current).forEach(pc => pc.close());
     peersRef.current = {};
     remoteStreamsRef.current = {};
+
     socket.emit("group-call-leave", { callId: incomingCall?.callId, userId });
+
     setCallStarted(false);
     setIsMuted(false);
-    setIsVideoOn(type === "video");
+    setIsVideoOn(autoStart === "video");
     setShowGroupCall(false);
+  };
+
+  /** Compute dynamic grid columns based on participant count */
+  const getGridCols = (count: number) => {
+    if (count <= 1) return "grid-cols-1";
+    if (count === 2) return "grid-cols-2";
+    if (count <= 4) return "grid-cols-2 md:grid-cols-2";
+    if (count <= 6) return "grid-cols-3 md:grid-cols-3";
+    if (count <= 9) return "grid-cols-3 md:grid-cols-3 lg:grid-cols-3";
+    return "grid-cols-4 md:grid-cols-4 lg:grid-cols-4";
   };
 
   return (
@@ -188,21 +246,12 @@ export default function GroupCall({
       {isRinging && !callStarted && (
         <div className="flex flex-col items-center space-y-6">
           <User className="w-16 h-16 text-blue-500 animate-pulse" />
-          <p className="text-lg font-semibold">
-            Incoming {type} call... from {incomingCall?.chatroomName}
-          </p>
-          <p className="text-md italic">Call by {incomingCall?.initiatorName}</p>
+          <p className="text-lg font-semibold">Incoming {autoStart} call...</p>
           <div className="flex gap-4">
-            <button
-              onClick={handleAccept}
-              className="p-3 bg-green-500 rounded-full hover:bg-green-600 transition"
-            >
+            <button onClick={handleAccept} className="p-3 bg-green-500 rounded-full hover:bg-green-600 transition">
               <Phone className="w-6 h-6 text-white" />
             </button>
-            <button
-              onClick={handleEndCall}
-              className="p-3 bg-red-500 rounded-full hover:bg-red-600 transition"
-            >
+            <button onClick={handleEndCall} className="p-3 bg-red-500 rounded-full hover:bg-red-600 transition">
               <PhoneOff className="w-6 h-6 text-white" />
             </button>
           </div>
@@ -213,7 +262,7 @@ export default function GroupCall({
       {callStarted && (
         <div className="flex flex-col items-center w-full h-full">
           {/* Local Video */}
-          {type === "video" && (
+          {autoStart === "video" && (
             <video
               ref={localVideoRef}
               autoPlay
@@ -223,42 +272,12 @@ export default function GroupCall({
             />
           )}
 
-          {/* Participants */}
-          <div className="flex flex-wrap justify-center gap-4">
-            {/* You */}
-            <div className="flex flex-col items-center w-24">
-              {type === "video" ? (
-                <video
-                  ref={el => { if (el && localStreamRef.current) el.srcObject = localStreamRef.current }}
-                  autoPlay
-                  muted
-                  playsInline
-                  className="w-20 h-20 rounded-lg"
-                />
-              ) : (
-                <div className="w-20 h-20 bg-blue-500 rounded-full flex items-center justify-center text-white font-semibold text-lg">
-                  You
-                </div>
-              )}
-              <span className="mt-1 text-sm text-center">You</span>
-            </div>
-
-            {/* Other participants */}
-            {participants.filter(p => p.userId !== userId).map(p => (
-              <div key={p.userId} className="flex flex-col items-center w-24">
-                {type === "video" && p.stream ? (
-                  <video
-                    ref={el => { if (el) el.srcObject = p.stream ?? null }}
-                    autoPlay
-                    playsInline
-                    className="w-20 h-20 rounded-lg"
-                  />
-                ) : (
-                  <div className="w-20 h-20 bg-gray-300 dark:bg-gray-600 rounded-full flex items-center justify-center text-black dark:text-white font-semibold text-lg">
-                    {p.username.charAt(0).toUpperCase()}
-                  </div>
-                )}
-                <span className="mt-1 text-sm text-center">{p.username}</span>
+          {/* Participants Grid */}
+          <div className={`grid ${getGridCols(participants.length)} gap-4 w-full`}>
+            {participants.map(p => (
+              <div key={p.userId} className="flex flex-col items-center">
+                <RemoteVideo stream={p.stream} muted={p.userId === userId} />
+                <span className="mt-1">{p.username}</span>
               </div>
             ))}
           </div>
@@ -279,7 +298,7 @@ export default function GroupCall({
               {isMuted ? <MicOff className="w-6 h-6 text-red-500" /> : <Mic className="w-6 h-6 text-green-500" />}
             </button>
 
-            {type === "video" && (
+            {autoStart === "video" && (
               <button
                 onClick={() => {
                   if (localStreamRef.current) {
@@ -296,10 +315,7 @@ export default function GroupCall({
               </button>
             )}
 
-            <button
-              onClick={handleEndCall}
-              className="p-3 bg-red-500 rounded-full hover:bg-red-600 transition"
-            >
+            <button onClick={handleEndCall} className="p-3 bg-red-500 rounded-full hover:bg-red-600 transition">
               <PhoneOff className="w-6 h-6 text-white" />
             </button>
           </div>
