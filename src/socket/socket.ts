@@ -5,7 +5,7 @@ const user = JSON.parse(localStorage.getItem("user")!);
 const token = user?.token;
 console.log("token", token);
 
-export const socket = io("http://localhost:7000", {
+export const socket = io("http://192.168.0.188:7000", {
   auth: { token },
 });
 

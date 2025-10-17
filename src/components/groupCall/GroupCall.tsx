@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { Phone, PhoneOff, Video, Mic, MicOff, User, VideoOff } from "lucide-react";
+import { Phone, PhoneOff, Video, Mic, MicOff, VideoOff, User } from "lucide-react";
 import { socket } from "@/socket/socket";
 
 type Participant = {
@@ -25,20 +25,22 @@ export default function GroupCall({
   incomingCall,
   setShowGroupCall,
 }: GroupCallProps) {
-  const [isMuted, setIsMuted] = useState(false);
+  const [isMuted, setIsMuted] = useState(false); // Mute mic
   const [isVideoOn, setIsVideoOn] = useState(autoStart === "video");
   const [isRinging, setIsRinging] = useState(false);
-  const [participants, setParticipants] = useState<Participant[]>([]);
   const [callStarted, setCallStarted] = useState(false);
+  const [participants, setParticipants] = useState<Participant[]>([]);
   const [incomingCallData, setIncomingCallData] = useState<any>(incomingCall || null);
   const [speakingMap, setSpeakingMap] = useState<{ [userId: number]: boolean }>({});
 
   const localStreamRef = useRef<MediaStream | null>(null);
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const ringtone = useRef<HTMLAudioElement | null>(null);
-
   const peersRef = useRef<{ [userId: number]: RTCPeerConnection }>({});
   const remoteStreamsRef = useRef<{ [userId: number]: MediaStream }>({});
+  const participantAudioRefs = useRef<{ [userId: number]: HTMLAudioElement | null }>({});
+  const hasInitiatedCall = useRef(false);
+  const isCaller = !incomingCall;
 
   /** Load ringtone */
   useEffect(() => {
@@ -70,24 +72,33 @@ export default function GroupCall({
     setIncomingCallData(payload);
   };
 
-const hasInitiatedCall = useRef(false);
-
-useEffect(() => {
-  if (!incomingCallData && !hasInitiatedCall.current) {
-    initiateCall();
-    hasInitiatedCall.current = true;
-  } else if (incomingCallData?.initiatorId !== userId) {
-    setIsRinging(true);
-    ringtone.current?.play().catch(() => {});
-  }
-}, [incomingCallData]);
-
+  /** Handle initiator vs receiver */
+  useEffect(() => {
+    if (!incomingCallData && isCaller && !hasInitiatedCall.current) {
+      initiateCall();
+      hasInitiatedCall.current = true;
+    } else if (incomingCallData?.initiatorId !== userId) {
+      setIsRinging(true);
+      ringtone.current?.play().catch(() => {});
+    }
+  }, [incomingCallData]);
 
   /** INITIATE CALL */
-  const initiateCall = () => {
-    const payload = { chatroomId, initiatorId: userId, type: autoStart };
-    socket.emit("group-call-initiate", payload);
-    setCallStarted(true);
+  const initiateCall = async () => {
+    try {
+      const constraints = { audio: true, video: autoStart === "video" };
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      localStreamRef.current = stream;
+
+      if (autoStart === "video" && localVideoRef.current) {
+        localVideoRef.current.srcObject = stream;
+      }
+
+      socket.emit("group-call-initiate", { chatroomId, initiatorId: userId, type: autoStart });
+      setCallStarted(true);
+    } catch (err) {
+      console.error("Error accessing local media:", err);
+    }
   };
 
   /** INCOMING CALL */
@@ -191,7 +202,7 @@ useEffect(() => {
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
       localStreamRef.current = stream;
 
-      if (localVideoRef.current && autoStart === "video") {
+      if (autoStart === "video" && localVideoRef.current) {
         localVideoRef.current.srcObject = stream;
       }
 
@@ -211,6 +222,7 @@ useEffect(() => {
     Object.values(peersRef.current).forEach(pc => pc.close());
     peersRef.current = {};
     remoteStreamsRef.current = {};
+    participantAudioRefs.current = {};
 
     socket.emit("group-call-leave", { callId: incomingCallData?.callId, userId });
 
@@ -228,60 +240,60 @@ useEffect(() => {
     }
   };
 
- /** MIC SPEAKING DETECTION - WITH SIMULATION FOR SINGLE DEVICE TESTING */
-useEffect(() => {
-  const audioContexts: { [userId: number]: AudioContext } = {};
-  const analysers: { [userId: number]: AnalyserNode } = {};
-  const dataArrays: { [userId: number]: Uint8Array } = {};
-  let rafIds: { [userId: number]: number } = {};
-
-  // Combine participants with local user
-  //@ts-ignore
-  const allParticipants = participants.concat([{ userId, username: "You", stream: localStreamRef.current }]);
-
-  allParticipants.forEach(p => {
-    if (!p.stream) {
-      // SIMULATION: generate random speaking activity for testing
-      const simulateSpeaking = () => {
-        const active = Math.random() > 0.7; // 30% chance to "speak"
-        setSpeakingMap(prev => ({ ...prev, [p.userId]: active }));
-        rafIds[p.userId] = requestAnimationFrame(simulateSpeaking);
-      };
-      simulateSpeaking();
-      return;
+  /** MUTE MIC */
+  const toggleMuteMic = () => {
+    if (localStreamRef.current) {
+      const track = localStreamRef.current.getAudioTracks()[0];
+      if (track) track.enabled = !track.enabled;
+      setIsMuted(!track.enabled);
     }
-
-    const audioContext = new AudioContext();
-    const analyser = audioContext.createAnalyser();
-    const source = audioContext.createMediaStreamSource(p.stream);
-    source.connect(analyser);
-    analyser.fftSize = 512;
-    const dataArray = new Uint8Array(analyser.frequencyBinCount);
-
-    audioContexts[p.userId] = audioContext;
-    analysers[p.userId] = analyser;
-    dataArrays[p.userId] = dataArray;
-
-    const checkVolume = () => {
-      analyser.getByteFrequencyData(dataArray);
-      const avg = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
-      setSpeakingMap(prev => ({ ...prev, [p.userId]: avg > 20 }));
-      rafIds[p.userId] = requestAnimationFrame(checkVolume);
-    };
-    checkVolume();
-  });
-
-  return () => {
-    Object.values(rafIds).forEach(id => cancelAnimationFrame(id));
-    Object.values(audioContexts).forEach(ctx => ctx.close());
   };
-}, [participants, localStreamRef.current]);
 
+  /** SPEAKING DETECTION */
+  useEffect(() => {
+    if (!localStreamRef.current && participants.length === 0) return;
+
+    const audioContexts: { [userId: number]: AudioContext } = {};
+    const analysers: { [userId: number]: AnalyserNode } = {};
+    const dataArrays: { [userId: number]: Uint8Array } = {};
+    let rafIds: { [userId: number]: number } = {};
+
+    const allParticipants = participants.concat([{ userId, username: "You", stream: localStreamRef.current ?? undefined }]);
+
+    allParticipants.forEach(p => {
+      if (!p.stream) return;
+
+      const audioContext = new AudioContext();
+      const analyser = audioContext.createAnalyser();
+      const source = audioContext.createMediaStreamSource(p.stream);
+      source.connect(analyser);
+      analyser.fftSize = 512;
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+      audioContexts[p.userId] = audioContext;
+      analysers[p.userId] = analyser;
+      dataArrays[p.userId] = dataArray;
+
+      const checkVolume = () => {
+        analyser.getByteFrequencyData(dataArray);
+        const avg = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
+        setSpeakingMap(prev => ({ ...prev, [p.userId]: avg > 20 }));
+        rafIds[p.userId] = requestAnimationFrame(checkVolume);
+      };
+      checkVolume();
+    });
+
+    return () => {
+      Object.values(rafIds).forEach(id => cancelAnimationFrame(id));
+      Object.values(audioContexts).forEach(ctx => ctx.close());
+    };
+  }, [participants, localStreamRef.current]);
 
   /** RENDER */
   return (
     <div className="relative flex flex-col items-center justify-center h-full p-4">
-      {isRinging && !callStarted && (
+      {/* Incoming popup */}
+      {!isCaller && isRinging && !callStarted && (
         <div className="flex flex-col items-center space-y-6">
           <User className="w-16 h-16 text-blue-500 animate-pulse" />
           <p className="text-lg font-semibold">
@@ -299,6 +311,18 @@ useEffect(() => {
         </div>
       )}
 
+      {/* Calling UI */}
+      {isCaller && !callStarted && (
+        <div className="flex flex-col items-center space-y-4">
+          <p className="text-lg font-semibold">Calling...</p>
+          <p className="text-md italic">Waiting for participants to join</p>
+          <button onClick={handleEndCall} className="p-3 bg-red-500 rounded-full">
+            <PhoneOff className="w-6 h-6 text-white" />
+          </button>
+        </div>
+      )}
+
+      {/* Active call UI */}
       {callStarted && (
         <div className="flex flex-col items-center w-full h-full">
           {autoStart === "video" && (
@@ -306,45 +330,41 @@ useEffect(() => {
           )}
 
           <div className="flex flex-wrap justify-center gap-4">
-{participants
-  .filter(p => p.userId !== userId) // skip yourself
-  .concat([{ userId, username: "You", stream: localStreamRef.current ?? undefined}])
-  .map(p => (
-    <div key={p.userId} className="flex flex-col items-center w-24">
-      <div className="w-20 h-20 bg-gray-300 dark:bg-gray-600 rounded-full relative flex items-center justify-center text-black dark:text-white font-semibold text-lg">
-        {p.username.charAt(0).toUpperCase()}
-        <Mic
-          className={`absolute bottom-0 right-0 w-5 h-5 ${
-            speakingMap[p.userId] ? "text-green-500 animate-pulse" : "text-gray-400"
-          }`}
-        />
-      </div>
-      <span className="mt-1 text-sm text-center">{p.username}</span>
-      {p.stream && autoStart === "video" && (
-        <video ref={el => { if (el) el.srcObject = p.stream ?? null; }} autoPlay playsInline className="w-20 h-20 rounded-lg mt-1" />
-      )}
-      {p.stream && autoStart === "audio" && (
-        <audio ref={el => { if (el) el.srcObject = p.stream ?? null; }} autoPlay />
-      )}
-    </div>
-))}
-
+            {participants
+              .filter(p => p.userId !== userId)
+              .concat([{ userId, username: "You", stream: localStreamRef.current ?? undefined }])
+              .map(p => (
+                <div key={p.userId} className="flex flex-col items-center w-24">
+                  <div className="w-20 h-20 bg-gray-300 dark:bg-gray-600 rounded-full relative flex items-center justify-center text-black dark:text-white font-semibold text-lg">
+                    {p.username.charAt(0).toUpperCase()}
+                    <Mic className={`absolute bottom-0 right-0 w-5 h-5 ${speakingMap[p.userId] ? "text-green-500 animate-pulse" : "text-gray-400"}`} />
+                  </div>
+                  <span className="mt-1 text-sm text-center">{p.username}</span>
+                  {p.stream && autoStart === "video" && (
+                    <video
+                      ref={el => { if (el) el.srcObject = p.stream ?? null; }}
+                      autoPlay
+                      playsInline
+                      className="w-20 h-20 rounded-lg mt-1"
+                    />
+                  )}
+                  {p.stream && autoStart === "audio" && (
+                    <audio
+                      ref={el => { participantAudioRefs.current[p.userId] = el; if (el) el.srcObject = p.stream ?? null; }}
+                      autoPlay
+                    />
+                  )}
+                </div>
+              ))}
           </div>
 
           <div className="flex gap-5 mt-6">
-            <button
-              onClick={() => {
-                if (localStreamRef.current) {
-                  const enabled = !localStreamRef.current.getAudioTracks()[0].enabled;
-                  localStreamRef.current.getAudioTracks()[0].enabled = enabled;
-                  setIsMuted(!enabled);
-                }
-              }}
-              className="p-3 bg-gray-200 dark:bg-gray-700 rounded-full hover:bg-gray-300 dark:hover:bg-gray-600 transition"
-            >
+            {/* Mute Mic */}
+            <button onClick={toggleMuteMic} className="p-3 bg-gray-200 dark:bg-gray-700 rounded-full hover:bg-gray-300 dark:hover:bg-gray-600 transition">
               {isMuted ? <MicOff className="w-6 h-6 text-red-500" /> : <Mic className="w-6 h-6 text-green-500" />}
             </button>
 
+            {/* Toggle Video */}
             {autoStart === "video" && (
               <button
                 onClick={() => {
@@ -362,6 +382,7 @@ useEffect(() => {
               </button>
             )}
 
+            {/* End Call */}
             <button onClick={handleEndCall} className="p-3 bg-red-500 rounded-full hover:bg-red-600 transition">
               <PhoneOff className="w-6 h-6 text-white" />
             </button>

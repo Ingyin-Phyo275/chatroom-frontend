@@ -1,3 +1,5 @@
+"use client";
+
 import { ArrowLeft, Info, Phone, Video, X } from "lucide-react";
 import type { ChatUserType } from "../dto/UserTypes";
 import { Button } from "./ui/button";
@@ -11,6 +13,7 @@ import GroupChatRoom from "./groupChatroom";
 import GroupCall from "./groupCall/GroupCall";
 import formatLastSeen from "@/utils/helper";
 import { socket } from "@/socket/socket";
+import PrivateCall from "./privateCall/PrivateCall";
 
 type chatroomPageProps = {
   selectedUser: ChatUserType;
@@ -19,36 +22,59 @@ type chatroomPageProps = {
 
 export default function ChatroomPage({ selectedUser, loginUser }: chatroomPageProps) {
   const [showInfo, setShowInfo] = useState(false);
+
+  // Separate states for group & private calls
   const [showGroupCall, setShowGroupCall] = useState(false);
+  const [showPrivateCall, setShowPrivateCall] = useState(false);
   const [incomingCall, setIncomingCall] = useState<any>(null);
 
-  // Listen globally for incoming calls
+  // Listen globally for incoming group calls
   useEffect(() => {
-    // console.log("Registering global incoming-group-call listener...");
     const handleIncomingGroupCall = (payload: any) => {
       const data = Array.isArray(payload) ? payload[0] : payload;
-      //console.log("Incoming group call:", data);
 
-      // Ignore if the user is the initiator (so they don't get self-call)
+      // Ignore if user is the initiator
       if (data.initiatorId === loginUser.user.id) return;
-      // Store call info and open the modal automatically
-      setIncomingCall({
-      callId: data.callId,
-      chatroomId: data.chatroomId,
-      initiatorId: data.initiatorId,
-      initiatorName: data.initiatorName,   // caller name
-      chatroomName: data.chatroomName,     // group chat name
-      type: data.type,
-      timestamp: data.timestamp,
-    });
 
+      setIncomingCall({
+        callId: data.callId,
+        chatroomId: data.chatroomId,
+        initiatorId: data.initiatorId,
+        initiatorName: data.initiatorName,
+        chatroomName: data.chatroomName,
+        type: data.type,
+        timestamp: data.timestamp,
+      });
       setShowGroupCall(true);
     };
 
     socket.on("incoming-group-call", handleIncomingGroupCall);
     return () => {
-      console.log("Off incoming-group-call listener...");
       socket.off("incoming-group-call", handleIncomingGroupCall);
+    };
+  }, [loginUser.user.id]);
+
+  // Listen globally for incoming private calls
+  useEffect(() => {
+    const handleIncomingPrivateCall = (payload: any) => {
+      const data = Array.isArray(payload) ? payload[0] : payload;
+      console.log("Incoming private call:", data);
+
+      if (data.from === loginUser.user.id) return;
+
+      setIncomingCall({
+        callId: data.callData?.id,
+        from: data.from,
+        call_type: data.call_type,
+        callData: data.callData,
+      });
+
+      setShowPrivateCall(true);
+    };
+
+    socket.on("incoming-call", handleIncomingPrivateCall);
+    return () => {
+      socket.off("incoming-call", handleIncomingPrivateCall);
     };
   }, [loginUser.user.id]);
 
@@ -61,7 +87,7 @@ export default function ChatroomPage({ selectedUser, loginUser }: chatroomPagePr
           <SidebarTrigger />
         </div>
 
-        {/* Center: User avatar + name + status */}
+        {/* User info */}
         {selectedUser && (
           <div className="flex items-center gap-3 max-md:hidden">
             <div
@@ -71,10 +97,7 @@ export default function ChatroomPage({ selectedUser, loginUser }: chatroomPagePr
             >
               <Avatar.Root className="w-10 h-10 rounded-full overflow-hidden">
                 {selectedUser.avatar_url ? (
-                  <Avatar.Image
-                    src={selectedUser.avatar_url}
-                    className="w-full h-full object-cover"
-                  />
+                  <Avatar.Image src={selectedUser.avatar_url} className="w-full h-full object-cover" />
                 ) : (
                   <Avatar.Fallback className="w-full h-full flex items-center justify-center bg-gray-500 text-white font-semibold rounded-full">
                     {selectedUser.username.slice(0, 2).toUpperCase()}
@@ -99,7 +122,7 @@ export default function ChatroomPage({ selectedUser, loginUser }: chatroomPagePr
           </div>
         )}
 
-        {/* Right: call + info buttons */}
+        {/* Call & info buttons */}
         {selectedUser && (
           <div className="flex items-center gap-2">
             <Button
@@ -107,7 +130,7 @@ export default function ChatroomPage({ selectedUser, loginUser }: chatroomPagePr
               className="p-2 rounded"
               onClick={() => {
                 setIncomingCall(null);
-                setShowGroupCall(true);
+                selectedUser.is_group ? setShowGroupCall(true) : setShowPrivateCall(true);
               }}
             >
               <Phone className="w-6 h-6 text-primary" />
@@ -118,7 +141,7 @@ export default function ChatroomPage({ selectedUser, loginUser }: chatroomPagePr
               className="p-2 rounded"
               onClick={() => {
                 setIncomingCall(null);
-                setShowGroupCall(true);
+                selectedUser.is_group ? setShowGroupCall(true) : setShowPrivateCall(true);
               }}
             >
               <Video className="w-5 h-5 text-primary" />
@@ -136,17 +159,14 @@ export default function ChatroomPage({ selectedUser, loginUser }: chatroomPagePr
       </header>
 
       {/* Group Call Modal */}
-      {showGroupCall && (
+      {showGroupCall && selectedUser?.is_group && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          {/* Blurred Background */}
           <div
             className="absolute inset-0 bg-transparent bg-opacity-30 dark:bg-black dark:bg-opacity-50 backdrop-blur-sm"
             onClick={(e) => e.stopPropagation()}
           ></div>
 
-          {/* Modal */}
           <div className="relative w-full max-w-3xl h-[80vh] bg-white/80 dark:bg-slate-800/80 rounded-lg shadow-lg overflow-hidden backdrop-blur-md animate-fade-in">
-            {/* Close Button */}
             <button
               className="absolute cursor-pointer top-3 right-3 p-2 bg-gray-200/70 dark:bg-slate-700/70 hover:bg-gray-300 dark:hover:bg-slate-600 transition-colors"
               onClick={() => setShowGroupCall(false)}
@@ -154,7 +174,6 @@ export default function ChatroomPage({ selectedUser, loginUser }: chatroomPagePr
               <X className="w-5 h-5 text-gray-600 dark:text-gray-300" />
             </button>
 
-            {/* GroupCall Component */}
             <div className="w-full h-full p-4 overflow-hidden">
               <GroupCall
                 userId={Number(loginUser.user.id)}
@@ -168,14 +187,38 @@ export default function ChatroomPage({ selectedUser, loginUser }: chatroomPagePr
         </div>
       )}
 
+      {/* Private Call Modal */}
+      {showPrivateCall && !selectedUser?.is_group && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div
+            className="absolute inset-0 bg-transparent bg-opacity-30 dark:bg-black dark:bg-opacity-50 backdrop-blur-sm"
+            onClick={(e) => e.stopPropagation()}
+          ></div>
+
+          <div className="relative w-full max-w-3xl h-[80vh] bg-white/80 dark:bg-slate-800/80 rounded-lg shadow-lg overflow-hidden backdrop-blur-md animate-fade-in">
+            <button
+              className="absolute cursor-pointer top-3 right-3 p-2 bg-gray-200/70 dark:bg-slate-700/70 hover:bg-gray-300 dark:hover:bg-slate-600 transition-colors"
+              onClick={() => setShowPrivateCall(false)}
+            >
+              <X className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+            </button>
+
+            <div className="w-full h-full p-4 overflow-hidden">
+              <PrivateCall
+                userId={Number(loginUser.user.id)}
+                receiver_id={Number(selectedUser.id)}
+                incomingCall={incomingCall}
+                setShowCall={setShowPrivateCall}
+                  // isCaller={incomingCall ? false : true} // explicitly define
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Chat + Info layout */}
       <div className="flex-1 flex border-l h-[calc(100vh-4rem)]">
-        {/* Chat Room */}
-        <div
-          className={`flex-1 border-r lg:block ${
-            showInfo ? "hidden lg:block" : "block"
-          }`}
-        >
+        <div className={`flex-1 border-r lg:block ${showInfo ? "hidden lg:block" : "block"}`}>
           {selectedUser ? (
             selectedUser.is_group ? (
               <GroupChatRoom
@@ -197,21 +240,13 @@ export default function ChatroomPage({ selectedUser, loginUser }: chatroomPagePr
           )}
         </div>
 
-        {/* Info Panel */}
         {showInfo && selectedUser && (
           <div className="h-[calc(100vh-4rem)] dark:bg-slate-800 p-4 w-full lg:w-90 lg:border-l">
-            {/* Back button for mobile */}
             <div className="flex items-center mb-4 lg:hidden">
-              <Button
-                variant="ghost"
-                onClick={() => setShowInfo(false)}
-                className="mr-2"
-              >
+              <Button variant="ghost" onClick={() => setShowInfo(false)} className="mr-2">
                 <ArrowLeft />
               </Button>
             </div>
-
-            {/* Info content */}
             <ChatInfoPanel selectedUser={selectedUser} />
           </div>
         )}
