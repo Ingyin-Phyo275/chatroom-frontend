@@ -5,7 +5,9 @@ const user = JSON.parse(localStorage.getItem("user")!);
 const token = user?.token;
 console.log("token", token);
 
-export const socket = io("http://192.168.0.188:7000", {
+const socketServerURL = import.meta.env.VITE_SOCKET_SERVER_URL;
+
+export const socket = io(socketServerURL, {
   auth: { token },
 });
 
