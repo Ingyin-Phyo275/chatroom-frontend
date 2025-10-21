@@ -22,8 +22,7 @@ export default function PrivateCall({
   const [callStarted, setCallStarted] = useState(false);
   const [callDuration, setCallDuration] = useState(0);
   const [callData, setCallData] = useState<any>(incomingCall || null);
-  const [remoteOffer, setRemoteOffer] =
-    useState<RTCSessionDescriptionInit | null>(null);
+  const [remoteOffer, setRemoteOffer] = useState<RTCSessionDescriptionInit | null>(null);
 
   const localStreamRef = useRef<MediaStream | null>(null);
   const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -37,6 +36,13 @@ export default function PrivateCall({
       remoteAudioRef.current.autoplay = true;
     }
   }, []);
+
+// useEffect(() => {
+//   socket.on("call-ended", () => {
+//     console.log("enter call ended");
+//   });
+// }, []); //  
+
 
   const handleCallInitiated = ({ callData }: any) => {
     setCallData(callData);
@@ -243,6 +249,41 @@ export default function PrivateCall({
     socket.emit("end-call", { call_id: callData?.id });
     setShowCall(false);
   };
+
+  useEffect(() => {
+  const handleCallEnded = (payload: any) => {
+    // Payload is [{ call_id, ended_by }] from server
+    const callEndedData = Array.isArray(payload) ? payload[0] : payload;
+    console.log("Call ended event received:", callEndedData);
+
+    // Stop local and remote streams
+    localStreamRef.current?.getTracks().forEach((track) => track.stop());
+    peerRef.current?.close();
+    peerRef.current = null;
+    localStreamRef.current = null;
+
+    if (remoteAudioRef.current?.srcObject) {
+      (remoteAudioRef.current.srcObject as MediaStream)
+        .getTracks()
+        .forEach((track) => track.stop());
+      remoteAudioRef.current.srcObject = null;
+    }
+
+    // Stop ringtone if playing
+    ringtone.current?.pause();
+    ringtone.current!.currentTime = 0;
+
+    // Close call UI
+    setShowCall(false);
+  };
+
+  socket.on("call-ended", handleCallEnded);
+
+  return () => {
+    socket.off("call-ended", handleCallEnded);
+  };
+}, []);
+
 
   const toggleMute = () => {
     if (!localStreamRef.current) return;
