@@ -1,15 +1,15 @@
 import * as Avatar from "@radix-ui/react-avatar";
 import { Pen, Pin, Trash } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "../ui/dropdown-menu";
 import { formatMessageDate } from "../../hooks/helper";
 import type { GetAllMessage } from "../../dto/response/GetAllMessage";
 import type { loginResponse } from "../../dto/response/LoginResponse";
 import AttachmentPreview from "./AttachmentPreview";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu"
 
 type Props = {
   groupedMessages: Record<string, GetAllMessage[]>;
@@ -65,8 +65,7 @@ export default function GroupMessages({
                 )}
 
                 {/* Message bubble + actions */}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
+                <ContextMenu>
                     <div
                       className={`max-w-[70%] p-2 rounded-lg cursor-pointer ${
                         isOwn
@@ -74,6 +73,7 @@ export default function GroupMessages({
                           : "bg-slate-200 text-slate-900"
                       }`}
                     >
+                      <ContextMenuTrigger>
                       <div>
                         {m.content && <p className="mb-1">{m.content}</p>}
 
@@ -86,7 +86,7 @@ export default function GroupMessages({
                               <AttachmentPreview urls={m.attachment_url} />
                             )}
                       </div>
-
+                    </ContextMenuTrigger>
                       {/* Time + status */}
                       <div className="text-xs text-slate-300 mt-1 flex justify-between gap-2">
                         {m.is_edit === true && (
@@ -118,36 +118,32 @@ export default function GroupMessages({
                         )}
                       </div>
                     </div>
-                  </DropdownMenuTrigger>
 
                   {/* Actions */}
-                  <DropdownMenuContent
-                    className="flex flex-row gap-3 mr-3"
-                    side="top"
-                  >
-                    <DropdownMenuItem
+                  <ContextMenuContent>
+                    <ContextMenuItem
                       onClick={() => alert(`Pin message: ${m.id}`)}
                     >
                       <Pin className="w-4 h-4 mr-2" /> Pin
-                    </DropdownMenuItem>
+                    </ContextMenuItem>
                     {isOwn && (
-                      <DropdownMenuItem
+                      <ContextMenuItem
                         onClick={() =>
                           onEditMessage(String(m.id), m.content || "")
                         }
                       >
                         <Pen className="w-4 h-4 mr-2" /> Edit
-                      </DropdownMenuItem>
+                      </ContextMenuItem>
                     )}
                     {isOwn && (
-                      <DropdownMenuItem
+                      <ContextMenuItem
                         onClick={() => alert(`Delete message: ${m.id}`)}
                       >
                         <Trash className="w-4 h-4 mr-2" /> Delete
-                      </DropdownMenuItem>
+                      </ContextMenuItem>
                     )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                  </ContextMenuContent>
+                </ContextMenu>
               </div>
             );
           })}

@@ -15,9 +15,14 @@ export interface PrivateChatMessage {
   attachmentTypes?: ("image" | "video" | "audio" | "file")[] | null;
   is_group?: boolean;
   is_edit?: boolean;
+  duration?: string;
   pagination?: {
     page: number;
     pageSize: number;
     totalPages: number;
+  };
+  call?: {
+    type?: string;
+    duration?: string;
   }
 }

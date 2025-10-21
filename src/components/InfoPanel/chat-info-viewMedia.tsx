@@ -14,6 +14,7 @@ export default function ChatInfoViewMedia({ chatroomId, messages }: ChatInfoView
   const [allMedia, setAllMedia] = useState<{ type: "image" | "video"; url: string }[]>([]);
   const [loading, setLoading] = useState(false);
 
+  console.log("messages", messages)
   // Flatten first 3 attachments from messages
   const mediaItems = messages
     .flatMap(msg =>
@@ -45,6 +46,7 @@ export default function ChatInfoViewMedia({ chatroomId, messages }: ChatInfoView
 
   return (
     <div className="w-full max-w-md mx-auto mt-4 bg-secondary rounded-lg mb-5">
+      <p>Media View</p>
       <div className="grid grid-cols-3 gap-2">
 {itemsToShow.map((item, idx) => (
   <div

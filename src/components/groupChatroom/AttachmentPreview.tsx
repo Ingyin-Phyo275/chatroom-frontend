@@ -3,9 +3,10 @@ import { File, X } from "lucide-react";
 type AttachmentPreviewProps = {
   urls: string[] | string | undefined;
   onRemove?: (url: string) => void;
+  onClick?: (url: string) => void; // <-- add this
 };
 
-export default function AttachmentPreview({ urls, onRemove }: AttachmentPreviewProps) {
+export default function AttachmentPreview({ urls, onRemove, onClick }: AttachmentPreviewProps) {
   if (!urls) return null;
 
   const attachments = Array.isArray(urls) ? urls : [urls];
@@ -29,19 +30,18 @@ export default function AttachmentPreview({ urls, onRemove }: AttachmentPreviewP
         return (
           <div
             key={i}
-            className="relative flex flex-col items-center justify-center p-2 bg-gray-100 dark:bg-gray-800 rounded-lg flex-shrink-0 w-full "
+            onClick={() => onClick?.(url)} // <-- attach onClick here
+            className="relative flex flex-col items-center justify-center p-2 bg-gray-100 dark:bg-gray-800 rounded-lg flex-shrink-0 w-full cursor-pointer"
           >
-            {/* Image */}
             {type === "image" && (
               <img
                 src={url}
                 alt={`attachment-${i}`}
-                className="w-full h-60 object-cover rounded-lg cursor-pointer"
+                className="w-full h-60 object-cover rounded-lg"
                 loading="lazy"
               />
             )}
 
-            {/* Video */}
             {type === "video" && (
               <video
                 src={url}
@@ -50,15 +50,12 @@ export default function AttachmentPreview({ urls, onRemove }: AttachmentPreviewP
               />
             )}
 
-            {/* Audio */}
             {type === "audio" && (
               <div className="w-full">
-                {/* <AudioMessage file={url} /> */}
                 <audio controls src={url} className="w-full"></audio>
               </div>
             )}
 
-            {/* File */}
             {type === "file" && (
               <div className="flex flex-col items-center justify-center w-full h-60 text-xs text-gray-700 dark:text-gray-200 border border-dashed rounded-lg p-4">
                 <File className="w-8 h-8 mb-2" />
@@ -68,24 +65,14 @@ export default function AttachmentPreview({ urls, onRemove }: AttachmentPreviewP
               </div>
             )}
 
-            {/* Remove Button */}
             {onRemove && (
               <button
-                onClick={() => onRemove(url)}
+                onClick={(e) => { e.stopPropagation(); onRemove(url); }} // prevent triggering parent onClick
                 className="absolute top-2 right-2 p-1 rounded-full text-red-600 hover:text-white hover:bg-red-600"
               >
                 <X className="w-5 h-5" />
               </button>
             )}
-
-            {/* Download Button
-            <a
-              href={url}
-              download
-              className="absolute bottom-2 right-2 p-1 rounded text-green-600 hover:text-white hover:bg-green-600"
-            >
-              <Download className="w-5 h-5" />
-            </a> */}
           </div>
         );
       })}

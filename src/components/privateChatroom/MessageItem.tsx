@@ -1,13 +1,13 @@
 import type { PrivateChatMessage } from "@/dto/response/PrivateChatMessage";
 import type { ChatUserType } from "@/dto/UserTypes";
 import * as Avatar from "@radix-ui/react-avatar";
-import { CheckCheck, File } from "lucide-react";
+import { CheckCheck, File, Pen, Pin, Trash } from "lucide-react";
 import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuTrigger,
-} from "@/components/ui/context-menu"
+} from "@/components/ui/context-menu";
 export default function MessageItem({
   message,
   isOwn,
@@ -15,12 +15,12 @@ export default function MessageItem({
   filePath,
   onEdit,
   setPreviewModal,
-  onDelete
+  onDelete,
 }: {
   message: PrivateChatMessage;
   isOwn: boolean;
   user: ChatUserType;
-  filePath: string
+  filePath: string;
   onEdit: (id: string, content: string) => void;
   setPreviewModal: (preview: any) => void;
   onDelete: (messageId: number) => void;
@@ -46,19 +46,22 @@ export default function MessageItem({
 
       {/* Message bubble */}
       <ContextMenu>
-
         <div
-          className={`max-w-[70%] p-2 rounded-lg ${isOwn
-            ? "bg-primary text-white rounded-br-none"
-            : "bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-100 rounded-bl-none"
-            }`}
+          className={`max-w-[70%] p-2 rounded-lg ${
+            isOwn
+              ? "bg-primary text-white rounded-br-none"
+              : "bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-100 rounded-bl-none"
+          }`}
         >
           <ContextMenuTrigger>
             {message?.content && message?.content}
-
+            {message.duration && (
+              <p className="text-xs text-gray-500 mt-1">
+                Duration: {message.duration}
+              </p>
+            )}
             {/* Message content */}
             {message.attachment_url && (
-
               <div>
                 {filePath?.match(/\.(jpeg|jpg|png|gif)$/i) && (
                   <img
@@ -66,7 +69,10 @@ export default function MessageItem({
                     alt="attachment"
                     className="max-w-full max-h-60 rounded-lg cursor-pointer"
                     onClick={() =>
-                      setPreviewModal({ type: "image", url: message.attachment_url })
+                      setPreviewModal({
+                        type: "image",
+                        url: message.attachment_url,
+                      })
                     }
                   />
                 )}
@@ -84,14 +90,20 @@ export default function MessageItem({
                   // <AudioMessage file={message.attachment_url!} />
                 )}
 
-                {!filePath?.match(/\.(jpeg|jpg|png|gif|mp4|webm|mp3|wav)$/i) && (
+                {!filePath?.match(
+                  /\.(jpeg|jpg|png|gif|mp4|webm|mp3|wav)$/i
+                ) && (
                   <div className="relative flex flex-col items-center justify-center w-[200px] h-[200px] bg-gray-100 rounded-lg shadow-md p-4 hover:shadow-lg transition-shadow">
                     {/* File Icon */}
-                    <File className="w-12 h-12 text-slate-500 mb-2" onClick={() =>
-                      setPreviewModal({ type: "file", url: message.attachment_url })
-                    }/>
-
-
+                    <File
+                      className="w-12 h-12 text-slate-500 mb-2"
+                      onClick={() =>
+                        setPreviewModal({
+                          type: "file",
+                          url: message.attachment_url,
+                        })
+                      }
+                    />
                   </div>
                 )}
               </div>
@@ -100,25 +112,43 @@ export default function MessageItem({
 
           {/* Footer: time & actions */}
           <div className="flex justify-between items-center mt-1 text-xs text-slate-300 gap-2">
-            {
-              message?.is_edit === true && <span className="text-grey-500 italic">Edited</span>
-            }
+            {message?.is_edit === true && (
+              <span className="text-grey-500 italic">Edited</span>
+            )}
             <span>
-              {new Date(message.created_at || message.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+              {new Date(
+                message.created_at || message.created_at
+              ).toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+                hour12: true,
+              })}
             </span>
-
 
             {isOwn && (
               <span className="ml-2 flex items-center gap-1">
-                {message.is_delivered && <CheckCheck className="w-3 h-3 text-green" />}
+                {message.is_delivered && (
+                  <CheckCheck className="w-3 h-3 text-green" />
+                )}
                 <ContextMenuContent>
-                  {
-                    !filePath?.match(/\.(jpeg|jpg|png|gif|mp4|webm|mp3|wav)$/i) && <ContextMenuItem onClick={() => onEdit(message.id, message.content || message.content)}>Edit</ContextMenuItem>
-                  }
-                  <ContextMenuItem onClick={() => onDelete(Number(message.id))}>Delete</ContextMenuItem>
-                  <ContextMenuItem>Pin</ContextMenuItem>
+                  {!filePath?.match(
+                    /\.(jpeg|jpg|png|gif|mp4|webm|mp3|wav)$/i
+                  ) && (
+                    <ContextMenuItem
+                      onClick={() =>
+                        onEdit(message.id, message.content || message.content)
+                      }
+                    >
+                      <Pen className="w-4 h-4 mr-2" /> Edit
+                    </ContextMenuItem>
+                  )}
+                  <ContextMenuItem onClick={() => onDelete(Number(message.id))}>
+                    <Trash className="w-4 h-4 mr-2" /> Delete
+                  </ContextMenuItem>
+                  <ContextMenuItem>
+                    <Pin className="w-4 h-4 mr-2" /> Pin
+                  </ContextMenuItem>
                 </ContextMenuContent>
-
               </span>
             )}
           </div>

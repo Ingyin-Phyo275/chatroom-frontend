@@ -29,6 +29,7 @@ export default function PrivateCall({
   const ringtone = useRef<HTMLAudioElement | null>(null);
   const peerRef = useRef<RTCPeerConnection | null>(null);
 
+  const pendingCandidates = useRef<RTCIceCandidateInit[]>([]);
   const isCaller = !incomingCall;
 
   useEffect(() => {
@@ -42,7 +43,6 @@ export default function PrivateCall({
 //     console.log("enter call ended");
 //   });
 // }, []); //  
-
 
   const handleCallInitiated = ({ callData }: any) => {
     setCallData(callData);
@@ -126,120 +126,105 @@ export default function PrivateCall({
     }
   };
 
-  const handleCandidate = ({ candidate, from }: any) => {
-    if (from === userId) return;
-    console.log("Received ICE candidate:", candidate);
-    if (peerRef.current && candidate) {
-      peerRef.current.addIceCandidate(new RTCIceCandidate(candidate));
+const createPeerConnection = (otherId: number) => {
+  const pc = new RTCPeerConnection({
+    iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+  });
+
+  pc.ontrack = (event) => {
+    const [remoteStream] = event.streams;
+    if (remoteAudioRef.current) {
+      remoteAudioRef.current.srcObject = remoteStream;
+      remoteAudioRef.current.play().catch(() => {
+        document.body.addEventListener(
+          "click",
+          () => remoteAudioRef.current?.play().catch(() => {}),
+          { once: true }
+        );
+      });
     }
   };
 
-  const createPeerConnection = (otherId: number) => {
-    const pc = new RTCPeerConnection({
-      iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+  pc.onicecandidate = (event) => {
+    if (!event.candidate || !event.candidate.candidate) return; 
+    socket.emit("webrtc-candidate", {
+      receiver_id: otherId,
+      candidate: event.candidate,
     });
-
-    pc.ontrack = (event) => {
-      console.log("Received remote track:", event.streams);
-      const [remoteStream] = event.streams;
-
-      if (remoteAudioRef.current) {
-        remoteAudioRef.current.srcObject = remoteStream;
-
-        // Force playback  if autoplay is blocked
-        const playAudio = () => {
-          remoteAudioRef.current
-            ?.play()
-            .then(() => {
-              console.log("Remote audio playing");
-            })
-            .catch((err) => {
-              console.warn("Autoplay blocked, retrying:", err);
-              // retry after user gesture or small delay
-              document.body.addEventListener(
-                "click",
-                () => remoteAudioRef.current?.play().catch(() => {}),
-                { once: true }
-              );
-            });
-        };
-
-        playAudio();
-      } else {
-        console.warn(" remoteAudioRef is not attached to DOM yet");
-      }
-    };
-
-    pc.onicecandidate = (event) => {
-      console.log("Sending ICE candidate:", event.candidate);
-      if (event.candidate) {
-        socket.emit("webrtc-candidate", {
-          receiver_id: otherId,
-          candidate: event.candidate,
-        });
-      }
-    };
-
-    pc.onnegotiationneeded = async () => {
-      try {
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-        socket.emit("webrtc-offer", { receiver_id: otherId, sdp: offer });
-      } catch (err) {
-        console.error("Negotiation error:", err);
-      }
-    };
-    return pc;
   };
+  return pc;
+};
 
-  const initiateCall = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      console.log("Local stream tracks:", stream.getTracks());
-      localStreamRef.current = stream;
-      peerRef.current = createPeerConnection(receiver_id);
-      stream.getTracks().forEach((track) => {
-        peerRef.current?.addTrack(track, stream);
-      });
-      socket.emit("initiate-call", { receiver_id, call_type: "audio" });
-    } catch (err) {
-      console.error("Error initiating call:", err);
-    }
-  };
+// Caller: initiate call
+const initiateCall = async () => {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    localStreamRef.current = stream;
+    peerRef.current = createPeerConnection(receiver_id);
 
-  const acceptCall = async () => {
-    if (!remoteOffer) {
-      console.error("No SDP to accept call");
-      return;
-    }
-    try {
-      remoteAudioRef.current?.play().catch((err) => {
-        console.warn("Autoplay blocked:", err);
-      });
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      console.log("Local stream tracks:", stream.getTracks());
-      localStreamRef.current = stream;
+    // Add local tracks
+    stream.getTracks().forEach((track) => peerRef.current?.addTrack(track, stream));
 
-      peerRef.current = createPeerConnection(callData.from);
+    // Flush any pending ICE candidates
+    pendingCandidates.current.forEach((c) => peerRef.current?.addIceCandidate(new RTCIceCandidate(c)));
+    pendingCandidates.current = [];
 
-      stream.getTracks().forEach((track) => {
-        peerRef.current?.addTrack(track, stream);
-      });
-      await peerRef.current.setRemoteDescription(
-        new RTCSessionDescription(remoteOffer)
-      );
-      const answer = await peerRef.current.createAnswer();
-      await peerRef.current.setLocalDescription(answer);
-      socket.emit("webrtc-answer", { receiver_id: callData.from, sdp: answer });
+    // Create and send offer immediately
+    const offer = await peerRef.current.createOffer();
+    await peerRef.current.setLocalDescription(offer);
+    socket.emit("webrtc-offer", { receiver_id, sdp: offer });
 
-      setCallStarted(true);
-      setIsRinging(false);
-      ringtone.current?.pause();
-    } catch (err) {
-      console.error("Failed to accept call:", err);
-    }
-  };
+    // Notify server that call is initiated
+    socket.emit("initiate-call", { receiver_id, call_type: "audio" });
+  } catch (err) {
+    console.error("Error initiating call:", err);
+  }
+};
 
+// Receiver: accept call
+const acceptCall = async () => {
+  if (!remoteOffer) {
+    console.error("No SDP to accept call yet");
+    return;
+  }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    localStreamRef.current = stream;
+
+    peerRef.current = createPeerConnection(callData.from);
+
+    // Add local tracks
+    stream.getTracks().forEach((track) => peerRef.current?.addTrack(track, stream));
+
+    // Flush pending ICE candidates
+    pendingCandidates.current.forEach((c) => peerRef.current?.addIceCandidate(new RTCIceCandidate(c)));
+    pendingCandidates.current = [];
+
+    // Set remote description (offer from caller)
+    await peerRef.current.setRemoteDescription(new RTCSessionDescription(remoteOffer));
+
+    // Create and send answer
+    const answer = await peerRef.current.createAnswer();
+    await peerRef.current.setLocalDescription(answer);
+    socket.emit("webrtc-answer", { receiver_id: callData.from, sdp: answer });
+
+    setCallStarted(true);
+    setIsRinging(false);
+    ringtone.current?.pause();
+  } catch (err) {
+    console.error("Failed to accept call:", err);
+  }
+};
+
+// Handle incoming ICE candidates
+const handleCandidate = ({ candidate, from }: any) => {
+  if (from === userId || !candidate || !candidate.candidate) return;
+  if (peerRef.current) {
+    peerRef.current.addIceCandidate(new RTCIceCandidate(candidate)).catch(console.error);
+  } else {
+    pendingCandidates.current.push(candidate);
+  }
+};
   const endCall = () => {
     localStreamRef.current?.getTracks().forEach((track) => track.stop());
     peerRef.current?.close();
@@ -305,7 +290,7 @@ export default function PrivateCall({
       {!isCaller && isRinging && !callStarted && (
         <div className="flex flex-col items-center space-y-4 p-4 bg-white rounded-lg shadow-lg">
           <div className="w-16 h-16 rounded-full bg-gray-500 flex items-center justify-center text-white font-bold text-lg">
-            Receiver
+            {callerName?.slice(0, 2).toUpperCase()}
           </div>
           <p className="text-lg font-semibold">
             Incoming audio call from {callerName || "Unknown"}
@@ -368,7 +353,6 @@ export default function PrivateCall({
           </div>
         </div>
       )}
-
       <audio ref={ringtone} />
     </div>
   );
