@@ -1,4 +1,4 @@
-import { Download, File, X } from "lucide-react";
+import {  File, X } from "lucide-react";
 import AudioMessage from "../AudioPlayer";
 import type { Attachment } from "@/dto/types/Attachments";
 
@@ -24,25 +24,47 @@ export default function PendingAttachments({
           key={i}
           className="relative rounded-lg border dark:border-slate-600 p-2 flex flex-col items-center justify-center"
         >
+          {/* Image */}
           {att.type === "image" && att.url && (
-            <img
-              src={att.url}
-              alt={att.file.name}
-              className="max-w-[120px] max-h-[80px] rounded cursor-pointer"
-              onClick={() => setPreviewModal({ type: "image", url: att.url! })}
-            />
+            <>
+              <img
+                src={att.url}
+                alt={att.file.name}
+                className="max-w-[120px] max-h-[80px] rounded cursor-pointer"
+                onClick={() =>
+                  setPreviewModal({ type: "image", url: att.url! })
+                }
+              />
+              {/* Show X only for images */}
+              <button
+                onClick={() => {
+                  if (att.url) URL.revokeObjectURL(att.url);
+                  setPendingAttachments((prev) =>
+                    prev.filter((_, idx) => idx !== i)
+                  );
+                }}
+                className="absolute top-0 right-0 bg-red-500 text-white rounded-full p-1"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </>
           )}
 
+          {/* Video */}
           {att.type === "video" && att.url && (
             <video
               src={att.url}
               className="max-w-[120px] max-h-[80px] rounded cursor-pointer"
-              onClick={() => setPreviewModal({ type: "video", url: att.url! })}
+              onClick={() =>
+                setPreviewModal({ type: "video", url: att.url! })
+              }
             />
           )}
 
+          {/* Audio */}
           {att.type === "audio" && att.url && <AudioMessage file={att.url} />}
 
+          {/* File */}
           {att.type === "file" && (
             <div className="flex flex-col items-center text-xs">
               <File className="w-6 h-6" />
@@ -50,6 +72,7 @@ export default function PendingAttachments({
             </div>
           )}
 
+          {/* Actions (Download)
           <div className="flex gap-2 mt-1">
             {att.url && (
               <a
@@ -60,18 +83,7 @@ export default function PendingAttachments({
                 <Download className="w-4 h-4" />
               </a>
             )}
-            <button
-              onClick={() => {
-                if (att.url) URL.revokeObjectURL(att.url);
-                setPendingAttachments((prev) =>
-                  prev.filter((_, idx) => idx !== i)
-                );
-              }}
-              className="p-1 rounded text-red-600 hover:text-white hover:bg-red-600"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
+          </div> */}
         </div>
       ))}
     </div>

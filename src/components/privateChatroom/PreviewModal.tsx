@@ -1,4 +1,5 @@
 import { X, File } from "lucide-react";
+import { Button } from "../ui/button";
 
 type PreviewModalProps = {
   preview: {
@@ -53,12 +54,12 @@ export default function PreviewModal({ preview, onClose, onDownload }: PreviewMo
         {preview.type === "file" && (
           <File className="w-12 h-12 text-slate-500 mb-2" onClick={() => onDownload(preview.url, preview.name || "file")} />
         )}
-        <button
+        <Button
           onClick={() => handleDownload(preview.url)}
-          className="bg-blue-500 text-white px-4 py-2 rounded mt-3"
+          className="w-1/3 mx-auto my-2 cursor-pointer"
         >
           Download
-        </button>
+        </Button>
       </div>
     </div>
   );

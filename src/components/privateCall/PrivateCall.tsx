@@ -183,11 +183,13 @@ const initiateCall = async () => {
 
 // Receiver: accept call
 const acceptCall = async () => {
-  if (!remoteOffer) {
-    console.error("No SDP to accept call yet");
-    return;
-  }
+  console.log("remote offer", remoteOffer)
+  // if (!remoteOffer) {
+  //   console.error("No SDP to accept call yet");
+  //   return;
+  // }
   try {
+    socket.emit("accept-call", {call_id:callData?.id})
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     localStreamRef.current = stream;
 
@@ -201,7 +203,7 @@ const acceptCall = async () => {
     pendingCandidates.current = [];
 
     // Set remote description (offer from caller)
-    await peerRef.current.setRemoteDescription(new RTCSessionDescription(remoteOffer));
+    await peerRef.current.setRemoteDescription(new RTCSessionDescription(remoteOffer!));
 
     // Create and send answer
     const answer = await peerRef.current.createAnswer();
@@ -233,6 +235,8 @@ const handleCandidate = ({ candidate, from }: any) => {
 
     socket.emit("end-call", { call_id: callData?.id });
     setShowCall(false);
+    setIsRinging(false);
+    ringtone.current?.pause();
   };
 
   useEffect(() => {
@@ -289,6 +293,7 @@ const handleCandidate = ({ candidate, from }: any) => {
     <div className="relative flex flex-col items-center justify-center h-full p-4">
       {!isCaller && isRinging && !callStarted && (
         <div className="flex flex-col items-center space-y-4 p-4 bg-white rounded-lg shadow-lg">
+          <p className="bg-black text-2xl">Hello</p>
           <div className="w-16 h-16 rounded-full bg-gray-500 flex items-center justify-center text-white font-bold text-lg">
             {callerName?.slice(0, 2).toUpperCase()}
           </div>
@@ -336,7 +341,7 @@ const handleCandidate = ({ candidate, from }: any) => {
               {formatDuration(callDuration)}
             </p>
           </div>
-          <div className="flex gap-4 mt-4">
+          <div className="flex gap-4 mt-20 items-center flex-row">
             <button
               onClick={toggleMute}
               className="p-3 bg-gray-200 rounded-full"

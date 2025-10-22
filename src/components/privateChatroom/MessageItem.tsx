@@ -56,7 +56,7 @@ export default function MessageItem({
           <ContextMenuTrigger>
             {message?.content && message?.content}
             {message.duration && (
-              <p className="text-xs text-gray-500 mt-1">
+              <p className={`text-xs ${isOwn ? "text-slate-200" : "text-slate-400"}`}>
                 Duration: {message.duration}
               </p>
             )}

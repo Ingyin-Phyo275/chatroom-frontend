@@ -162,7 +162,7 @@ export default function ChatRoom({ user, loginUser }: { user: any; loginUser: an
     socket.emit("join", { userId: loginUser.user.id });
 
 const handleIncomingMessage = (msg: any) => {
-  console.log("[DEBUG] handleIncomingMessage called with:", msg);
+  //console.log("handleIncomingMessage called with:", msg);
 
   //  Extract the actual message
   const messageData = msg.message ?? msg;
@@ -175,7 +175,7 @@ const handleIncomingMessage = (msg: any) => {
     (String(newMsg.sender?.id ?? newMsg.sender) === String(loginUser.user.id) &&
       String(newMsg.receiver?.id ?? newMsg.receiver) === String(user.id));
   
-  console.log("[DEBUG] belongs check:", belongs);
+  console.log("belongs check:", belongs);
   if (!belongs) return;
 
   //  Update state
@@ -195,7 +195,7 @@ const handleIncomingMessage = (msg: any) => {
       updated = [...prev, newMsg];
     }
 
-    console.log("[DEBUG] messages updated inside setMessages:", updated);
+    console.log("messages updated inside setMessages:", updated);
     return filterMessages(updated);
   });
 };

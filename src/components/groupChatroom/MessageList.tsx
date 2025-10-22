@@ -9,7 +9,7 @@ import {
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuTrigger,
-} from "@/components/ui/context-menu"
+} from "@/components/ui/context-menu";
 
 type Props = {
   groupedMessages: Record<string, GetAllMessage[]>;
@@ -22,14 +22,14 @@ export default function GroupMessages({
   loginUser,
   onEditMessage,
 }: Props) {
-  // console.log("group message", groupedMessages)
   return (
     <div className="space-y-3">
       {Object.keys(groupedMessages).length === 0 && (
         <div className="text-center text-sm text-slate-400 mt-6">
-          No messages yet. Say hello
+          No messages yet. Say hello 👋
         </div>
       )}
+
       {Object.keys(groupedMessages).map((dayKey) => (
         <div key={dayKey} className="space-y-3">
           {/* Date header */}
@@ -38,9 +38,10 @@ export default function GroupMessages({
               {formatMessageDate(dayKey)}
             </span>
           </div>
+
           {groupedMessages[dayKey].map((m) => {
             const isOwn = m.sender?.id === loginUser.user.id;
-            //console.log("messages", m)
+
             return (
               <div
                 key={m.id}
@@ -49,6 +50,7 @@ export default function GroupMessages({
                 } gap-3`}
                 data-id={m.id}
               >
+                {/* Avatar for others */}
                 {!isOwn && (
                   <Avatar.Root className="w-10 h-10 rounded-full overflow-hidden">
                     <Avatar.Image
@@ -64,16 +66,16 @@ export default function GroupMessages({
                   </Avatar.Root>
                 )}
 
-                {/* Message bubble + actions */}
+                {/* Message + Context Menu */}
                 <ContextMenu>
-                    <div
-                      className={`max-w-[70%] p-2 rounded-lg cursor-pointer ${
-                        isOwn
-                          ? "bg-primary text-white"
-                          : "bg-slate-200 text-slate-900"
-                      }`}
-                    >
-                      <ContextMenuTrigger>
+                  <div
+                    className={`max-w-[70%] p-2 rounded-lg cursor-pointer ${
+                      isOwn
+                        ? "bg-primary text-white"
+                        : "bg-slate-200 text-slate-900"
+                    }`}
+                  >
+                    <ContextMenuTrigger>
                       <div>
                         {m.content && <p className="mb-1">{m.content}</p>}
 
@@ -87,45 +89,44 @@ export default function GroupMessages({
                             )}
                       </div>
                     </ContextMenuTrigger>
-                      {/* Time + status */}
-                      <div className="text-xs text-slate-300 mt-1 flex justify-between gap-2">
-                        {m.is_edit === true && (
-                          <span className="text-grey-500 italic">Edited</span>
-                        )}
-                        <span>
-                          {new Date(m.created_at!).toLocaleTimeString([], {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                            hour12: true,
-                          })}
-                        </span>
-                        {/* {isOwn && m.is_delivered && (
-                          <CheckCheck
-                            className={`w-3 h-3 ${
-                              m.isRead ? "text-white" : "text-gray-500"
-                            }`}
-                          />
-                        )} */}
-                        {isOwn && (
-                          <>
-                            {m?.is_delivered && !m?.isRead && (
-                              <span className="text-slate-300 italic">Delivered</span>
-                            )}
-                            {m?.isRead && (
-                              <span className="text-slate-300 italic">Seen</span>
-                            )}
-                          </>
-                        )}
-                      </div>
-                    </div>
 
-                  {/* Actions */}
+                    {/* Time + status */}
+                    <div className="text-xs text-slate-300 mt-1 flex justify-between gap-2">
+                      {m.is_edit && (
+                        <span className="italic text-gray-400">Edited</span>
+                      )}
+                      <span>
+                        {new Date(m.created_at!).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          hour12: true,
+                        })}
+                      </span>
+
+                      {/* Status for own messages */}
+                      {isOwn && (
+                        <>
+                          {m?.is_delivered && !m?.isRead && (
+                            <span className="italic text-slate-300">
+                              Delivered
+                            </span>
+                          )}
+                          {m?.isRead && (
+                            <span className="italic text-slate-300">Seen</span>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Right-click Context Menu */}
                   <ContextMenuContent>
                     <ContextMenuItem
                       onClick={() => alert(`Pin message: ${m.id}`)}
                     >
                       <Pin className="w-4 h-4 mr-2" /> Pin
                     </ContextMenuItem>
+
                     {isOwn && (
                       <ContextMenuItem
                         onClick={() =>
@@ -135,6 +136,7 @@ export default function GroupMessages({
                         <Pen className="w-4 h-4 mr-2" /> Edit
                       </ContextMenuItem>
                     )}
+
                     {isOwn && (
                       <ContextMenuItem
                         onClick={() => alert(`Delete message: ${m.id}`)}
