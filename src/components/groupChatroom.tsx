@@ -25,22 +25,18 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
   const [previewModal, setPreviewModal] = useState<{ type: string; url: string } | null>(null);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [messagesLoaded, setMessagesLoaded] = useState(false);
-  const [attachmentType, setattachmentType] = useState("image");
-
+  const attachmentType = "image";
   const [page, setPage] = useState(1);
   const [pageSize] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
   const [loadingMore, setLoadingMore] = useState(false);
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [newMessageCount, setNewMessageCount] = useState(0);
-
   const listRef = useRef<HTMLDivElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
   const audioInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-
   const [unreadCount, setUnreadCount] = useState(0);
   const loginId = loginUser.user.id.toString();
 
@@ -49,12 +45,12 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
 
   //reset after selected group change
   useEffect(() => {
-  setMessages([]);
-  setPendingAttachments([]);
-  setEditingMessageId(null);
-  setNewMessageCount(0);
-  setUnreadCount(0);
-}, [user.id]);
+    setMessages([]);
+    setPendingAttachments([]);
+    setEditingMessageId(null);
+    setNewMessageCount(0);
+    setUnreadCount(0);
+  }, [user.id]);
 
   //  Join chatroom
   useEffect(() => {
@@ -94,35 +90,56 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
   }, []);
 
   //  Listen for new messages (receiver side)
-useEffect(() => {
-  const handleNewMessage = (msg: GetAllMessage) => {
-    console.log("new message", msg)
-    const senderId = msg.sender?.id?.toString();
+  useEffect(() => {
+    const handleNewMessage = (msg: GetAllMessage) => {
+      console.log("new message", msg)
+      const senderId = msg.sender?.id?.toString();
 
-    // Add all messages from server (including the ones I just sent)
-    setMessages(prev => dedupeMessages([...prev, msg]));
-    (msg?.unreadCount!).map((m: any) => {
-      if(m?.userId === loginUser?.user?.id){
-        setValue(user?.id,m?.unreadCount);
-        setUnreadCount(m?.unreadCount);
-       // console.log("value form socket",value)
+      // Add all messages from server (including the ones I just sent)
+      setMessages(prev => dedupeMessages([...prev, msg]));
+      (msg?.unreadCount!).map((m: any) => {
+        if (m?.userId === loginUser?.user?.id) {
+          setValue(user?.id, m?.unreadCount);
+          setUnreadCount(m?.unreadCount);
+          // console.log("value form socket",value)
+        }
+      })
+
+      // If message is from other, send back to  server delivered socket
+      if (senderId !== loginId) {
+        socket.emit("message-delivered", { messageId: msg.id, receiverId: loginId });
+        setNewMessageCount(prev => (isAtBottom ? 0 : prev + 1));
       }
-    })
+    };
+    socket.on("receive-message", handleNewMessage);
+    socket.on("message-sent", handleNewMessage);
+    return () => {
+      socket.off("receive-message", handleNewMessage);
+      socket.off("message-sent", handleNewMessage);
+    };
+  }, [isAtBottom, loginId]);
 
-    // If message is from other, send back to  server delivered socket
-    if (senderId !== loginId) {
-      socket.emit("message-delivered", { messageId: msg.id, receiverId: loginId });
-      setNewMessageCount(prev => (isAtBottom ? 0 : prev + 1));
-    }
-  };
-  socket.on("receive-message", handleNewMessage);
-  socket.on("message-sent", handleNewMessage);
-  return () => {
-    socket.off("receive-message", handleNewMessage);
-    socket.off("message-sent", handleNewMessage);
-  };
-}, [isAtBottom, loginId]);
+  // Listen for "message-read" event (someone read the message)
+  useEffect(() => {
+    const handleMessageRead = (payload: { messageId: number; readerId: number; isRead: boolean }) => {
+      console.log("Incoming event: message-read", payload);
 
+      // Update the message state to mark as read
+      setMessages(prevMessages =>
+        prevMessages.map(msg =>
+          Number(msg.id) === Number(payload.messageId)
+            ? { ...msg, isRead: true }
+            : msg
+        )
+      );
+    };
+
+    socket.on("message-read", handleMessageRead);
+
+    return () => {
+      socket.off("message-read", handleMessageRead);
+    };
+  }, []);
 
   //  Fetch messages (pagination)
   const fetchPage = async (pageNumber: number) => {
@@ -141,8 +158,8 @@ useEffect(() => {
       attachment_url: Array.isArray(m.attachment_url)
         ? m.attachment_url
         : m.attachment_url
-        ? [m.attachment_url]
-        : [],
+          ? [m.attachment_url]
+          : [],
       is_delivered: m.is_delivered ?? false,
       is_pinned: m.is_pinned ?? false,
       is_edit: m.is_edit,
@@ -429,12 +446,7 @@ useEffect(() => {
         saveEditedMessage={saveEditedMessage}
         handleAttachmentClick={handleAttachmentClick}
         handleFileSelect={handleFileSelect}
-        inputRefs={{
-          imageInputRef,
-          videoInputRef,
-          audioInputRef,
-          fileInputRef,
-        }}
+        inputRefs={{ imageInputRef, videoInputRef, audioInputRef, fileInputRef }}
         showAttachmentMenu={showAttachmentMenu}
         setShowAttachmentMenu={setShowAttachmentMenu}
       />

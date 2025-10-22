@@ -36,14 +36,14 @@ export default function ChatRoom({ user, loginUser }: { user: any; loginUser: an
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Pagination
-    //@ts-ignore
+  //@ts-ignore
   const [page, setPage] = useState(1);
   const pageSize = 10;
   const [hasMore, setHasMore] = useState(true);
   const pageRef = useRef(1);
 
-    //reset after selected person change
-    useEffect(() => {
+  //reset after selected person change
+  useEffect(() => {
     setMessages([]);
     setPendingAttachments([]);
     setEditingMessageId(null);
@@ -110,9 +110,9 @@ export default function ChatRoom({ user, loginUser }: { user: any; loginUser: an
         )
       );
     };
-  
+
     socket.on("message-edited", handleMessageEdited);
-    return () => {socket.off("message-edited", handleMessageEdited)};
+    return () => { socket.off("message-edited", handleMessageEdited) };
   }, []);
 
   // Initial load
@@ -142,6 +142,7 @@ export default function ChatRoom({ user, loginUser }: { user: any; loginUser: an
       }
       const atBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 50;
       setIsAtBottom(atBottom);
+
       if (atBottom) setNewMessageCount(0);
     };
 
@@ -150,55 +151,55 @@ export default function ChatRoom({ user, loginUser }: { user: any; loginUser: an
   }, [hasMore]);
 
   //Socket event log
-      useEffect(() => {
-        socket.onAny((event, ...args) => {
-            console.log("[SOCKET EVENT] in group chat", event, args);
-        });
-    }, []);
+  useEffect(() => {
+    socket.onAny((event, ...args) => {
+      console.log("[SOCKET EVENT] in group chat", event, args);
+    });
+  }, []);
 
   // Socket join & listeners
   useEffect(() => {
     if (!socket) return;
     socket.emit("join", { userId: loginUser.user.id });
 
-const handleIncomingMessage = (msg: any) => {
-  //console.log("handleIncomingMessage called with:", msg);
+    const handleIncomingMessage = (msg: any) => {
+      //console.log("handleIncomingMessage called with:", msg);
 
-  //  Extract the actual message
-  const messageData = msg.message ?? msg;
-  const newMsg = transformMessageFromApi(messageData);
+      //  Extract the actual message
+      const messageData = msg.message ?? msg;
+      const newMsg = transformMessageFromApi(messageData);
 
-  //  Check if this message belongs to current chat
-  const belongs =
-    (String(newMsg.sender?.id ?? newMsg.sender) === String(user.id) &&
-      String(newMsg.receiver?.id ?? newMsg.receiver) === String(loginUser.user.id)) ||
-    (String(newMsg.sender?.id ?? newMsg.sender) === String(loginUser.user.id) &&
-      String(newMsg.receiver?.id ?? newMsg.receiver) === String(user.id));
-  
-  console.log("belongs check:", belongs);
-  if (!belongs) return;
+      //  Check if this message belongs to current chat
+      const belongs =
+        (String(newMsg.sender?.id ?? newMsg.sender) === String(user.id) &&
+          String(newMsg.receiver?.id ?? newMsg.receiver) === String(loginUser.user.id)) ||
+        (String(newMsg.sender?.id ?? newMsg.sender) === String(loginUser.user.id) &&
+          String(newMsg.receiver?.id ?? newMsg.receiver) === String(user.id));
 
-  //  Update state
-  setMessages((prev) => {
-    let updated;
-    const existingIndex = prev.findIndex(
-      (m) =>
-        m.sender === String(loginUser.user.id) &&
-        m.receiver === String(user.id) &&
-        Math.abs(new Date(m.created_at).getTime() - new Date(newMsg.created_at).getTime()) < 3000
-    );
+      console.log("belongs check:", belongs);
+      if (!belongs) return;
 
-    if (existingIndex !== -1) {
-      updated = [...prev];
-      updated[existingIndex] = newMsg;
-    } else {
-      updated = [...prev, newMsg];
-    }
+      //  Update state
+      setMessages((prev) => {
+        let updated;
+        const existingIndex = prev.findIndex(
+          (m) =>
+            m.sender === String(loginUser.user.id) &&
+            m.receiver === String(user.id) &&
+            Math.abs(new Date(m.created_at).getTime() - new Date(newMsg.created_at).getTime()) < 3000
+        );
 
-    console.log("messages updated inside setMessages:", updated);
-    return filterMessages(updated);
-  });
-};
+        if (existingIndex !== -1) {
+          updated = [...prev];
+          updated[existingIndex] = newMsg;
+        } else {
+          updated = [...prev, newMsg];
+        }
+
+        console.log("messages updated inside setMessages:", updated);
+        return filterMessages(updated);
+      });
+    };
 
     socket.on("receive-message", handleIncomingMessage); // messages from others
     socket.on("message-sent", handleIncomingMessage);    // messages from self
@@ -267,31 +268,31 @@ const handleIncomingMessage = (msg: any) => {
 
   // Edit message
   const saveEditedMessage = async () => {
-    if(!editingMessageId) return;
-    try{
+    if (!editingMessageId) return;
+    try {
       const messageIdNumber = Number(editingMessageId);
       const result = await editPrivateChatMessage({
         msgId: Number(editingMessageId),
         content: text
       });
       toast.success(result?.message || "Message updated");
-          setMessages((prev) => {
-            const updated = prev.map((msg) =>
-              msg.id === editingMessageId ? { ...msg, content: text } : msg
-            );
-            return [...updated]; // force new reference
-          });
-              // 3 Emit edit event to other members
-              socket.emit("edit-message", {
-                message_id: messageIdNumber,
-                new_content: text.trim(),
-                receiver_id: Number(user.id),
-                editor_id: Number(loginUser.user.id),
-              });
-      
-          setEditingMessageId(null);
-          setText("");
-    }catch(err){
+      setMessages((prev) => {
+        const updated = prev.map((msg) =>
+          msg.id === editingMessageId ? { ...msg, content: text } : msg
+        );
+        return [...updated]; // force new reference
+      });
+      // 3 Emit edit event to other members
+      socket.emit("edit-message", {
+        message_id: messageIdNumber,
+        new_content: text.trim(),
+        receiver_id: Number(user.id),
+        editor_id: Number(loginUser.user.id),
+      });
+
+      setEditingMessageId(null);
+      setText("");
+    } catch (err) {
       console.error("Failed to edit message:", err);
       toast?.error?.("Failed to edit message");
       return;
@@ -334,36 +335,36 @@ const handleIncomingMessage = (msg: any) => {
     setPendingAttachments((prev) => [...prev, ...newAttachments]);
   };
 
-useEffect(() => {
-  socket.on("message-deleted", ({ messageId }) => {
-    console.log("Message deleted event received:", messageId);
-    setMessages((prev) => {
-      const updated = prev.filter((msg) => String(msg.id) !== String(messageId));
-      console.log("Updated messages after delete:", updated);
-      return updated;
+  useEffect(() => {
+    socket.on("message-deleted", ({ messageId }) => {
+      console.log("Message deleted event received:", messageId);
+      setMessages((prev) => {
+        const updated = prev.filter((msg) => String(msg.id) !== String(messageId));
+        console.log("Updated messages after delete:", updated);
+        return updated;
+      });
     });
-  });
 
-  return () => {
-    socket.off("message-deleted");
+    return () => {
+      socket.off("message-deleted");
+    };
+  }, []);
+
+  const handleDeleteMessage = async (messageId: number) => {
+    try {
+      // await deleteMessage(messageId, user?.id); // delete in DB
+      socket.emit("delete-message", {
+        message_id: messageId,
+        sender_id: loginUser?.user?.id,
+        receiver_id: user?.id,
+      });
+    } catch (err) {
+      console.error("Failed to delete message:", err);
+      toast?.error?.("Failed to delete message");
+    }
   };
-}, []);
 
-const handleDeleteMessage = async (messageId: number) => {
-  try {
-   // await deleteMessage(messageId, user?.id); // delete in DB
-    socket.emit("delete-message", {
-      message_id: messageId,
-      sender_id: loginUser?.user?.id,
-      receiver_id: user?.id, 
-    });
-  } catch (err) {
-    console.error("Failed to delete message:", err);
-    toast?.error?.("Failed to delete message");
-  }
-};
-
-//console.log("chatroom message", messages)
+  //console.log("chatroom message", messages)
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)] relative">
       <MessageList
@@ -407,14 +408,14 @@ const handleDeleteMessage = async (messageId: number) => {
         setShowAttachmentMenu={setShowAttachmentMenu}
       />
 
-{previewModal && (
-  <PreviewModal
-  // @ts-ignore
-    preview={previewModal}
-    onClose={() => setPreviewModal(null)}
-    onDownload={handleDownload}
-  />
-)}
+      {previewModal && (
+        <PreviewModal
+          // @ts-ignore
+          preview={previewModal}
+          onClose={() => setPreviewModal(null)}
+          onDownload={handleDownload}
+        />
+      )}
     </div>
   );
 }

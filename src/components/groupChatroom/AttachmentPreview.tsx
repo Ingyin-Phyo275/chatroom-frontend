@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { File, X } from "lucide-react";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "../ui/button";
 
 type AttachmentPreviewProps = {
@@ -125,6 +125,8 @@ export default function AttachmentPreview({
       {/*  Preview Modal  */}
       <Dialog open={!!previewUrl} onOpenChange={() => setPreviewUrl(null)}>
         <DialogContent className="max-w-4xl">
+          <DialogTitle>Attachment Preview</DialogTitle>
+          <DialogDescription></DialogDescription>
           {previewUrl &&
             (() => {
               const type = getFileType(previewUrl);
