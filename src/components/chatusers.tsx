@@ -19,11 +19,11 @@ interface ChatUsersProps {
 }
 
 export default function ChatUsers({ tabs, onSelectUser }: ChatUsersProps) {
-  const { setValue, getValue, getType } = useCounterStore();
+  const { setValue, getValue } = useCounterStore();
   const [searchTerm, setSearchTerm] = React.useState("");
   const [filteredUsers, setFilteredUsers] = useState<ChatUserType[]>([]);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(13);
+  const page= 1;
+  const pageSize = 13;
 
   //group chats list
   const { groupChatListQuery: groupChatList = [] as GroupChatResponse[] } =
@@ -136,30 +136,19 @@ export default function ChatUsers({ tabs, onSelectUser }: ChatUsersProps) {
                 {user.username}
                 {tabs !== "Contacts" ? (
                   <>
-                    {(() => {
-                      const count = getValue(user.id);
-                      const type = getType(user.id);
+                    {tabs !== "Contacts" ? (
+                      (() => {
+                        const count = getValue(user.id, user.tabs ?? "Personal");
+                        //console.log("count in chat users", count);
 
-                      if (count <= 0) return null;
-
-                      if (type === "Group") {
-                        return (
-                          <Badge className="h-5 min-w-5 rounded-full px-1 ml-2 font-mono tabular-nums bg-green-500 text-white">
-                            {count}
-                          </Badge>
-                        );
-                      }
-
-                      if (type === "Personal") {
+                        if (count <= 0) return null;
                         return (
                           <Badge className="h-5 min-w-5 rounded-full px-1 ml-2 font-mono tabular-nums bg-blue-500 text-white">
                             {count}
                           </Badge>
                         );
-                      }
-
-                      return null;
-                    })()}
+                      })()
+                    ) : null}
                   </>
                 ) : null}
               </span>

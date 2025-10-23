@@ -249,7 +249,7 @@ export default function ChatroomPage({ selectedUser, loginUser }: chatroomPagePr
         </div>
 
         {showInfo && selectedUser && (
-          <div className="h-[calc(100vh-4rem)] dark:bg-slate-800 p-4 w-full lg:w-90 lg:border-l">
+          <div className="h-[calc(100vh-4rem)]  dark:bg-slate-800 p-4 w-full lg:w-90 lg:border-l">
             <div className="flex items-center mb-4 lg:hidden">
               <Button variant="ghost" onClick={() => setShowInfo(false)} className="mr-2">
                 <ArrowLeft />

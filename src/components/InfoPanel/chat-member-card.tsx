@@ -92,7 +92,7 @@ export default function ChatMembersCard({ chatMembers, chatroomId }: ChatMembers
             {chatMembers.map((member) => (
               <div
                 key={member.id}
-                className="flex items-center justify-between p-3 border-b dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md cursor-pointer"
+                className="flex items-center justify-between px-3 py-2 border-b dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md cursor-pointer"
               >
                 {/* Left: Avatar + Name/Status */}
                 <div className="flex items-center gap-3">

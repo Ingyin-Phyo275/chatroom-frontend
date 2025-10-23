@@ -42,11 +42,10 @@ export default function ChatRoom({
   const audioInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const { setValue } = useCounterStore();
 
-  const { value, setValue } = useCounterStore();
-
-  // Pagination
-  //@ts-ignore
+  //Pagination
+  // @ts-ignore
   const [page, setPage] = useState(1);
   const pageSize = 10;
   const [hasMore, setHasMore] = useState(true);
@@ -163,11 +162,16 @@ export default function ChatRoom({
 
     const handleScroll = () => {
       const container = chatContainerRef.current!;
-      const atBottom =
-        container.scrollHeight - container.scrollTop - container.clientHeight <
-        50;
+      const atBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 50;
       setIsAtBottom(atBottom);
       if (atBottom) setNewMessageCount(0);
+
+      // Detect top for infinite scroll
+      if (container.scrollTop < 50 && hasMore) {
+        const nextPage = pageRef.current + 1;
+        fetchMessages(nextPage);
+        pageRef.current = nextPage;
+      }
 
       requestAnimationFrame(() => {
         const messageEls = Array.from(
@@ -247,16 +251,16 @@ export default function ChatRoom({
           updated = [...prev, newMsg];
         }
 
-        console.log("messages updated inside setMessages:", updated);
+        //console.log("messages updated inside setMessages:", updated);
         return filterMessages(updated);
       });
 
       console.log("new message", msg);
       // (msg.unreadCount) && setValue(user.id,  0, "group");
-      if(msg?.sender?.id === loginUser?.user?.id) {
-        setValue(user?.id, 0 , "personal");
+      if (msg?.sender?.id === loginUser?.user?.id) {
+        setValue(user?.id, 0, "Personal");
       }
-      console.log("unreadcount", value)
+      //console.log("unreadcount in personal", value)
     };
 
     socket.on("private-receive-message", handleIncomingMessage); // messages from others

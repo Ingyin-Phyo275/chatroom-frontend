@@ -41,7 +41,7 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
   const loginId = loginUser.user.id.toString();
 
   //zustand store
-  const { setValue } = useCounterStore();
+  const { value, setValue } = useCounterStore();
 
   //reset after selected group change
   useEffect(() => {
@@ -99,9 +99,10 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
       setMessages(prev => dedupeMessages([...prev, msg]));
       (msg?.unreadCount!).map((m: any) => {
         if (m?.userId === loginUser?.user?.id) {
-          setValue(user?.id, m?.unreadCount, "group");
+          setValue(user?.id, m?.unreadCount, "Group");
           setUnreadCount(m?.unreadCount);
           // console.log("value form socket",value)
+          console.log("unreadcount in group chat", value)
         }
       })
 
