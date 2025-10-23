@@ -10,16 +10,16 @@ interface MediaItem {
 }
 
 interface ChatInfoViewMediaProps {
-  media?: string[]; 
+  media?: string[];
   messages?: any[];
-  chatroomId?: string
+  chatroomId?: string;
 }
 
 export default function ChatInfoViewMedia({ media }: ChatInfoViewMediaProps) {
   const [preview, setPreview] = useState<MediaItem | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
 
-  if (!media || media.length === 0) return null; 
+  if (!media || media.length === 0) return null;
 
   // Convert string URLs to MediaItem objects
   const mediaItems: MediaItem[] = media.map((url, idx) => ({
@@ -30,11 +30,10 @@ export default function ChatInfoViewMedia({ media }: ChatInfoViewMediaProps) {
 
   const itemsToShow = mediaItems.slice(0, 3);
   const remainingCount = mediaItems.length - 3;
-
-  console.log("media", media)
+  console.log("media", media);
   return (
     <div className="w-full max-w-md mx-auto mt-2 bg-secondary rounded-lg mb-10 p-2">
-      <p className="font-semibold mb-2">Media View</p>
+      <p className="font-semibold mb-2">View Media</p>
 
       {/* Thumbnails */}
       <div className="grid grid-cols-3 gap-2">
@@ -48,9 +47,19 @@ export default function ChatInfoViewMedia({ media }: ChatInfoViewMediaProps) {
             }}
           >
             {item.type === "image" ? (
-              <img src={item.url} alt={`media-${idx}`} className="w-full h-full object-cover" />
+              <img
+                src={item.url}
+                alt={`media-${idx}`}
+                className="w-full h-full object-cover"
+              />
             ) : (
-              <video src={item.url} className="w-full h-full object-cover" muted loop playsInline />
+              <video
+                src={item.url}
+                className="w-full h-full object-cover"
+                muted
+                loop
+                playsInline
+              />
             )}
 
             {idx === 2 && remainingCount > 0 && (
@@ -72,9 +81,18 @@ export default function ChatInfoViewMedia({ media }: ChatInfoViewMediaProps) {
             <X className="w-6 h-6" />
           </button>
           {preview.type === "image" ? (
-            <img src={preview.url} alt="preview" className="max-w-[90%] max-h-[90%] rounded-lg" />
+            <img
+              src={preview.url}
+              alt="preview"
+              className="max-w-[90%] max-h-[90%] rounded-lg"
+            />
           ) : (
-            <video src={preview.url} controls autoPlay className="max-w-[90%] max-h-[90%] rounded-lg" />
+            <video
+              src={preview.url}
+              controls
+              autoPlay
+              className="max-w-[90%] max-h-[90%] rounded-lg"
+            />
           )}
         </div>
       )}
@@ -90,25 +108,29 @@ export default function ChatInfoViewMedia({ media }: ChatInfoViewMediaProps) {
               <X className="w-6 h-6" />
             </button>
             <h2 className="text-lg font-semibold mb-4">All Media</h2>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 max-sm:grid-cols-2 gap-2 max-h-[17rem] overflow-y-auto pr-1">
               {mediaItems.map((item) => (
                 <div
                   key={item.id}
                   className="relative w-full h-32 overflow-hidden rounded-lg bg-gray-100 cursor-pointer border border-gray-500"
                   onClick={() => {
-                    setPreview(item);    // open fullscreen preview
-                    setModalOpen(false); // close the modal
+                    setPreview(item);
+                    setModalOpen(false);
                   }}
                 >
                   {item.type === "image" ? (
-                    <img src={item.url} alt="media" className="w-full h-full object-cover" />
+                    <img
+                      src={item.url}
+                      alt="media"
+                      className="w-full h-full object-cover"
+                    />
                   ) : (
-                <video
-                  src={item.url}
-                  className="w-full h-60 rounded-lg object-contain"
-                  controls
-                />                  
-                )}
+                    <video
+                      src={item.url}
+                      className="w-full h-full rounded-lg object-contain"
+                      controls
+                    />
+                  )}
                 </div>
               ))}
             </div>

@@ -52,7 +52,7 @@ export function AppSidebar({
   }
 
   return (
-    <Sidebar variant="inset" {...props}>
+    <Sidebar variant="inset" {...props} >
       <SidebarHeader className="flex items-center justify-center w-full mx-auto">
         <div className="border-b border-gray-200 dark:border-gray-700 text-sm w-full text-center">
           <div className=" flex items-center justify-between gap-5">

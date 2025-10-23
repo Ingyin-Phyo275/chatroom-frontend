@@ -41,12 +41,8 @@ export default function ChatInfoPanel({ selectedUser }: ChatInfoProps) {
   });
 
   // Attachment fetching 
-  const { attachments: privateAttachments, attachment_error: privateError } = useAttachment(
-    !isGroup ? selectedUser?.id : undefined
-  );
-  const { attachments: groupAttachments, attachment_error: groupError } = useGroupAttachment(
-    isGroup ? selectedUser?.id : undefined
-  );
+  const { attachments: privateAttachments, attachment_error: privateError } = useAttachment(!isGroup ? selectedUser?.id : undefined);
+  const { attachments: groupAttachments, attachment_error: groupError } = useGroupAttachment(isGroup ? selectedUser?.id : undefined);
 
   // Update attachments
   useEffect(() => {
@@ -73,10 +69,10 @@ export default function ChatInfoPanel({ selectedUser }: ChatInfoProps) {
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Make content scrollable */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-6">
+      <div className="flex-1 overflow-y-auto p-4 space-y-2">
         {/* Header */}
         <div className="flex flex-col items-center">
-          <Avatar.Root className="w-14 h-14 rounded-full overflow-hidden">
+          <Avatar.Root className="w-16 h-16 rounded-full overflow-hidden">
             {selectedUser?.avatar_url ? (
               <Avatar.Image
                 src={selectedUser.avatar_url}

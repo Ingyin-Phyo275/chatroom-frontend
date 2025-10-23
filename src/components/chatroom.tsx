@@ -4,22 +4,30 @@ import { filterMessages } from "@/utils/helper";
 import type { PrivateChatMessage } from "@/dto/response/PrivateChatMessage";
 import { uploadAttachment } from "@/http/api/privateChat/uploadAttachment";
 import { toast } from "sonner";
-import { deleteMessage } from "@/http/api/privateChat/deleteMessage";
-import { GetAllMessage } from "../http/api/privateChat/getAllMessage";
+import useCounterStore from "@/store/UnreadCount";
+import { GetAllMessage } from "@/http/api/privateChat/getAllMessage";
+import { editPrivateChatMessage } from "@/http/api/privateChat/editPrivateChatMessage";
 import MessageList from "./privateChatroom/MessageList";
 import AttachmentPreview from "./privateChatroom/AttachmentPreview";
 import ChatInput from "./privateChatroom/ChatInput";
 import PreviewModal from "./privateChatroom/PreviewModal";
+
 
 interface PreviewModal {
   preview: {
     type: "image" | "video" | "audio" | "file";
     url: string;
     name?: string;
-  }
+  };
 }
 
-export default function ChatRoom({ user, loginUser }: { user: any; loginUser: any }) {
+export default function ChatRoom({
+  user,
+  loginUser,
+}: {
+  user: any;
+  loginUser: any;
+}) {
   const [messages, setMessages] = useState<PrivateChatMessage[]>([]);
   const [text, setText] = useState("");
   const [pendingAttachments, setPendingAttachments] = useState<any[]>([]);
@@ -35,19 +43,33 @@ export default function ChatRoom({ user, loginUser }: { user: any; loginUser: an
   const audioInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Pagination
-    //@ts-ignore
+  const { setValue } = useCounterStore();
+
+  //Pagination
+  // @ts-ignore
   const [page, setPage] = useState(1);
   const pageSize = 10;
   const [hasMore, setHasMore] = useState(true);
   const pageRef = useRef(1);
+
+  //reset after selected person change
+  useEffect(() => {
+    setMessages([]);
+    setPendingAttachments([]);
+    setEditingMessageId(null);
+    setNewMessageCount(0);
+  }, [user.id]);
 
   // Transform API message to local format
   const transformMessageFromApi = (m: any): PrivateChatMessage => ({
     id: String(m.id),
     sender:
       m.sender && typeof m.sender === "object"
-        ? { id: m.sender.id, username: m.sender.username ?? "Unknown", avatar: m.sender.avatar_url ?? "" }
+        ? {
+            id: m.sender.id,
+            username: m.sender.username ?? "Unknown",
+            avatar: m.sender.avatar_url ?? "",
+          }
         : { id: String(m.sender ?? ""), username: "Unknown", avatar: "" },
     receiver:
       m.receiver && typeof m.receiver === "object"
@@ -61,16 +83,23 @@ export default function ChatRoom({ user, loginUser }: { user: any; loginUser: an
     is_delivered: m.is_delivered ?? false,
     is_pinned: m.is_pinned ?? false,
     is_group: m.is_group ?? false,
+    is_edit: m.is_edit,
+    isRead: m.isRead ?? false,
     pagination: m.pagination,
+    duration: m?.call?.duration,
   });
 
   // Scroll helper
   const scrollToBottom = (smooth = false) => {
     if (!chatContainerRef.current) return;
     if (smooth) {
-      chatContainerRef.current.scrollTo({ top: chatContainerRef.current.scrollHeight, behavior: "smooth" });
+      chatContainerRef.current.scrollTo({
+        top: chatContainerRef.current.scrollHeight,
+        behavior: "smooth",
+      });
     } else {
-      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+      chatContainerRef.current.scrollTop =
+        chatContainerRef.current.scrollHeight;
     }
     setIsAtBottom(true);
     setNewMessageCount(0);
@@ -79,15 +108,44 @@ export default function ChatRoom({ user, loginUser }: { user: any; loginUser: an
   // Fetch messages with pagination
   const fetchMessages = async (pageToFetch: number) => {
     try {
-      const res = await GetAllMessage({ receiverId: Number(user.id), page: pageToFetch, pageSize });
-      const newMsgs: PrivateChatMessage[] = (res.messages || []).map(transformMessageFromApi);
+      const res = await GetAllMessage({
+        receiverId: Number(user.id),
+        page: pageToFetch,
+        pageSize,
+      });
+      const newMsgs: PrivateChatMessage[] = (res.messages || []).map(
+        transformMessageFromApi
+      );
 
-      setMessages((prev) => (pageToFetch === 1 ? filterMessages(newMsgs) : filterMessages([...newMsgs, ...prev])));
+      // console.log("fetch message", res)
+      setMessages((prev) =>
+        pageToFetch === 1
+          ? filterMessages(newMsgs)
+          : filterMessages([...newMsgs, ...prev])
+      );
       setHasMore(newMsgs.length === pageSize);
     } catch (err) {
       console.error("Fetch messages failed:", err);
     }
   };
+
+  //handle edit message
+  useEffect(() => {
+    const handleMessageEdited = ({ message_id, new_content }: any) => {
+      setMessages((prev) =>
+        prev.map((msg) =>
+          Number(msg.id) === Number(message_id)
+            ? { ...msg, content: new_content, isEdited: true }
+            : msg
+        )
+      );
+    };
+
+    socket.on("message-edited", handleMessageEdited);
+    return () => {
+      socket.off("message-edited", handleMessageEdited);
+    };
+  }, []);
 
   // Initial load
   useEffect(() => {
@@ -100,71 +158,117 @@ export default function ChatRoom({ user, loginUser }: { user: any; loginUser: an
 
   // Infinite scroll
   useEffect(() => {
-    const container = chatContainerRef.current;
-    if (!container) return;
-    let fetching = false;
+    if (!chatContainerRef.current) return;
+    const readMessagesRef = new Set<string>();
 
     const handleScroll = () => {
-      if (container.scrollTop < 50 && hasMore && !fetching) {
-        fetching = true;
-        const nextPage = pageRef.current + 1;
-        fetchMessages(nextPage).then(() => {
-          pageRef.current = nextPage;
-          setPage(nextPage);
-          fetching = false;
-        });
-      }
+      const container = chatContainerRef.current!;
       const atBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 50;
       setIsAtBottom(atBottom);
       if (atBottom) setNewMessageCount(0);
+
+      // Detect top for infinite scroll
+      if (container.scrollTop < 50 && hasMore) {
+        const nextPage = pageRef.current + 1;
+        fetchMessages(nextPage);
+        pageRef.current = nextPage;
+      }
+
+      requestAnimationFrame(() => {
+        const messageEls = Array.from(
+          container.querySelectorAll<HTMLDivElement>(".message-item")
+        );
+        messageEls.forEach((el) => {
+          const msgId = el.dataset.id;
+          const senderId = el.dataset.senderId;
+          if (!msgId || readMessagesRef.has(msgId)) return;
+
+          if (String(senderId) !== String(loginUser.user.id)) {
+            socket.emit("message-read-private", {
+              messageId: Number(msgId),
+              readerId: Number(loginUser.user.id),
+              senderId: Number(user.id),
+            });
+            readMessagesRef.add(msgId);
+          }
+        });
+      });
     };
 
+    const container = chatContainerRef.current;
     container.addEventListener("scroll", handleScroll);
+    handleScroll(); // initial run
     return () => container.removeEventListener("scroll", handleScroll);
-  }, [hasMore]);
+  }, [loginUser.user.id, user.id]);
+
+  //Socket event log
+  // useEffect(() => {
+  //   socket.onAny((event, ...args) => {
+  //     console.log("[SOCKET EVENT] in group chat", event, args);
+  //   });
+  // }, []);
 
   // Socket join & listeners
   useEffect(() => {
     if (!socket) return;
-
     socket.emit("join", { userId: loginUser.user.id });
 
-const handleIncomingMessage = (msg: any) => {
-  const newMsg = transformMessageFromApi(msg);
-  const belongs =
-    (String(newMsg.sender?.id ?? newMsg.sender) === String(user.id) &&
-      String(newMsg.receiver?.id ?? newMsg.receiver) === String(loginUser.user.id)) ||
-    (String(newMsg.sender?.id ?? newMsg.sender) === String(loginUser.user.id) &&
-      String(newMsg.receiver?.id ?? newMsg.receiver) === String(user.id));
-  if (!belongs) return;
+    const handleIncomingMessage = (msg: any) => {
+      //console.log("handleIncomingMessage called with:", msg);
 
-  setMessages((prev) => {
-    // 🧠 Find optimistic message (same sender, receiver, and timestamp within a few seconds)
-    const existingIndex = prev.findIndex(
-      (m) =>
-        m.sender === String(loginUser.user.id) &&
-        m.receiver === String(user.id) &&
-        Math.abs(new Date(m.created_at).getTime() - new Date(newMsg.created_at).getTime()) < 3000
-    );
+      //  Extract the actual message
+      const messageData = msg.message ?? msg;
+      const newMsg = transformMessageFromApi(messageData);
 
-    if (existingIndex !== -1) {
-      // Replace optimistic message with server message
-      const updated = [...prev];
-      updated[existingIndex] = newMsg;
-      return filterMessages(updated);
-    }
+      //  Check if this message belongs to current chat
+      const belongs =
+        (String(newMsg.sender?.id ?? newMsg.sender) === String(user.id) &&
+          String(newMsg.receiver?.id ?? newMsg.receiver) ===
+            String(loginUser.user.id)) ||
+        (String(newMsg.sender?.id ?? newMsg.sender) ===
+          String(loginUser.user.id) &&
+          String(newMsg.receiver?.id ?? newMsg.receiver) === String(user.id));
 
-    // Otherwise add new one
-    return filterMessages([...prev, newMsg]);
-  });
-};
+      //console.log("belongs check:", belongs);
+      if (!belongs) return;
 
+      //  Update state
+      setMessages((prev) => {
+        let updated;
+        const existingIndex = prev.findIndex(
+          (m) =>
+            m.sender === String(loginUser.user.id) &&
+            m.receiver === String(user.id) &&
+            Math.abs(
+              new Date(m.created_at).getTime() -
+                new Date(newMsg.created_at).getTime()
+            ) < 3000
+        );
 
-    socket.on("receive-message", handleIncomingMessage); // messages from others
-    socket.on("message-sent", handleIncomingMessage);    // messages from self
+        if (existingIndex !== -1) {
+          updated = [...prev];
+          updated[existingIndex] = newMsg;
+        } else {
+          updated = [...prev, newMsg];
+        }
+
+        //console.log("messages updated inside setMessages:", updated);
+        return filterMessages(updated);
+      });
+
+      console.log("new message", msg);
+      // (msg.unreadCount) && setValue(user.id,  0, "group");
+      if (msg?.sender?.id === loginUser?.user?.id) {
+        setValue(user?.id, 0, "Personal");
+      }
+      //console.log("unreadcount in personal", value)
+    };
+
+    socket.on("private-receive-message", handleIncomingMessage); // messages from others
+    socket.on("message-sent", handleIncomingMessage); // messages from self
 
     return () => {
-      socket.off("receive-message", handleIncomingMessage);
+      socket.off("private-receive-message", handleIncomingMessage);
       socket.off("message-sent", handleIncomingMessage);
     };
   }, [loginUser.user.id, user.id, isAtBottom]);
@@ -179,14 +283,22 @@ const handleIncomingMessage = (msg: any) => {
     const trimmedText = text.trim();
     if (!trimmedText && pendingAttachments.length === 0) return;
 
-    const uploadedAttachments: { url: string; imagePath?: string | null; type: "image" | "video" | "audio" | "file" }[] = [];
+    const uploadedAttachments: {
+      url: string;
+      imagePath?: string | null;
+      type: "image" | "video" | "audio" | "file";
+    }[] = [];
 
     for (const attachment of pendingAttachments) {
       try {
-        const result = await uploadAttachment(attachment.file, attachment.type, user?.id);
+        const result = await uploadAttachment(
+          attachment.file,
+          attachment.type,
+          user?.id
+        );
         uploadedAttachments.push({
-          url: result.url,
-          imagePath: result?.imagePath ?? null,
+          url: "",
+          imagePath: result?.data?.imagePath ?? null,
           type: result?.type as "image" | "video" | "audio" | "file",
         });
       } catch (err) {
@@ -202,10 +314,20 @@ const handleIncomingMessage = (msg: any) => {
       receiver: String(user.id),
       content: trimmedText,
       created_at: new Date().toISOString(),
-      attachment_urls: uploadedAttachments.length > 0 ? uploadedAttachments.map(a => a.url) : null,
-      imagePaths: uploadedAttachments.length > 0 ? uploadedAttachments.map(a => a.imagePath) as string[] : null,
-      attachmentTypes: uploadedAttachments.length > 0 ? uploadedAttachments.map(a => a.type) : null,
+      attachment_urls:
+        uploadedAttachments.length > 0
+          ? uploadedAttachments.map((a) => a.url)
+          : null,
+      imagePaths:
+        uploadedAttachments.length > 0
+          ? (uploadedAttachments.map((a) => a.imagePath) as string[])
+          : null,
+      attachmentTypes:
+        uploadedAttachments.length > 0
+          ? uploadedAttachments.map((a) => a.type)
+          : null,
       is_delivered: false,
+      duration: "",
     };
 
     setMessages((prev) => [...prev, newMsg]);
@@ -213,6 +335,7 @@ const handleIncomingMessage = (msg: any) => {
     setPendingAttachments([]);
     scrollToBottom();
 
+    //console.log("new messages", messages)
     socket.emit("send-message", {
       sender_id: newMsg.sender,
       receiver_id: newMsg.receiver,
@@ -224,10 +347,36 @@ const handleIncomingMessage = (msg: any) => {
   };
 
   // Edit message
-  const saveEditedMessage = () => {
-    setMessages((prev) => prev.map((m) => (m.id === editingMessageId ? { ...m, content: text } : m)));
-    setEditingMessageId(null);
-    setText("");
+  const saveEditedMessage = async () => {
+    if (!editingMessageId) return;
+    try {
+      const messageIdNumber = Number(editingMessageId);
+      const result = await editPrivateChatMessage({
+        msgId: Number(editingMessageId),
+        content: text,
+      });
+      toast.success(result?.message || "Message updated");
+      setMessages((prev) => {
+        const updated = prev.map((msg) =>
+          msg.id === editingMessageId ? { ...msg, content: text } : msg
+        );
+        return [...updated]; // force new reference
+      });
+      // 3 Emit edit event to other members
+      socket.emit("edit-message", {
+        message_id: messageIdNumber,
+        new_content: text.trim(),
+        receiver_id: Number(user.id),
+        editor_id: Number(loginUser.user.id),
+      });
+
+      setEditingMessageId(null);
+      setText("");
+    } catch (err) {
+      console.error("Failed to edit message:", err);
+      toast?.error?.("Failed to edit message");
+      return;
+    }
   };
 
   const handleEditMessage = (id: string, content: string) => {
@@ -254,33 +403,82 @@ const handleIncomingMessage = (msg: any) => {
     if (type === "file") fileInputRef.current?.click();
   };
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>, type: string) => {
+  const handleFileSelect = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    type: string
+  ) => {
     const files = e.target.files;
     if (!files) return;
-
     const newAttachments = Array.from(files).map((file) => ({
       type,
       url: URL.createObjectURL(file),
       name: file.name,
       file,
     }));
-
     setPendingAttachments((prev) => [...prev, ...newAttachments]);
   };
 
-  // Delete message
+  useEffect(() => {
+    socket.on("message-deleted", ({ messageId }) => {
+      console.log("Message deleted event received:", messageId);
+      setMessages((prev) => {
+        const updated = prev.filter(
+          (msg) => String(msg.id) !== String(messageId)
+        );
+        console.log("Updated messages after delete:", updated);
+        return updated;
+      });
+    });
+
+    return () => {
+      socket.off("message-deleted");
+    };
+  }, []);
+
   const handleDeleteMessage = async (messageId: number) => {
     try {
-      await deleteMessage(messageId, user?.id);
-      await fetchMessages(1);
+      // await deleteMessage(messageId, user?.id); // delete in DB
+      socket.emit("delete-message", {
+        message_id: messageId,
+        sender_id: loginUser?.user?.id,
+        receiver_id: user?.id,
+      });
     } catch (err) {
       console.error("Failed to delete message:", err);
       toast?.error?.("Failed to delete message");
     }
   };
 
+  useEffect(() => {
+    const handleMessageReadPrivate = ({
+      messageId,
+      readerId,
+    }: {
+      messageId: number;
+      readerId: number;
+    }) => {
+      console.log(
+        "Private: message-read-private received",
+        messageId,
+        readerId
+      );
+
+      setMessages((prev) =>
+        prev.map((m) =>
+          Number(m.id) === Number(messageId) ? { ...m, isRead: true } : m
+        )
+      );
+    };
+
+    socket.on("message-read-private", handleMessageReadPrivate);
+    return () => {
+      socket.off("message-read-private", handleMessageReadPrivate);
+    };
+  }, []);
+
+  //console.log("chatroom message", messages)
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)] relative">
+    <div className="flex flex-col h-[calc(100vh-4rem)] relative bg-white">
       <MessageList
         messages={messages}
         loginUser={loginUser}
@@ -313,11 +511,19 @@ const handleIncomingMessage = (msg: any) => {
         setText={setText}
         sendMessage={sendMessage}
         editingMessageId={editingMessageId}
-        cancelEdit={() => { setEditingMessageId(null); setText(""); }}
+        cancelEdit={() => {
+          setEditingMessageId(null);
+          setText("");
+        }}
         saveEditedMessage={saveEditedMessage}
         handleAttachmentClick={handleAttachmentClick}
         handleFileSelect={handleFileSelect}
-        inputRefs={{ imageInputRef, videoInputRef, audioInputRef, fileInputRef }}
+        inputRefs={{
+          imageInputRef,
+          videoInputRef,
+          audioInputRef,
+          fileInputRef,
+        }}
         showAttachmentMenu={showAttachmentMenu}
         setShowAttachmentMenu={setShowAttachmentMenu}
       />

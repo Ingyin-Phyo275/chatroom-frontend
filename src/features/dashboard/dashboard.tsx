@@ -29,7 +29,7 @@ export default function Dashboard() {
           onSelectUser={setSelectedUser}
         />
         {/* Main content */}
-        <div className="flex-1 flex flex-col max-h-fit">
+        <div className="flex-1 flex flex-col max-h-screen">
           <SidebarInset>
             <ChatroomPage selectedUser={selectedUser!} loginUser={loginUser} />
           </SidebarInset>

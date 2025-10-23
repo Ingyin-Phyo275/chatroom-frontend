@@ -223,10 +223,10 @@ export default function ChatroomPage({ selectedUser, loginUser }: chatroomPagePr
           </div>
         </div>
       )}
-
+ 
       {/* Chat layout */}
-      <div className="flex-1 flex border-l h-[calc(100vh-4rem)]">
-        <div className={`flex-1 border-r lg:block ${showInfo ? "hidden lg:block" : "block"}`}>
+      <div className="flex-1 flex border-l  h-[calc(100vh-4rem)] ">
+        <div className={`flex-1  border-r lg:block ${showInfo ? "hidden lg:block" : "block"}`}>
           {selectedUser ? (
             selectedUser.is_group ? (
               <GroupChatRoom
@@ -242,7 +242,7 @@ export default function ChatroomPage({ selectedUser, loginUser }: chatroomPagePr
               />
             )
           ) : (
-            <div className="flex h-full items-center justify-center text-gray-400">
+            <div className="flex h-full items-center justify-center text-gray-400 ">
               Select a user to start chatting
             </div>
           )}
