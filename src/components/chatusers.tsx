@@ -19,22 +19,22 @@ interface ChatUsersProps {
 }
 
 export default function ChatUsers({ tabs, onSelectUser }: ChatUsersProps) {
-  
-  const {  setValue, getValue } = useCounterStore();
+  const { setValue, getValue, getType } = useCounterStore();
   const [searchTerm, setSearchTerm] = React.useState("");
   const [filteredUsers, setFilteredUsers] = useState<ChatUserType[]>([]);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(13);
-  
+
   //group chats list
-  const { groupChatListQuery: groupChatList = [] as GroupChatResponse[] } = useGroupChatList({ page, pageSize });
+  const { groupChatListQuery: groupChatList = [] as GroupChatResponse[] } =
+    useGroupChatList({ page, pageSize });
 
   //user's contact list
   const { userListData: contact = [] as UserListResponse[] } = userListQuery();
 
   //user's personal chat list
   const { userListData: users = [] as ChatUserType[] } = chatUserListQuery();
- // console.log("result in chat users", users);
+  // console.log("result in chat users", users);
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
@@ -62,7 +62,7 @@ export default function ChatUsers({ tabs, onSelectUser }: ChatUsersProps) {
           tabs: "Group",
           avatar_url: "",
           unreadCount: g.unreadCount,
-          last_seen: g.last_seen
+          last_seen: g.last_seen,
         }));
     } else {
       newFiltered = users
@@ -84,12 +84,11 @@ export default function ChatUsers({ tabs, onSelectUser }: ChatUsersProps) {
 
   React.useEffect(() => {
     filteredUsers.forEach((user) => {
-      setValue(user.id, user?.unreadCount || 0);
+      setValue(user.id, user?.unreadCount || 0, user?.tabs || "Personal");
     });
   }, [filteredUsers, setValue]);
 
-
- // console.log("filter users", filteredUsers)
+  // console.log("filter users", filteredUsers)
 
   return (
     <div className="flex flex-col h-full w-full">
@@ -137,11 +136,30 @@ export default function ChatUsers({ tabs, onSelectUser }: ChatUsersProps) {
                 {user.username}
                 {tabs !== "Contacts" ? (
                   <>
-                    {getValue(user.id) > 0 && (
-                      <Badge className="h-5 min-w-5 rounded-full px-1 ml-2 font-mono tabular-nums">
-                        {getValue(user.id)}
-                      </Badge>
-                    )}
+                    {(() => {
+                      const count = getValue(user.id);
+                      const type = getType(user.id);
+
+                      if (count <= 0) return null;
+
+                      if (type === "Group") {
+                        return (
+                          <Badge className="h-5 min-w-5 rounded-full px-1 ml-2 font-mono tabular-nums bg-green-500 text-white">
+                            {count}
+                          </Badge>
+                        );
+                      }
+
+                      if (type === "Personal") {
+                        return (
+                          <Badge className="h-5 min-w-5 rounded-full px-1 ml-2 font-mono tabular-nums bg-blue-500 text-white">
+                            {count}
+                          </Badge>
+                        );
+                      }
+
+                      return null;
+                    })()}
                   </>
                 ) : null}
               </span>
@@ -153,7 +171,9 @@ export default function ChatUsers({ tabs, onSelectUser }: ChatUsersProps) {
                       : "text-gray-400 dark:text-gray-300"
                   }`}
                 >
-                  {user.status === "online" ? "Online" : formatLastSeen(user?.last_seen)}
+                  {user.status === "online"
+                    ? "Online"
+                    : formatLastSeen(user?.last_seen)}
                 </span>
               )}
             </div>

@@ -45,9 +45,15 @@ export default function MessageItem({
       )}
 
       {/* Message bubble */}
+<div
+  className={`message-item flex ${isOwn ? "justify-end" : "justify-start"} gap-3`}
+  data-id={message.id}
+  data-sender-id={typeof message.sender === "object" ? message.sender.id : message.sender}
+>
+
       <ContextMenu>
         <div
-          className={`max-w-[70%] p-2 rounded-lg ${
+          className={`max-w-[100%] p-2 rounded-lg ${
             isOwn
               ? "bg-primary text-white rounded-br-none"
               : "bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-100 rounded-bl-none"
@@ -127,9 +133,15 @@ export default function MessageItem({
 
             {isOwn && (
               <span className="ml-2 flex items-center gap-1">
-                {message.is_delivered && (
-                  <CheckCheck className="w-3 h-3 text-green" />
-                )}
+                
+                          {message?.is_delivered && !message?.isRead && (
+                            <span className="italic text-slate-300">
+                              Delivered
+                            </span>
+                          )}
+                          {message?.isRead && (
+                            <span className="italic text-slate-300">Seen</span>
+                          )}
                 <ContextMenuContent>
                   {!filePath?.match(
                     /\.(jpeg|jpg|png|gif|mp4|webm|mp3|wav)$/i
@@ -154,6 +166,7 @@ export default function MessageItem({
           </div>
         </div>
       </ContextMenu>
+      </div>
     </div>
   );
 }
