@@ -16,6 +16,7 @@ export default function MessageItem({
   onEdit,
   setPreviewModal,
   onDelete,
+  onPin
 }: {
   message: PrivateChatMessage;
   isOwn: boolean;
@@ -24,6 +25,7 @@ export default function MessageItem({
   onEdit: (id: string, content: string) => void;
   setPreviewModal: (preview: any) => void;
   onDelete: (messageId: number) => void;
+  onPin: (messageId: number) => void;
 }) {
   const sender = user;
   // console.log("props",filePath);
@@ -140,37 +142,36 @@ export default function MessageItem({
                 })}
               </span>
 
-              {isOwn && (
+
                 <span className="ml-2 flex items-center gap-1">
-                  {message?.is_delivered && !message?.isRead && (
-                    <span className="italic text-slate-300">Delivered</span>
-                  )}
-                  {message?.isRead && (
-                    <span className="italic text-slate-300">Seen</span>
-                  )}
-                  <ContextMenuContent>
-                    {!filePath?.match(
-                      /\.(jpeg|jpg|png|gif|mp4|webm|mp3|wav)$/i
-                    ) && (
-                      <ContextMenuItem
-                        onClick={() =>
-                          onEdit(message.id, message.content || message.content)
-                        }
-                      >
-                        <Pen className="w-4 h-4 mr-2" /> Edit
-                      </ContextMenuItem>
-                    )}
-                    <ContextMenuItem
-                      onClick={() => onDelete(Number(message.id))}
-                    >
-                      <Trash className="w-4 h-4 mr-2" /> Delete
-                    </ContextMenuItem>
-                    <ContextMenuItem>
-                      <Pin className="w-4 h-4 mr-2" /> Pin
-                    </ContextMenuItem>
-                  </ContextMenuContent>
-                </span>
-              )}
+  {message?.is_delivered && !message?.isRead && (
+    <span className="italic text-slate-300">Delivered</span>
+  )}
+  {message?.isRead && (
+    <span className="italic text-slate-300">Seen</span>
+  )}
+
+  <ContextMenuContent>
+    {/* Sender-only actions */}
+    {isOwn && !filePath?.match(/\.(jpeg|jpg|png|gif|mp4|webm|mp3|wav)$/i) && (
+      <ContextMenuItem onClick={() => onEdit(message.id, message.content || "")}>
+        <Pen className="w-4 h-4 mr-2" /> Edit
+      </ContextMenuItem>
+    )}
+
+    {isOwn && (
+      <ContextMenuItem onClick={() => onDelete(Number(message.id))}>
+        <Trash className="w-4 h-4 mr-2" /> Delete
+      </ContextMenuItem>
+    )}
+
+    {/* Pin available for both sender and receiver */}
+    <ContextMenuItem onClick={() => onPin(Number(message.id))}>
+      <Pin className="w-4 h-4 mr-2" /> Pin
+    </ContextMenuItem>
+  </ContextMenuContent>
+</span>
+
             </div>
           </div>
         </ContextMenu>

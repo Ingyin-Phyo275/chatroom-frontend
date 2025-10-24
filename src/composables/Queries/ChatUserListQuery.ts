@@ -8,13 +8,15 @@ export const chatUserListQuery = () => {
         queryFn: async () => {
             const response = await getChatUserList();
             return response;
-        }
+        },
+        refetchOnWindowFocus: true,
+        refetchInterval: 3000
     });
-    // console.log("response data in mutation", userListData.data)
     return {
         userListData: userListData.data,
         isLoading: userListData.isLoading,
         isError: userListData.isError,
         error: userListData.error
     }
+
 }

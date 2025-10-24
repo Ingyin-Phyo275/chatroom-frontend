@@ -15,12 +15,14 @@ type Props = {
   groupedMessages: Record<string, GetAllMessage[]>;
   loginUser: loginResponse;
   onEditMessage: (id: string, text: string) => void;
+  onPin: (id: number) => void;
 };
 
 export default function GroupMessages({
   groupedMessages,
   loginUser,
   onEditMessage,
+  onPin
 }: Props) {
   return (
     <div className="space-y-3">
@@ -122,7 +124,7 @@ export default function GroupMessages({
                   {/* Right-click Context Menu */}
                   <ContextMenuContent>
                     <ContextMenuItem
-                      onClick={() => alert(`Pin message: ${m.id}`)}
+                      onClick={() => onPin(Number(m.id))}
                     >
                       <Pin className="w-4 h-4 mr-2" /> Pin
                     </ContextMenuItem>

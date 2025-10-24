@@ -410,6 +410,19 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
     return groups;
   }, {});
 
+    const handlePinMessage = async (messageId: number) => {
+    try {
+      socket.emit("group-message-pin", {
+        messageId,
+        isPinned: true,
+        receiverId: Number(user.id),
+      })
+    } catch (error) {
+      console.error("Error pinning message:", error);
+      toast.error("Failed to pin message");
+    }
+  }
+
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)] relative">
       <div ref={listRef} className="flex-1 overflow-auto p-4 space-y-3 bg-white">
@@ -417,6 +430,7 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
           groupedMessages={groupedMessages}
           loginUser={loginUser}
           onEditMessage={handleEditMessage}
+          onPin={handlePinMessage}
         />
       </div>
 

@@ -17,7 +17,8 @@ export default function MessageList({
   setPreviewModal,
   chatContainerRef,
   setIsAtBottom,
-  onDelete
+  onDelete,
+  onPin
 }: {
   messages: PrivateChatMessage[];
   loginUser: loginResponse;
@@ -28,6 +29,7 @@ export default function MessageList({
   chatContainerRef: React.RefObject<HTMLDivElement | null>;
   setIsAtBottom: (atBottom: boolean) => void;
   onDelete: (messageId: number) => void;
+  onPin: (messageId: number) => void;
 }) {
   // Track if user is at bottom
   useEffect(() => {
@@ -94,6 +96,7 @@ export default function MessageList({
                 onEdit={onEdit}
                 setPreviewModal={setPreviewModal}
                 onDelete={onDelete}
+                onPin={onPin}
               />
             );
           })}

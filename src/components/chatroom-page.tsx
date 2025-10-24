@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Info, Phone, Video, X } from "lucide-react";
+import { ArrowLeft, Info, Phone, Pin, Video, X } from "lucide-react";
 import type { ChatUserType } from "../dto/UserTypes";
 import { Button } from "./ui/button";
 import { SidebarTrigger } from "./ui/sidebar";
@@ -14,6 +14,10 @@ import GroupCall from "./groupCall/GroupCall";
 import formatLastSeen from "@/utils/helper";
 import { socket } from "@/socket/socket";
 import PrivateCall from "./privateCall/PrivateCall";
+import { toast } from "sonner";
+import { getPinnedMessage } from "../http/api/privateChat/getPinnedMessage";
+import PinnedActionMenu from "./PinnedActionMenu";
+import { getGroupPinnedMessage } from "../http/api/groupChat/getGroupPinnedMessage";
 
 type chatroomPageProps = {
   selectedUser: ChatUserType;
@@ -28,6 +32,9 @@ export default function ChatroomPage({ selectedUser, loginUser }: chatroomPagePr
   const [showPrivateCall, setShowPrivateCall] = useState(false);
   const [incomingCall, setIncomingCall] = useState<any>(null);
   const [incomingFromUser, setIncomingFromUser] = useState<any>(null); // store sender data
+
+    const [showPinnedModal, setShowPinnedModal] = useState(false);
+  const [pinnedMessages, setPinnedMessages] = useState<any[]>([]);
 
   // Listen globally for incoming group calls
   useEffect(() => {
@@ -81,7 +88,35 @@ export default function ChatroomPage({ selectedUser, loginUser }: chatroomPagePr
     };
   }, [loginUser.user.id]);
 
-  
+  const isGroup = selectedUser?.is_group === true;
+  // Handle pin message
+  const handlePinMessage = async () => {
+    try {
+      const response = isGroup ? await getGroupPinnedMessage(selectedUser.id) : await getPinnedMessage(selectedUser.id);
+      console.log("Pinned message response data:", response);
+      setPinnedMessages(response || []);
+      setShowPinnedModal(true);
+    } catch (error) {
+      console.error(error);
+      toast.error("Error fetching pinned messages");
+    }
+  };
+
+  //handle unpin message
+  const handleUnpinMessage = async (messageId: number) => {
+  try {
+   if(isGroup){
+    socket.emit("group-message-pin", { messageId, isPinned: false, receiverId: Number(selectedUser.id) });
+   }
+   socket.emit("message-pin", { messageId, isPinned: false, receiverId: Number(selectedUser.id) });
+    setPinnedMessages((prev) => prev.filter((msg) => msg.id !== messageId));
+    toast.success("Message unpinned successfully");
+  } catch (error) {
+    console.error("Error unpinning message:", error);
+    toast.error("Failed to unpin message");
+  }
+};
+
   return (
     <>
       {/* Header */}
@@ -129,6 +164,15 @@ export default function ChatroomPage({ selectedUser, loginUser }: chatroomPagePr
 
         {selectedUser && (
           <div className="flex items-center gap-2">
+          <Button
+              variant="ghost"
+              className="p-2 rounded"
+              onClick={() => {
+                handlePinMessage();
+              }}
+            >
+              <Pin className="w-6 h-6 text-primary" />
+            </Button>
             <Button
               variant="ghost"
               className="p-2 rounded"
@@ -223,6 +267,53 @@ export default function ChatroomPage({ selectedUser, loginUser }: chatroomPagePr
           </div>
         </div>
       )}
+
+            {/*  Pinned Messages Modal */}
+{showPinnedModal && (
+  <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+    <div className="relative bg-white dark:bg-slate-800 w-full max-w-md rounded-lg shadow-lg p-5 animate-fade-in">
+      <button
+        onClick={() => setShowPinnedModal(false)}
+        className="absolute top-3 right-3 text-gray-500 hover:text-gray-700"
+      >
+        <X className="w-5 h-5" />
+      </button>
+
+      <h2 className="text-lg font-semibold mb-4 text-primary flex items-center gap-2">
+        📌 Pinned Messages
+      </h2>
+
+      {pinnedMessages.length > 0 ? (
+        <ul className="space-y-3 max-h-80 overflow-y-auto">
+          {pinnedMessages.map((msg) => (
+            <li
+              key={msg.id}
+              className="p-3 bg-gray-100 dark:bg-slate-700 rounded-md flex justify-between items-start"
+            >
+              <div className="flex-1 pr-2">
+                <p className="text-sm text-gray-900 dark:text-gray-200">
+                  {msg.content}
+                </p>
+                <span className="text-xs text-gray-500 dark:text-gray-400">
+                  From: {msg.sender?.username}
+                </span>
+              </div>
+
+              {/* ⋮ Action Dropdown */}
+              <PinnedActionMenu
+                messageId={msg.id}
+                onUnpin={() => handleUnpinMessage(msg.id)}
+              />
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-sm text-gray-500">No pinned messages found.</p>
+      )}
+    </div>
+  </div>
+)}
+
  
       {/* Chat layout */}
       <div className="flex-1 flex border-l  h-[calc(100vh-4rem)] ">

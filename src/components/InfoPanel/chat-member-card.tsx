@@ -102,9 +102,9 @@ export default function ChatMembersCard({ chatMembers, chatroomId }: ChatMembers
                       {member.user?.id === loginUser.user.id ? member.user?.username + " (You)" : member.user?.username}
                       {/* {member.user?.username || "Unknown"} */}
                     </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate max-w-xs">
+                    {/* <p className="text-xs text-gray-500 dark:text-gray-400 truncate max-w-xs">
                       {member.user?.status === "offline" ? formatLastSeen(member?.user?.last_seen) : member?.user?.status}
-                    </p>
+                    </p> */}
                   </div>
                 </div>
 

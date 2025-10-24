@@ -65,10 +65,10 @@ export default function ChatRoom({
     sender:
       m.sender && typeof m.sender === "object"
         ? {
-            id: m.sender.id,
-            username: m.sender.username ?? "Unknown",
-            avatar: m.sender.avatar_url ?? "",
-          }
+          id: m.sender.id,
+          username: m.sender.username ?? "Unknown",
+          avatar: m.sender.avatar_url ?? "",
+        }
         : { id: String(m.sender ?? ""), username: "Unknown", avatar: "" },
     receiver:
       m.receiver && typeof m.receiver === "object"
@@ -223,7 +223,7 @@ export default function ChatRoom({
       const belongs =
         (String(newMsg.sender?.id ?? newMsg.sender) === String(user.id) &&
           String(newMsg.receiver?.id ?? newMsg.receiver) ===
-            String(loginUser.user.id)) ||
+          String(loginUser.user.id)) ||
         (String(newMsg.sender?.id ?? newMsg.sender) ===
           String(loginUser.user.id) &&
           String(newMsg.receiver?.id ?? newMsg.receiver) === String(user.id));
@@ -240,7 +240,7 @@ export default function ChatRoom({
             m.receiver === String(user.id) &&
             Math.abs(
               new Date(m.created_at).getTime() -
-                new Date(newMsg.created_at).getTime()
+              new Date(newMsg.created_at).getTime()
             ) < 3000
         );
 
@@ -256,9 +256,12 @@ export default function ChatRoom({
       });
 
       console.log("new message", msg);
-      // (msg.unreadCount) && setValue(user.id,  0, "group");
       if (msg?.sender?.id === loginUser?.user?.id) {
         setValue(user?.id, 0, "Personal");
+      }
+
+      if (String(msg?.sender?.id) !== String(loginUser.user.id)) {
+        setNewMessageCount(prev => (isAtBottom ? 0 : prev + 1));
       }
       //console.log("unreadcount in personal", value)
     };
@@ -475,6 +478,19 @@ export default function ChatRoom({
     };
   }, []);
 
+  const handlePinMessage = async (messageId: number) => {
+    try {
+      socket.emit("message-pin", {
+        messageId,
+        isPinned: true,
+        receiverId: Number(user.id),
+      })
+    } catch (error) {
+      console.error("Error pinning message:", error);
+      toast.error("Failed to pin message");
+    }
+  }
+
   //console.log("chatroom message", messages)
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)] relative">
@@ -488,6 +504,7 @@ export default function ChatRoom({
         chatContainerRef={chatContainerRef}
         setIsAtBottom={setIsAtBottom}
         onDelete={handleDeleteMessage}
+        onPin={handlePinMessage}
       />
 
       {!isAtBottom && newMessageCount > 0 && (

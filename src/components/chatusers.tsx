@@ -34,7 +34,6 @@ export default function ChatUsers({ tabs, onSelectUser }: ChatUsersProps) {
 
   //user's personal chat list
   const { userListData: users = [] as ChatUserType[] } = chatUserListQuery();
-  // console.log("result in chat users", users);
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
@@ -70,6 +69,7 @@ export default function ChatUsers({ tabs, onSelectUser }: ChatUsersProps) {
         .filter((user) =>
           user.username.toLowerCase().includes(searchTerm.toLowerCase())
         ) as ChatUserType[];
+        console.log("filtered users", newFiltered)
     }
     // Only update state if it’s different
     setFilteredUsers((prev) => {
