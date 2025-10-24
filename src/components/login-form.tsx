@@ -70,6 +70,7 @@ export function LoginForm({
                     },
                     token: res.token.access, 
                 });
+                
                 navigate("/dashboard");
             } else {
                 toast.error(res.message || "Login failed");

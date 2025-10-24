@@ -34,13 +34,12 @@ export default function ChatUsers({ tabs, onSelectUser }: ChatUsersProps) {
 
   //user's personal chat list
   const { userListData: users = [] as ChatUserType[] } = chatUserListQuery();
+  //console.log("new data refetch", users)
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
   };
 
-  //zustand
-  //console.log("zustand value", value)
 
   React.useEffect(() => {
     let newFiltered: ChatUserType[] = [];
