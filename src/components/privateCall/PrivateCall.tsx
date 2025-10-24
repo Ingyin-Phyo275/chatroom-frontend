@@ -42,7 +42,44 @@ export default function PrivateCall({
     setCallData(callData);
   };
 
+  //reject call
   useEffect(() => {
+  const handleCallRejected = (payload: any) => {
+    const callData = Array.isArray(payload) ? payload[0] : payload;
+    console.log("Call rejected event received:", callData);
+
+    // Stop local and remote streams
+    localStreamRef.current?.getTracks().forEach((track) => track.stop());
+    peerRef.current?.close();
+    peerRef.current = null;
+    localStreamRef.current = null;
+
+    if (remoteAudioRef.current?.srcObject) {
+      (remoteAudioRef.current.srcObject as MediaStream)
+        .getTracks()
+        .forEach((track) => track.stop());
+      remoteAudioRef.current.srcObject = null;
+    }
+
+    // Stop ringtone if playing
+    ringtone.current?.pause();
+    ringtone.current!.currentTime = 0;
+
+    // Close call UI
+    setShowCall(false);
+    setIsRinging(false);
+  };
+
+  socket.on("private-call-rejected", handleCallRejected);
+
+  return () => {
+    socket.off("private-call-rejected", handleCallRejected);
+  };
+}, []);
+
+
+  useEffect(() => {
+    
     socket.on("private-call-initiated", handleCallInitiated);
     return () => {
       socket.off("private-call-initiated", handleCallInitiated);
@@ -241,8 +278,8 @@ export default function PrivateCall({
 
     socket.emit("private-end-call", { call_id: callData?.id });
     setShowCall(false);
-    setIsRinging(false);
-    ringtone.current?.pause();
+      setIsRinging(false);
+      ringtone.current?.pause();
   };
 
   //call ended
@@ -295,6 +332,7 @@ export default function PrivateCall({
     }
   }, []);
 
+  
   return (
     <div className="relative flex flex-col items-center justify-center h-full p-4">
       {!isCaller && isRinging && !callStarted && (
