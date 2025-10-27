@@ -24,6 +24,8 @@ export default function ChatUsers({ tabs, onSelectUser }: ChatUsersProps) {
   const [filteredUsers, setFilteredUsers] = useState<ChatUserType[]>([]);
   const page= 1;
   const pageSize = 13;
+  const [selectedUser, setSelectedUser] = useState<ChatUserType | null>(null);
+
 
   //group chats list
   const { groupChatListQuery: groupChatList = [] as GroupChatResponse[] } =
@@ -77,9 +79,11 @@ export default function ChatUsers({ tabs, onSelectUser }: ChatUsersProps) {
     });
   }, [tabs, users, contact, groupChatList, searchTerm]);
 
-  const handleClick = async (user: ChatUserType) => {
-    onSelectUser(user);
-  };
+const handleClick = (user: ChatUserType) => {
+  setSelectedUser(user);
+  onSelectUser(user);
+};
+
 
   React.useEffect(() => {
     filteredUsers.forEach((user) => {
@@ -106,11 +110,17 @@ export default function ChatUsers({ tabs, onSelectUser }: ChatUsersProps) {
       {/* User / Group list */}
       <div className="flex-1 overflow-auto">
         {filteredUsers.map((user) => (
-          <div
-            key={user.id}
-            onClick={() => handleClick(user)}
-            className="flex items-center gap-3 px-4 py-3 border-b dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer"
-          >
+<div
+  key={user.id}
+  onClick={() => handleClick(user)}
+  className={`flex items-center gap-3 px-4 py-3 border-b dark:border-slate-700 cursor-pointer 
+    ${
+      selectedUser?.id === user.id
+        ? "bg-blue-100 dark:bg-blue-900" // 🔹 Active background color
+        : "hover:bg-slate-100 dark:hover:bg-slate-700"
+    }`}
+>
+
             {/* Avatar */}
             <div
               className={`relative w-10 h-10 ${
@@ -131,7 +141,8 @@ export default function ChatUsers({ tabs, onSelectUser }: ChatUsersProps) {
 
             {/* Name + status */}
             <div className="flex flex-col">
-              <span className="font-medium">
+
+                                  <span className="font-medium">
                 {user.username}
                 {tabs !== "Contacts" ? (
                   <>
@@ -151,6 +162,8 @@ export default function ChatUsers({ tabs, onSelectUser }: ChatUsersProps) {
                   </>
                 ) : null}
               </span>
+
+              
               {!user.is_group && (
                 <span
                   className={`text-xs ${

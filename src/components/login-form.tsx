@@ -24,6 +24,7 @@ import { useLogin } from "../composables/Commands/loginMutation";
 import useAuthStore from "../store/authStore";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { connectSocket } from "@/socket/socket";
 
 const formSchema = z.object({
     emailOrPhone: z.string().min(1, {
@@ -70,7 +71,7 @@ export function LoginForm({
                     },
                     token: res.token.access, 
                 });
-                
+                connectSocket();
                 navigate("/dashboard");
             } else {
                 toast.error(res.message || "Login failed");

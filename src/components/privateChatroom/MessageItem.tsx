@@ -1,7 +1,7 @@
 import type { PrivateChatMessage } from "@/dto/response/PrivateChatMessage";
 import type { ChatUserType } from "@/dto/UserTypes";
 import * as Avatar from "@radix-ui/react-avatar";
-import {  File, Pen, Pin, Trash } from "lucide-react";
+import { File, Pen, Pin, Trash } from "lucide-react";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -16,7 +16,7 @@ export default function MessageItem({
   onEdit,
   setPreviewModal,
   onDelete,
-  onPin
+  onPin,
 }: {
   message: PrivateChatMessage;
   isOwn: boolean;
@@ -142,36 +142,47 @@ export default function MessageItem({
                 })}
               </span>
 
+              <span className="ml-2 flex items-center gap-1">
+                {isOwn && (
+                  <>
+                    {message?.is_delivered && !message?.isRead && (
+                      <span className="italic text-slate-300">Delivered</span>
+                    )}
+                    {message?.isRead && (
+                      <span className="italic text-slate-300">Seen</span>
+                    )}
+                  </>
+                )}
 
-                <span className="ml-2 flex items-center gap-1">
-  {message?.is_delivered && !message?.isRead && (
-    <span className="italic text-slate-300">Delivered</span>
-  )}
-  {message?.isRead && (
-    <span className="italic text-slate-300">Seen</span>
-  )}
+                <ContextMenuContent>
+                  {/* Sender-only actions */}
+                  {isOwn &&
+                    !filePath?.match(
+                      /\.(jpeg|jpg|png|gif|mp4|webm|mp3|wav)$/i
+                    ) && (
+                      <ContextMenuItem
+                        onClick={() =>
+                          onEdit(message.id, message.content || "")
+                        }
+                      >
+                        <Pen className="w-4 h-4 mr-2" /> Edit
+                      </ContextMenuItem>
+                    )}
 
-  <ContextMenuContent>
-    {/* Sender-only actions */}
-    {isOwn && !filePath?.match(/\.(jpeg|jpg|png|gif|mp4|webm|mp3|wav)$/i) && (
-      <ContextMenuItem onClick={() => onEdit(message.id, message.content || "")}>
-        <Pen className="w-4 h-4 mr-2" /> Edit
-      </ContextMenuItem>
-    )}
+                  {isOwn && (
+                    <ContextMenuItem
+                      onClick={() => onDelete(Number(message.id))}
+                    >
+                      <Trash className="w-4 h-4 mr-2" /> Delete
+                    </ContextMenuItem>
+                  )}
 
-    {isOwn && (
-      <ContextMenuItem onClick={() => onDelete(Number(message.id))}>
-        <Trash className="w-4 h-4 mr-2" /> Delete
-      </ContextMenuItem>
-    )}
-
-    {/* Pin available for both sender and receiver */}
-    <ContextMenuItem onClick={() => onPin(Number(message.id))}>
-      <Pin className="w-4 h-4 mr-2" /> Pin
-    </ContextMenuItem>
-  </ContextMenuContent>
-</span>
-
+                  {/* Pin available for both sender and receiver */}
+                  <ContextMenuItem onClick={() => onPin(Number(message.id))}>
+                    <Pin className="w-4 h-4 mr-2" /> Pin
+                  </ContextMenuItem>
+                </ContextMenuContent>
+              </span>
             </div>
           </div>
         </ContextMenu>
