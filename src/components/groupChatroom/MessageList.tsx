@@ -16,14 +16,17 @@ type Props = {
   loginUser: loginResponse;
   onEditMessage: (id: string, text: string) => void;
   onPin: (id: number) => void;
+  onDelete: (id: number) => void;
 };
 
 export default function GroupMessages({
   groupedMessages,
   loginUser,
   onEditMessage,
-  onPin
+  onPin,
+  onDelete
 }: Props) {
+  //console.log("group messages", groupedMessages)
   return (
     <div className="space-y-3">
       {Object.keys(groupedMessages).length === 0 && (
@@ -119,6 +122,7 @@ export default function GroupMessages({
                         </>
                       )}
                     </div>
+                    
                   </div>
 
                   {/* Right-click Context Menu */}
@@ -141,7 +145,7 @@ export default function GroupMessages({
 
                     {isOwn && (
                       <ContextMenuItem
-                        onClick={() => alert(`Delete message: ${m.id}`)}
+                        onClick={() => onDelete(Number(m.id))}
                       >
                         <Trash className="w-4 h-4 mr-2" /> Delete
                       </ContextMenuItem>

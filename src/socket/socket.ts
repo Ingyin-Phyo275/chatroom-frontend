@@ -1,4 +1,5 @@
 import { io, Socket } from "socket.io-client";
+import useCounterStore from "../store/UnreadCount";
 
 // Your Socket.IO server URL from .env
 const socketServerURL = import.meta.env.VITE_SOCKET_SERVER_URL;
@@ -69,3 +70,22 @@ socket.on("incoming-group-call", (payload) => {
   const data = Array.isArray(payload) ? payload[0] : payload;
   window.dispatchEvent(new CustomEvent("incomingGroupCall", { detail: data }));
 });
+
+// Global listener for all group messages
+// socket.on("receive-message", (msg) => {
+//   console.log("📥 Global group message received:", msg);
+
+//   // update unread counts in Zustand store (or wherever you track them)
+//   const setValue = useCounterStore.getState().setValue;
+
+//   const groupId = msg?.chatroom_id || msg?.group_id;
+//   if (!groupId) return;
+
+//   // if user is not in that chatroom, increase unread count
+//   const currentPath = window.location.pathname;
+//   const isViewingThisGroup = currentPath.includes(String(groupId));
+
+//   if (!isViewingThisGroup) {
+//     setValue(groupId, 1, "Group"); // increment unread
+//   }
+// });

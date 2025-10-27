@@ -188,6 +188,7 @@ export default function ChatRoom({
               readerId: Number(loginUser.user.id),
               senderId: Number(user.id),
             });
+            setValue(user.id, 0, "Personal");
             readMessagesRef.add(msgId);
           }
         });
@@ -200,12 +201,7 @@ export default function ChatRoom({
     return () => container.removeEventListener("scroll", handleScroll);
   }, [loginUser.user.id, user.id]);
 
-  //Socket event log
-  // useEffect(() => {
-  //   socket.onAny((event, ...args) => {
-  //     console.log("[SOCKET EVENT] in group chat", event, args);
-  //   });
-  // }, []);
+
 
   // Socket join & listeners
   useEffect(() => {
@@ -470,6 +466,7 @@ export default function ChatRoom({
           Number(m.id) === Number(messageId) ? { ...m, isRead: true } : m
         )
       );
+      setValue(user.id, 0, "Personal");
     };
 
     socket.on("message-read-private", handleMessageReadPrivate);

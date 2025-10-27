@@ -8,7 +8,8 @@ import type { ChatUserType } from "@/dto/UserTypes";
 import { Archive, EllipsisVertical, Pin, Trash } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
-import { deleteChat } from "../http/api/groupChat/deleteChat";
+import { socket } from "../socket/socket";
+import { useEffect } from "react";
 interface ChatActionProps {
     user: ChatUserType
 }
@@ -17,14 +18,17 @@ export default function ChatAction({user}: ChatActionProps) {
   const loginUser = JSON.parse(localStorage.getItem('user')!);
   const handleDelete = async () => {
     try{
-      const chatId = user?.id;
-      const response = await deleteChat({chatId});
-      queryClient.invalidateQueries({ queryKey: ["groupChatList"] });
-      console.log("response", response);
+      socket.emit("delete-private-chat", {receiver_id: user?.id});
     }catch(error){
       toast.error("Error while deleting chat!");
     }
   }
+
+  useEffect( () => {
+    socket.on("private-chat-deleted", () => {
+      queryClient.invalidateQueries({ queryKey: ["chatUserList"] });
+    })
+  },[])
   return (
     <div>
       <DropdownMenu>
@@ -42,7 +46,11 @@ export default function ChatAction({user}: ChatActionProps) {
            <Pin className="w-4 h-4 mr-2" /> Pin 
           </DropdownMenuItem>
           <DropdownMenuItem
-            onClick={() => handleDelete()}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDelete()
+            }
+            }
           >
             <Trash className="w-4 h-4 mr-2" /> Delete
           </DropdownMenuItem>

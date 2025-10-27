@@ -9,8 +9,8 @@ export const chatUserListQuery = () => {
             const response = await getChatUserList();
             return response;
         },
-        refetchOnWindowFocus: true,
-        refetchInterval: 3000
+        // refetchOnWindowFocus: true,
+        // refetchInterval: 3000
     });
 //    console.log("Refetch data in every 3 seconds", userListData.data)
     return {

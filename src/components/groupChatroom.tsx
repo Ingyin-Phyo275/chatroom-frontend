@@ -14,6 +14,7 @@ import PendingAttachments from "./groupChatroom/PendingAttachments";
 import type { Attachment } from "@/dto/types/Attachments";
 import ChatInput from "./groupChatroom/ChatInput";
 import useCounterStore from "../store/UnreadCount";
+import { deleteMessage } from "../http/api/groupChat/deleteMessage";
 
 type Props = { user: ChatUserType; loginUser: loginResponse; key: string };
 
@@ -59,37 +60,10 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
       chatroom_id: user.id,
       user_id: loginUser.user.id,
     });
+    
   }, [user.id, loginUser.user.id]);
 
-  // Listen for "message-delivered-confirm" (sender side)
-  useEffect(() => {
-    const handleMessageDeliveredConfirm = ({ messageId }: { messageId: string | number }) => {
-      setMessages(prev =>
-        prev.map(msg =>
-          Number(msg.id) === Number(messageId) ? { ...msg, is_delivered: true } : msg
-        )
-      );
-    };
-    socket.on("message-delivered-confirm", handleMessageDeliveredConfirm);
-    return () => { socket.off("message-delivered-confirm", handleMessageDeliveredConfirm); };
-  }, []);
-
-  // Listen for message edits
-  useEffect(() => {
-    const handleMessageEdited = ({ message_id, new_content }: any) => {
-      setMessages(prev =>
-        prev.map(msg =>
-          Number(msg.id) === Number(message_id)
-            ? { ...msg, content: new_content, isEdited: true }
-            : msg
-        )
-      );
-    };
-    socket.on("message-edited", handleMessageEdited);
-    return () => { socket.off("message-edited", handleMessageEdited); };
-  }, []);
-
-  //  Listen for new messages (receiver side)
+    //  Listen for new messages (receiver side)
   useEffect(() => {
     const handleNewMessage = (msg: GetAllMessage) => {
       console.log("new message", msg)
@@ -120,27 +94,66 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
     };
   }, [isAtBottom, loginId]);
 
-  // Listen for "message-read" event (someone read the message)
-  useEffect(() => {
-    const handleMessageRead = (payload: { messageId: number; readerId: number; isRead: boolean }) => {
-      console.log("Incoming event: message-read", payload);
+  
 
-      // Update the message state to mark as read
-      setMessages(prevMessages =>
-        prevMessages.map(msg =>
-          Number(msg.id) === Number(payload.messageId)
-            ? { ...msg, isRead: true }
+  // Listen for "message-delivered-confirm" (sender side)
+  useEffect(() => {
+    const handleMessageDeliveredConfirm = ({ messageId }: { messageId: string | number }) => {
+      setMessages(prev =>
+        prev.map(msg =>
+          Number(msg.id) === Number(messageId) ? { ...msg, is_delivered: true } : msg
+        )
+      );
+    };
+    socket.on("message-delivered-confirm", handleMessageDeliveredConfirm);
+    return () => { socket.off("message-delivered-confirm", handleMessageDeliveredConfirm); };
+  }, []);
+
+  // Listen for message edits
+  useEffect(() => {
+    const handleMessageEdited = ({ message_id, new_content }: any) => {
+      setMessages(prev =>
+        prev.map(msg =>
+          Number(msg.id) === Number(message_id)
+            ? { ...msg, content: new_content, isEdited: true }
             : msg
         )
       );
     };
-
-    socket.on("message-read", handleMessageRead);
-
-    return () => {
-      socket.off("message-read", handleMessageRead);
-    };
+    socket.on("message-edited", handleMessageEdited);
+    return () => { socket.off("message-edited", handleMessageEdited); };
   }, []);
+
+
+
+  // Listen for "message-read" event (someone read the message)
+useEffect(() => {
+  const handleMessageRead = (payload: { messageId: number; receiverId: number; isRead: boolean; unreadCount: number }) => {
+    console.log("Incoming event: message-read", payload);
+
+    // Update the message state to mark as read
+    setMessages(prevMessages =>
+      prevMessages.map(msg =>
+        Number(msg.id) === Number(payload.messageId)
+          ? { ...msg, isRead: true }
+          : msg
+      )
+    );
+
+    // Set the new unread count from the payload
+    setUnreadCount(payload.unreadCount);
+
+    // Update Zustand store too
+    setValue(user.id, payload.unreadCount, "Group");
+  };
+
+  socket.on("message-read", handleMessageRead);
+
+  return () => {
+    socket.off("message-read", handleMessageRead);
+  };
+}, [user.id, setValue]);
+
 
   //  Fetch messages (pagination)
   const fetchPage = async (pageNumber: number) => {
@@ -423,6 +436,38 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
     }
   }
 
+
+    useEffect(() => {
+    socket.on("group-message-deleted", ({ messageId }) => {
+      console.log("Message deleted event received:", messageId);
+      setMessages((prev) => {
+        const updated = prev.filter(
+          (msg) => String(msg.id) !== String(messageId)
+        );
+        console.log("Updated messages after delete:", updated);
+        return updated;
+      });
+    });
+
+    return () => {
+      socket.off("group-message-deleted");
+    };
+  }, []);
+
+    const handleDeleteMessage = async (messageId: number) => {
+    try {
+      //await deleteMessage(messageId, (Number(user.id))); // delete in DB
+      socket.emit("group-delete-message", {
+        message_id: messageId,
+        sender_id: loginUser?.user?.id,
+        chatroom_id: Number(user.id),
+      });
+    } catch (err) {
+      console.error("Failed to delete message:", err);
+      toast?.error?.("Failed to delete message");
+    }
+  };
+
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)] relative">
       <div ref={listRef} className="flex-1 overflow-auto p-4 space-y-3 bg-white">
@@ -431,6 +476,7 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
           loginUser={loginUser}
           onEditMessage={handleEditMessage}
           onPin={handlePinMessage}
+          onDelete={handleDeleteMessage}
         />
       </div>
 
