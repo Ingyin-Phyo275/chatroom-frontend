@@ -116,7 +116,7 @@ export default function ChatRoom({
         transformMessageFromApi
       );
 
-      // console.log("fetch message", res)
+      //console.log("fetch message", res)
       setMessages((prev) =>
         pageToFetch === 1
           ? filterMessages(newMsgs)

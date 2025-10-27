@@ -31,6 +31,8 @@ export default function MessageList({
   onDelete: (messageId: number) => void;
   onPin: (messageId: number) => void;
 }) {
+    // console.log("Private messge", messages)
+
   // Track if user is at bottom
   useEffect(() => {
     const container = chatContainerRef.current;

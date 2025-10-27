@@ -28,8 +28,7 @@ export default function ChatUsers({ tabs, onSelectUser }: ChatUsersProps) {
 
 
   //group chats list
-  const { groupChatListQuery: groupChatList = [] as GroupChatResponse[] } =
-    useGroupChatList({ page, pageSize });
+  const { groupChatListQuery: groupChatList = [] as GroupChatResponse[] } = useGroupChatList({ page, pageSize });
 
   //user's contact list
   const { userListData: contact = [] as UserListResponse[] } = userListQuery();
@@ -116,8 +115,8 @@ const handleClick = (user: ChatUserType) => {
   className={`flex items-center gap-3 px-4 py-3 border-b dark:border-slate-700 cursor-pointer 
     ${
       selectedUser?.id === user.id
-        ? "bg-blue-100 dark:bg-blue-900" // 🔹 Active background color
-        : "hover:bg-slate-100 dark:hover:bg-slate-700"
+        ? "bg-primary-foreground dark:bg-blue-900 rounded-lg" //  Active background color
+        : "hover:bg-blue-100 dark:hover:bg-slate-700"
     }`}
 >
 

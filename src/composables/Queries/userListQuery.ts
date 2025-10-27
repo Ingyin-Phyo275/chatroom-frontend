@@ -8,7 +8,9 @@ export const userListQuery = () => {
         queryFn: async () => {
             const response = await userList();
             return response;
-        }
+        },
+                refetchOnWindowFocus: true,
+        refetchInterval: 3000
     });
     return {
         userListData: userListData.data,

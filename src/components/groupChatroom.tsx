@@ -14,7 +14,7 @@ import PendingAttachments from "./groupChatroom/PendingAttachments";
 import type { Attachment } from "@/dto/types/Attachments";
 import ChatInput from "./groupChatroom/ChatInput";
 import useCounterStore from "../store/UnreadCount";
-import { deleteMessage } from "../http/api/groupChat/deleteMessage";
+import { set } from "zod";
 
 type Props = { user: ChatUserType; loginUser: loginResponse; key: string };
 
@@ -63,38 +63,6 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
     
   }, [user.id, loginUser.user.id]);
 
-    //  Listen for new messages (receiver side)
-  useEffect(() => {
-    const handleNewMessage = (msg: GetAllMessage) => {
-      console.log("new message", msg)
-      const senderId = msg.sender?.id?.toString();
-
-      // Add all messages from server (including the ones I just sent)
-      setMessages(prev => dedupeMessages([...prev, msg]));
-      (msg?.unreadCount!).map((m: any) => {
-        if (m?.userId === loginUser?.user?.id) {
-          setValue(user?.id, m?.unreadCount, "Group");
-          setUnreadCount(m?.unreadCount);
-          // console.log("value form socket",value)
-          console.log("unreadcount in group chat", value)
-        }
-      })
-
-      // If message is from other, send back to  server delivered socket
-      if (senderId !== loginId) {
-        socket.emit("message-delivered", { messageId: msg.id, receiverId: loginId });
-        setNewMessageCount(prev => (isAtBottom ? 0 : prev + 1));
-      }
-    };
-    socket.on("receive-message", handleNewMessage);
-    socket.on("message-sent", handleNewMessage);
-    return () => {
-      socket.off("receive-message", handleNewMessage);
-      socket.off("message-sent", handleNewMessage);
-    };
-  }, [isAtBottom, loginId]);
-
-  
 
   // Listen for "message-delivered-confirm" (sender side)
   useEffect(() => {
@@ -124,6 +92,39 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
     return () => { socket.off("message-edited", handleMessageEdited); };
   }, []);
 
+
+    //  Listen for new messages (receiver side)
+  useEffect(() => {
+    console.log("enter listen messages")
+    const handleNewMessage = (msg: GetAllMessage) => {
+      console.log("new message", msg)
+      const senderId = msg.sender?.id?.toString();
+
+      // Add all messages from server (including the ones I just sent)
+      setMessages(prev => dedupeMessages([...prev, msg]));
+      (msg?.unreadCount!).map((m: any) => {
+        if (m?.userId === loginUser?.user?.id) {
+          setValue(user?.id, m?.unreadCount, "Group");
+          setUnreadCount(m?.unreadCount);
+          // console.log("value form socket",value)
+          console.log("unreadcount in group chat", value)
+        }
+      })
+
+      // If message is from other, send back to  server delivered socket
+
+      if (senderId !== loginId) {
+        socket.emit("message-delivered", { messageId: msg.id, receiverId: loginId });
+        setNewMessageCount(prev => (isAtBottom ? 0 : prev + 1));
+      }
+    };
+    socket.on("receive-message", handleNewMessage);
+    socket.on("message-sent", handleNewMessage);
+    return () => {
+      socket.off("receive-message", handleNewMessage);
+      socket.off("message-sent", handleNewMessage);
+    };
+  }, [isAtBottom, loginId]);
 
 
   // Listen for "message-read" event (someone read the message)
@@ -236,6 +237,8 @@ useEffect(() => {
         messageElements.forEach(el => {
           const msgId = el.dataset.id;
           const senderId = el.dataset.senderId;
+          // console.log("sender id", senderId);
+          // console.log("login id", loginId)
           if (!msgId || readMessagesRef.has(msgId) || senderId === loginId) return;
           socket.emit("message-read", { messageId: Number(msgId), readerId: loginId });
           readMessagesRef.add(msgId);
@@ -458,9 +461,9 @@ useEffect(() => {
     try {
       //await deleteMessage(messageId, (Number(user.id))); // delete in DB
       socket.emit("group-delete-message", {
-        message_id: messageId,
-        sender_id: loginUser?.user?.id,
-        chatroom_id: Number(user.id),
+        messageId: messageId,
+        deleterId: loginUser?.user?.id,
+        chatroomId: Number(user.id),
       });
     } catch (err) {
       console.error("Failed to delete message:", err);

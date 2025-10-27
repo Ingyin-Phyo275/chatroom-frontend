@@ -29,6 +29,7 @@ export default function MessageItem({
 }) {
   const sender = user;
   // console.log("props",filePath);
+  // console.log("Private messge", message)
 
   return (
     <div className={`flex ${isOwn ? "justify-end" : "justify-start"} gap-3`}>

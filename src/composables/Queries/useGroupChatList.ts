@@ -11,7 +11,9 @@ export const useGroupChatList = (data: GroupChatProps) => {
         queryFn: async () => {
             const response = await getChatrooms(data);
             return response;
-        }
+        },
+        refetchOnWindowFocus: true,
+        refetchInterval: 3000
     });
 //console.log("data in mutation", groupChatListQuery.data)
     return {

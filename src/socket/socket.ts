@@ -1,5 +1,4 @@
 import { io, Socket } from "socket.io-client";
-import useCounterStore from "../store/UnreadCount";
 
 // Your Socket.IO server URL from .env
 const socketServerURL = import.meta.env.VITE_SOCKET_SERVER_URL;

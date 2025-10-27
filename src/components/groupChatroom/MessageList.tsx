@@ -54,6 +54,7 @@ export default function GroupMessages({
                   isOwn ? "justify-end" : "justify-start"
                 } gap-3`}
                 data-id={m.id}
+                data-sender-id={m.sender?.id}
               >
                 {/* Avatar for others */}
                 {!isOwn && (
