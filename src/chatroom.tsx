@@ -156,50 +156,70 @@ export default function ChatRoom({
   }, [user.id]);
 
   // Infinite scroll
-  useEffect(() => {
-    if (!chatContainerRef.current) return;
-    const readMessagesRef = new Set<string>();
+  //handles the initial or non-scroll read
+useEffect(() => {
+  if (!chatContainerRef.current) return;
 
-    const handleScroll = () => {
-      const container = chatContainerRef.current!;
-      const atBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 50;
-      setIsAtBottom(atBottom);
-      if (atBottom) setNewMessageCount(0);
+  const container = chatContainerRef.current;
+  const messageEls = Array.from(container.querySelectorAll<HTMLDivElement>(".message-item"));
+  messageEls.forEach((el) => {
+    const msgId = el.dataset.id;
+    const senderId = el.dataset.senderId;
+    if (!msgId) return;
 
-      // Detect top for infinite scroll
-      if (container.scrollTop < 50 && hasMore) {
-        const nextPage = pageRef.current + 1;
-        fetchMessages(nextPage);
-        pageRef.current = nextPage;
-      }
-
-      requestAnimationFrame(() => {
-        const messageEls = Array.from(
-          container.querySelectorAll<HTMLDivElement>(".message-item")
-        );
-        messageEls.forEach((el) => {
-          const msgId = el.dataset.id;
-          const senderId = el.dataset.senderId;
-          if (!msgId || readMessagesRef.has(msgId)) return;
-
-          if (String(senderId) !== String(loginUser.user.id)) {
-            socket.emit("message-read-private", {
-              messageId: Number(msgId),
-              readerId: Number(loginUser.user.id),
-              senderId: Number(user.id),
-            });
-            setValue(user.id, 0, "Personal");
-            readMessagesRef.add(msgId);
-          }
-        });
+    if (String(senderId) !== String(loginUser.user.id)) {
+      socket.emit("message-read-private", {
+        messageId: Number(msgId),
+        readerId: Number(loginUser.user.id),
+        senderId: Number(user.id),
       });
-    };
+      setValue(user.id, 0, "Personal");
+    }
+  });
+}, [messages, loginUser.user.id, user.id]);
 
-    const container = chatContainerRef.current;
-    container.addEventListener("scroll", handleScroll);
-    handleScroll(); // initial run
-    return () => container.removeEventListener("scroll", handleScroll);
-  }, [loginUser.user.id, user.id]);
+//  Keep your scroll-based logic for dynamic reading
+useEffect(() => {
+  if (!chatContainerRef.current) return;
+  const readMessagesRef = new Set<string>();
+
+  const handleScroll = () => {
+    const container = chatContainerRef.current!;
+    const atBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 50;
+    setIsAtBottom(atBottom);
+    if (atBottom) setNewMessageCount(0);
+
+    if (container.scrollTop < 50 && hasMore) {
+      const nextPage = pageRef.current + 1;
+      fetchMessages(nextPage);
+      pageRef.current = nextPage;
+    }
+
+    requestAnimationFrame(() => {
+      const messageEls = Array.from(container.querySelectorAll<HTMLDivElement>(".message-item"));
+      messageEls.forEach((el) => {
+        const msgId = el.dataset.id;
+        const senderId = el.dataset.senderId;
+        if (!msgId || readMessagesRef.has(msgId)) return;
+
+        if (String(senderId) !== String(loginUser.user.id)) {
+          socket.emit("message-read-private", {
+            messageId: Number(msgId),
+            readerId: Number(loginUser.user.id),
+            senderId: Number(user.id),
+          });
+          setValue(user.id, 0, "Personal");
+          readMessagesRef.add(msgId);
+        }
+      });
+    });
+  };
+
+  const container = chatContainerRef.current;
+  container.addEventListener("scroll", handleScroll);
+  handleScroll(); // initial run
+  return () => container.removeEventListener("scroll", handleScroll);
+}, [loginUser.user.id, user.id]);
 
 
 

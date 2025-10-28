@@ -16,4 +16,5 @@ export interface GetAllMessage {
   is_edit?: boolean;
   unreadCount?: { userId: number; unreadCount: number }[];
   isRead?: boolean;
+  chatroom_id?: number;
 }

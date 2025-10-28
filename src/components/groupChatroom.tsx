@@ -14,7 +14,6 @@ import PendingAttachments from "./groupChatroom/PendingAttachments";
 import type { Attachment } from "@/dto/types/Attachments";
 import ChatInput from "./groupChatroom/ChatInput";
 import useCounterStore from "../store/UnreadCount";
-import { set } from "zod";
 
 type Props = { user: ChatUserType; loginUser: loginResponse; key: string };
 
@@ -60,7 +59,7 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
       chatroom_id: user.id,
       user_id: loginUser.user.id,
     });
-    
+
   }, [user.id, loginUser.user.id]);
 
 
@@ -93,31 +92,31 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
   }, []);
 
 
-    //  Listen for new messages (receiver side)
+  //  Listen for new messages (receiver side)
   useEffect(() => {
     console.log("enter listen messages")
     const handleNewMessage = (msg: GetAllMessage) => {
-      console.log("new message", msg)
       const senderId = msg.sender?.id?.toString();
+      const chatroomId = Number(user.id);
+      // Sometimes the server sends chatroom.id instead of chatroom_id
+      const messageChatroomId = Number(msg.chatroom_id ?? msg.chatroom?.id);
 
-      // Add all messages from server (including the ones I just sent)
+      console.log("chatroom id", chatroomId);
+      console.log("message chatroom id", messageChatroomId);
+
+      if (messageChatroomId !== chatroomId) {
+        console.log(`Message for room ${messageChatroomId}, but current room is ${chatroomId}. Ignoring.`);
+        return;
+      }
+
       setMessages(prev => dedupeMessages([...prev, msg]));
-      (msg?.unreadCount!).map((m: any) => {
-        if (m?.userId === loginUser?.user?.id) {
-          setValue(user?.id, m?.unreadCount, "Group");
-          setUnreadCount(m?.unreadCount);
-          // console.log("value form socket",value)
-          console.log("unreadcount in group chat", value)
-        }
-      })
-
-      // If message is from other, send back to  server delivered socket
 
       if (senderId !== loginId) {
         socket.emit("message-delivered", { messageId: msg.id, receiverId: loginId });
         setNewMessageCount(prev => (isAtBottom ? 0 : prev + 1));
       }
     };
+
     socket.on("receive-message", handleNewMessage);
     socket.on("message-sent", handleNewMessage);
     return () => {
@@ -128,32 +127,32 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
 
 
   // Listen for "message-read" event (someone read the message)
-useEffect(() => {
-  const handleMessageRead = (payload: { messageId: number; receiverId: number; isRead: boolean; unreadCount: number }) => {
-    console.log("Incoming event: message-read", payload);
+  useEffect(() => {
+    const handleMessageRead = (payload: { messageId: number; receiverId: number; isRead: boolean; unreadCount: number }) => {
+      console.log("Incoming event: message-read", payload);
 
-    // Update the message state to mark as read
-    setMessages(prevMessages =>
-      prevMessages.map(msg =>
-        Number(msg.id) === Number(payload.messageId)
-          ? { ...msg, isRead: true }
-          : msg
-      )
-    );
+      // Update the message state to mark as read
+      setMessages(prevMessages =>
+        prevMessages.map(msg =>
+          Number(msg.id) === Number(payload.messageId)
+            ? { ...msg, isRead: true }
+            : msg
+        )
+      );
 
-    // Set the new unread count from the payload
-    setUnreadCount(payload.unreadCount);
+      // Set the new unread count from the payload
+      setUnreadCount(payload.unreadCount);
 
-    // Update Zustand store too
-    setValue(user.id, payload.unreadCount, "Group");
-  };
+      // Update Zustand store too
+      setValue(user.id, payload.unreadCount, "Group");
+    };
 
-  socket.on("message-read", handleMessageRead);
+    socket.on("message-read", handleMessageRead);
 
-  return () => {
-    socket.off("message-read", handleMessageRead);
-  };
-}, [user.id, setValue]);
+    return () => {
+      socket.off("message-read", handleMessageRead);
+    };
+  }, [user.id, setValue]);
 
 
   //  Fetch messages (pagination)
@@ -180,6 +179,7 @@ useEffect(() => {
       is_edit: m.is_edit,
       is_group: true,
       isRead: m.isRead,
+
     }));
 
     return { chatMessages, totalPage: chatroom.totalPage ?? 1 };
@@ -224,6 +224,25 @@ useEffect(() => {
     if (!messagesLoaded) return;
     const readMessagesRef = new Set<string>();
 
+    const markVisibleMessagesAsRead = () => {
+      if (!listRef.current) return;
+      const messageElements = Array.from(
+        listRef.current.querySelectorAll<HTMLDivElement>(".message-item")
+      );
+
+      messageElements.forEach((el) => {
+        const msgId = el.dataset.id;
+        const senderId = el.dataset.senderId;
+        if (!msgId || readMessagesRef.has(msgId) || senderId === String(loginId)) return;
+
+        socket.emit("message-read", {
+          messageId: Number(msgId),
+          readerId: loginId,
+        });
+        readMessagesRef.add(msgId);
+      });
+    };
+
     const handleScroll = async () => {
       if (!listRef.current) return;
       const { scrollTop, scrollHeight, clientHeight } = listRef.current;
@@ -231,32 +250,22 @@ useEffect(() => {
       setIsAtBottom(atBottom);
       if (atBottom) setNewMessageCount(0);
 
-      // mark visible messages as read (receiver only)
-      requestAnimationFrame(() => {
-        const messageElements = Array.from(listRef.current!.querySelectorAll<HTMLDivElement>(".message-item"));
-        messageElements.forEach(el => {
-          const msgId = el.dataset.id;
-          const senderId = el.dataset.senderId;
-          // console.log("sender id", senderId);
-          // console.log("login id", loginId)
-          if (!msgId || readMessagesRef.has(msgId) || senderId === loginId) return;
-          socket.emit("message-read", { messageId: Number(msgId), readerId: loginId });
-          readMessagesRef.add(msgId);
-        });
-      });
+      // Mark visible messages as read
+      requestAnimationFrame(markVisibleMessagesAsRead);
 
-      // load older messages if near top
+      // Load older messages if near top
       if (scrollTop < 50 && !loadingMore && page > 1) {
         setLoadingMore(true);
         const nextPage = page - 1;
         try {
           const { chatMessages } = await fetchPage(nextPage);
           const currentScrollHeight = listRef.current.scrollHeight;
-          setMessages(prev => dedupeMessages([...chatMessages, ...prev]));
+          setMessages((prev) => dedupeMessages([...chatMessages, ...prev]));
           setPage(nextPage);
           setTimeout(() => {
             if (listRef.current)
-              listRef.current.scrollTop = listRef.current.scrollHeight - currentScrollHeight;
+              listRef.current.scrollTop =
+                listRef.current.scrollHeight - currentScrollHeight;
           }, 50);
         } catch (err) {
           console.error("Failed to load older messages:", err);
@@ -268,14 +277,41 @@ useEffect(() => {
 
     const currentList = listRef.current;
     if (currentList) currentList.addEventListener("scroll", handleScroll);
+
+    // Run once initially to handle "no scroll" chats
     handleScroll();
+    markVisibleMessagesAsRead();
+
     return () => currentList?.removeEventListener("scroll", handleScroll);
   }, [messagesLoaded, page, loadingMore, loginId]);
 
+  // Additional effect to handle new message batches (no scroll case)
+  useEffect(() => {
+    if (!listRef.current || !messagesLoaded) return;
+
+    const messageElements = Array.from(
+      listRef.current.querySelectorAll<HTMLDivElement>(".message-item")
+    );
+
+    messageElements.forEach((el) => {
+      const msgId = el.dataset.id;
+      const senderId = el.dataset.senderId;
+      if (!msgId || senderId === String(loginId)) return;
+
+      socket.emit("message-read", {
+        messageId: Number(msgId),
+        readerId: loginId,
+      });
+    });
+  }, [messages, messagesLoaded, loginId]);
+
+
+  // scroll to bottom
   const scrollToBottom = () => {
     if (listRef.current)
       listRef.current.scrollTop = listRef.current.scrollHeight;
   };
+
 
   // Send message
   const sendMessage = async () => {
@@ -426,7 +462,7 @@ useEffect(() => {
     return groups;
   }, {});
 
-    const handlePinMessage = async (messageId: number) => {
+  const handlePinMessage = async (messageId: number) => {
     try {
       socket.emit("group-message-pin", {
         messageId,
@@ -440,7 +476,7 @@ useEffect(() => {
   }
 
 
-    useEffect(() => {
+  useEffect(() => {
     socket.on("group-message-deleted", ({ messageId }) => {
       console.log("Message deleted event received:", messageId);
       setMessages((prev) => {
@@ -457,9 +493,8 @@ useEffect(() => {
     };
   }, []);
 
-    const handleDeleteMessage = async (messageId: number) => {
+  const handleDeleteMessage = async (messageId: number) => {
     try {
-      //await deleteMessage(messageId, (Number(user.id))); // delete in DB
       socket.emit("group-delete-message", {
         messageId: messageId,
         deleterId: loginUser?.user?.id,
