@@ -1,4 +1,5 @@
 import { io, Socket } from "socket.io-client";
+import useCounterStore from "../store/UnreadCount";
 
 // Your Socket.IO server URL from .env
 const socketServerURL = import.meta.env.VITE_SOCKET_SERVER_URL;
@@ -46,6 +47,19 @@ export const disconnectSocket = () => {
 
 socket.on("connect", () => {
   console.log("✅ Socket connected! Socket ID:", socket.id);
+  socket.on("receive-message", (msg) => {
+    console.log("global receive-message", msg);
+
+    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    let unreadCount = 0;
+
+    msg?.unreadCount?.forEach((unread: any) => {
+      if (unread.user_id === user?.id) unreadCount = unread.count;
+    });
+
+    const { setValue } = useCounterStore.getState();
+    setValue(msg?.chatroom_id, unreadCount, "Group");
+  });
 });
 
 socket.on("disconnect", (reason) => {
@@ -69,6 +83,24 @@ socket.on("incoming-group-call", (payload) => {
   const data = Array.isArray(payload) ? payload[0] : payload;
   window.dispatchEvent(new CustomEvent("incomingGroupCall", { detail: data }));
 });
+
+// socket.on("receive-message", (msg) => {
+//   console.log("global receive-message", msg)
+//   console.log("chatroom id", msg?.chatroom_id)
+//   console.log("unread count global", msg?.unreadCount)
+//     const user = JSON.parse(localStorage.getItem("user") || "{}");
+//   console.log("login user", user?.id)
+
+//   let unreadCount;
+
+//   msg?.unreadCount.map((unread: any) => {
+//     if (unread.user_id === user?.id) {
+//       unreadCount = unread.count;
+//     }
+//   })
+//   const { setValue } = useCounterStore();
+//   setValue(msg?.chatroom_id, unreadCount, "Group");
+// });
 
 // Global listener for all group messages
 // socket.on("receive-message", (msg) => {

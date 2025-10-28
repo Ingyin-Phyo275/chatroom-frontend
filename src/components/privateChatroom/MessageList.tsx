@@ -28,7 +28,7 @@ export default function MessageList({
   setPreviewModal: (preview: any) => void;
   chatContainerRef: React.RefObject<HTMLDivElement | null>;
   setIsAtBottom: (atBottom: boolean) => void;
-  onDelete: (messageId: number) => void;
+  onDelete: (messageId: number, is_everyone: boolean) => void;
   onPin: (messageId: number) => void;
 }) {
     // console.log("Private messge", messages)

@@ -6,8 +6,12 @@ import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
+  ContextMenuSub,
+  ContextMenuSubContent,
+  ContextMenuSubTrigger,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
+import { DropdownMenuSeparator } from "../ui/dropdown-menu";
 export default function MessageItem({
   message,
   isOwn,
@@ -24,7 +28,7 @@ export default function MessageItem({
   filePath: string;
   onEdit: (id: string, content: string) => void;
   setPreviewModal: (preview: any) => void;
-  onDelete: (messageId: number) => void;
+  onDelete: (messageId: number, is_everyone: boolean) => void;
   onPin: (messageId: number) => void;
 }) {
   const sender = user;
@@ -49,9 +53,8 @@ export default function MessageItem({
 
       {/* Message bubble */}
       <div
-        className={`message-item flex ${
-          isOwn ? "justify-end" : "justify-start"
-        } gap-3`}
+        className={`message-item flex ${isOwn ? "justify-end" : "justify-start"
+          } gap-3`}
         data-id={message.id}
         data-sender-id={
           typeof message.sender === "object"
@@ -61,19 +64,17 @@ export default function MessageItem({
       >
         <ContextMenu>
           <div
-            className={`max-w-[100%] p-2 rounded-lg ${
-              isOwn
+            className={`max-w-[100%] p-2 rounded-lg ${isOwn
                 ? "bg-primary text-white rounded-br-none"
                 : "bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-100 rounded-bl-none"
-            }`}
+              }`}
           >
             <ContextMenuTrigger>
               {message?.content && message?.content}
               {message.duration && (
                 <p
-                  className={`text-xs ${
-                    isOwn ? "text-slate-200" : "text-slate-400"
-                  }`}
+                  className={`text-xs ${isOwn ? "text-slate-200" : "text-slate-400"
+                    }`}
                 >
                   Duration: {message.duration}
                 </p>
@@ -111,19 +112,19 @@ export default function MessageItem({
                   {!filePath?.match(
                     /\.(jpeg|jpg|png|gif|mp4|webm|mp3|wav)$/i
                   ) && (
-                    <div className="relative flex flex-col items-center justify-center w-[200px] h-[200px] bg-gray-100 rounded-lg shadow-md p-4 hover:shadow-lg transition-shadow">
-                      {/* File Icon */}
-                      <File
-                        className="w-12 h-12 text-slate-500 mb-2"
-                        onClick={() =>
-                          setPreviewModal({
-                            type: "file",
-                            url: message.attachment_url,
-                          })
-                        }
-                      />
-                    </div>
-                  )}
+                      <div className="relative flex flex-col items-center justify-center w-[200px] h-[200px] bg-gray-100 rounded-lg shadow-md p-4 hover:shadow-lg transition-shadow">
+                        {/* File Icon */}
+                        <File
+                          className="w-12 h-12 text-slate-500 mb-2"
+                          onClick={() =>
+                            setPreviewModal({
+                              type: "file",
+                              url: message.attachment_url,
+                            })
+                          }
+                        />
+                      </div>
+                    )}
                 </div>
               )}
             </ContextMenuTrigger>
@@ -171,11 +172,22 @@ export default function MessageItem({
                     )}
 
                   {isOwn && (
-                    <ContextMenuItem
-                      onClick={() => onDelete(Number(message.id))}
-                    >
-                      <Trash className="w-4 h-4 mr-2" /> Delete
-                    </ContextMenuItem>
+                    // <ContextMenuItem
+                    //   onClick={() => onDelete(Number(message.id))}
+                    // >
+                    //   <Trash className="w-4 h-4 mr-2" /> Delete
+                    // </ContextMenuItem>
+                    <ContextMenuSub>
+                      <ContextMenuSubTrigger>
+                        <Trash className="w-4 h-4 mr-auto" /> Delete
+                      </ContextMenuSubTrigger>
+                      <ContextMenuSubContent className="w-44">
+                        <ContextMenuItem onClick={() => onDelete(Number(message.id), false)}>Delete For Me</ContextMenuItem>
+                        <DropdownMenuSeparator />
+                        <ContextMenuItem onClick={() => onDelete(Number(message.id), true)}>Delete For Everyone</ContextMenuItem>
+                      </ContextMenuSubContent>
+                    </ContextMenuSub>
+
                   )}
 
                   {/* Pin available for both sender and receiver */}

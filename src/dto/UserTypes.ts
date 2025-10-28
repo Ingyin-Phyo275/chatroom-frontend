@@ -8,7 +8,7 @@ export type ChatUserType = {
   avatar_url?: string;
   unreadCount?: number;
   last_seen?: string
-};
+} ;
 
 
 export interface AllChats {

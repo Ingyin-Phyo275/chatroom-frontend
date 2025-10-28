@@ -12,8 +12,10 @@ import { socket } from "../socket/socket";
 import { useEffect } from "react";
 interface ChatActionProps {
     user: ChatUserType
+    onSelectUser: (user: ChatUserType) => void;
 }
-export default function ChatAction({user}: ChatActionProps) {
+
+export default function ChatAction({user, onSelectUser}: ChatActionProps) {
   const queryClient = useQueryClient();
   const loginUser = JSON.parse(localStorage.getItem('user')!);
   const handleDelete = async () => {
@@ -27,6 +29,8 @@ export default function ChatAction({user}: ChatActionProps) {
   useEffect( () => {
     socket.on("private-chat-deleted", () => {
       queryClient.invalidateQueries({ queryKey: ["chatUserList"] });
+      //@ts-ignore
+      onSelectUser(null);
     })
   },[])
   return (

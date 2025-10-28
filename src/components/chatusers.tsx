@@ -178,7 +178,7 @@ const handleClick = (user: ChatUserType) => {
               )}
             </div>
             <div className="ml-auto">
-              <ChatAction user={user} />
+              <ChatAction user={user} onSelectUser={onSelectUser}/>
             </div>
           </div>
         ))}

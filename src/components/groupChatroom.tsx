@@ -41,7 +41,7 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
   const loginId = loginUser.user.id.toString();
 
   //zustand store
-  const { value, setValue } = useCounterStore();
+  const { setValue } = useCounterStore();
 
   //reset after selected group change
   useEffect(() => {

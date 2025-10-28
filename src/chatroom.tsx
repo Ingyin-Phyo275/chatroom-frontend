@@ -11,6 +11,7 @@ import PreviewModal from "./components/privateChatroom/PreviewModal";
 import { GetAllMessage } from "./http/api/privateChat/getAllMessage";
 import { editPrivateChatMessage } from "./http/api/privateChat/editPrivateChatMessage";
 import useCounterStore from "./store/UnreadCount";
+import { is } from "zod/v4/locales";
 
 interface PreviewModal {
   preview: {
@@ -453,13 +454,14 @@ useEffect(() => {
     };
   }, []);
 
-  const handleDeleteMessage = async (messageId: number) => {
+  const handleDeleteMessage = async (messageId: number, is_everyone: boolean) => {
     try {
       // await deleteMessage(messageId, user?.id); // delete in DB
       socket.emit("delete-message", {
         message_id: messageId,
         sender_id: loginUser?.user?.id,
         receiver_id: user?.id,
+        is_everyone,
       });
     } catch (err) {
       console.error("Failed to delete message:", err);
