@@ -38,7 +38,8 @@ export default function ChatInput({
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {if(e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();
-            sendMessage()}
+            editingMessageId ? saveEditedMessage() : sendMessage();
+          }
           }}
           placeholder="Type a message..."
           className="flex-1 border rounded px-3 py-2"

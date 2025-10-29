@@ -1,21 +1,22 @@
 import React, { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
-import { socket } from "../socket/socket";
 import { toast } from "sonner";
-import type { loginResponse } from "../dto/response/LoginResponse";
-import type { ChatUserType } from "../dto/UserTypes";
-import type { GetAllMessage } from "../dto/response/GetAllMessage";
-import { dedupeMessages } from "../utils/helper";
-import { getChatroomDetails } from "../http/api/groupChat/getChatroomDetails";
-import { ChatroomUploadFile } from "../http/api/groupChat/chatroomUploadFile";
-import { editGroupChatMessage } from "../http/api/groupChat/editGroupChatMessage";
-import GroupMessages from "./groupChatroom/MessageList";
-import PendingAttachments from "./groupChatroom/PendingAttachments";
-import type { Attachment } from "@/dto/types/Attachments";
-import ChatInput from "./groupChatroom/ChatInput";
-import useCounterStore from "../store/UnreadCount";
+import type { ChatUserType } from "../../dto/UserTypes";
+import type { loginResponse } from "../../dto/response/LoginResponse";
+import type { GetAllMessage } from "../../dto/response/GetAllMessage";
+import type { Attachment } from "../../dto/types/Attachments";
+import useCounterStore from "../../store/UnreadCount";
+import { socket } from "../../socket/socket";
+import type { PrivateMessageEdit } from "../../dto/input/PrivateChatMessageEdit";
+import { dedupeMessages } from "../../utils/helper";
+import { getChatroomDetails } from "../../http/api/groupChat/getChatroomDetails";
+import { ChatroomUploadFile } from "../../http/api/groupChat/chatroomUploadFile";
+import { editGroupChatMessage } from "../../http/api/groupChat/editGroupChatMessage";
+import GroupMessages from "./MessageList";
+import PendingAttachments from "./PendingAttachments";
+import ChatInput from "./ChatInput";
 
-type Props = { user: ChatUserType; loginUser: loginResponse; key: string };
+type Props = { user: ChatUserType; loginUser: loginResponse; };
 
 export default function GroupChatRoom({ user, loginUser }: Props) {
   const [messages, setMessages] = useState<GetAllMessage[]>([]);
@@ -78,7 +79,7 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
 
   // Listen for message edits
   useEffect(() => {
-    const handleMessageEdited = ({ message_id, new_content }: any) => {
+    const handleMessageEdited = ({ message_id, new_content }: PrivateMessageEdit) => {
       setMessages(prev =>
         prev.map(msg =>
           Number(msg.id) === Number(message_id)

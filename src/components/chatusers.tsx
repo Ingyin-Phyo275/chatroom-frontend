@@ -22,7 +22,7 @@ export default function ChatUsers({ tabs, onSelectUser }: ChatUsersProps) {
   const { setValue, getValue } = useCounterStore();
   const [searchTerm, setSearchTerm] = React.useState("");
   const [filteredUsers, setFilteredUsers] = useState<ChatUserType[]>([]);
-  const page= 1;
+  const page = 1;
   const pageSize = 13;
   const [selectedUser, setSelectedUser] = useState<ChatUserType | null>(null);
 
@@ -69,7 +69,7 @@ export default function ChatUsers({ tabs, onSelectUser }: ChatUsersProps) {
         .filter((user) =>
           user.username.toLowerCase().includes(searchTerm.toLowerCase())
         ) as ChatUserType[];
-        console.log("filtered users", newFiltered)
+      console.log("filtered users", newFiltered)
     }
     // Only update state if it’s different
     setFilteredUsers((prev) => {
@@ -78,10 +78,10 @@ export default function ChatUsers({ tabs, onSelectUser }: ChatUsersProps) {
     });
   }, [tabs, users, contact, groupChatList, searchTerm]);
 
-const handleClick = (user: ChatUserType) => {
-  setSelectedUser(user);
-  onSelectUser(user);
-};
+  const handleClick = (user: ChatUserType) => {
+    setSelectedUser(user);
+    onSelectUser(user);
+  };
 
 
   React.useEffect(() => {
@@ -109,22 +109,20 @@ const handleClick = (user: ChatUserType) => {
       {/* User / Group list */}
       <div className="flex-1 overflow-auto">
         {filteredUsers.map((user) => (
-<div
-  key={user.id}
-  onClick={() => handleClick(user)}
-  className={`flex items-center gap-3 px-4 py-3 border-b dark:border-slate-700 cursor-pointer 
-    ${
-      selectedUser?.id === user.id
-        ? "bg-primary-foreground dark:bg-blue-900 rounded-lg" //  Active background color
-        : "hover:bg-blue-100 dark:hover:bg-slate-700"
-    }`}
->
+          <div
+            key={user.id}
+            onClick={() => handleClick(user)}
+            className={`flex items-center gap-3 px-4 py-3 border-b dark:border-slate-700 cursor-pointer 
+    ${selectedUser?.id === user.id
+                ? "bg-primary-foreground dark:bg-blue-900 rounded-lg" //  Active background color
+                : "hover:bg-blue-100 dark:hover:bg-slate-700"
+              }`}
+          >
 
             {/* Avatar */}
             <div
-              className={`relative w-10 h-10 ${
-                user.status === "online" ? "ring-2 ring-green-500" : ""
-              } rounded-full`}
+              className={`relative w-10 h-10 ${user.status === "online" ? "ring-2 ring-green-500" : ""
+                } rounded-full`}
             >
               <Avatar.Root className="w-10 h-10 rounded-full overflow-hidden">
                 <Avatar.Image
@@ -141,14 +139,14 @@ const handleClick = (user: ChatUserType) => {
             {/* Name + status */}
             <div className="flex flex-col">
 
-                                  <span className="font-medium">
+              <span className="font-medium">
                 {user.username}
                 {tabs !== "Contacts" ? (
                   <>
                     {tabs !== "Contacts" ? (
                       (() => {
                         const count = getValue(user.id, user.tabs ?? "Personal");
-                       // console.log("count in chat users", count);
+                        //  console.log("count in chat users", count);
 
                         if (count <= 0) return null;
                         return (
@@ -162,14 +160,13 @@ const handleClick = (user: ChatUserType) => {
                 ) : null}
               </span>
 
-              
+
               {!user.is_group && (
                 <span
-                  className={`text-xs ${
-                    user.status === "online"
+                  className={`text-xs ${user.status === "online"
                       ? "text-green-500"
                       : "text-gray-400 dark:text-gray-300"
-                  }`}
+                    }`}
                 >
                   {user.status === "online"
                     ? "Online"
@@ -178,7 +175,7 @@ const handleClick = (user: ChatUserType) => {
               )}
             </div>
             <div className="ml-auto">
-              <ChatAction user={user} onSelectUser={onSelectUser}/>
+              <ChatAction user={user} onSelectUser={onSelectUser} />
             </div>
           </div>
         ))}

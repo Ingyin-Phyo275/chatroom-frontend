@@ -12,7 +12,7 @@ interface PinnedActionMenuProps {
   onUnpin: () => void;
 }
 
-export default function PinnedActionMenu({ messageId, onUnpin }: PinnedActionMenuProps) {
+export default function PinnedActionMenu({  onUnpin }: PinnedActionMenuProps) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>

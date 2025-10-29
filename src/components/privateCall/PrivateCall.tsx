@@ -1,5 +1,3 @@
-"use client";
-
 import { useEffect, useState, useRef } from "react";
 import { Phone, PhoneOff, Mic, MicOff } from "lucide-react";
 import { socket } from "@/socket/socket";
@@ -44,42 +42,35 @@ export default function PrivateCall({
 
   //reject call
   useEffect(() => {
-  const handleCallRejected = (payload: any) => {
-    const callData = Array.isArray(payload) ? payload[0] : payload;
-    console.log("Call rejected event received:", callData);
+    const handleCallRejected = (payload: any) => {
+      const callData = Array.isArray(payload) ? payload[0] : payload;
+      console.log("Call rejected event received:", callData);
 
-    // Stop local and remote streams
-    localStreamRef.current?.getTracks().forEach((track) => track.stop());
-    peerRef.current?.close();
-    peerRef.current = null;
-    localStreamRef.current = null;
+      // Stop local and remote streams
+      localStreamRef.current?.getTracks().forEach((track) => track.stop());
+      peerRef.current?.close();
+      peerRef.current = null;
+      localStreamRef.current = null;
 
-    if (remoteAudioRef.current?.srcObject) {
-      (remoteAudioRef.current.srcObject as MediaStream)
-        .getTracks()
-        .forEach((track) => track.stop());
-      remoteAudioRef.current.srcObject = null;
-    }
-
-    // Stop ringtone if playing
-    ringtone.current?.pause();
-    ringtone.current!.currentTime = 0;
-
-    // Close call UI
-    setShowCall(false);
-    setIsRinging(false);
-  };
-
-  socket.on("private-call-rejected", handleCallRejected);
-
-  return () => {
-    socket.off("private-call-rejected", handleCallRejected);
-  };
-}, []);
+      if (remoteAudioRef.current?.srcObject) {
+        (remoteAudioRef.current.srcObject as MediaStream).getTracks().forEach((track) => track.stop());
+        remoteAudioRef.current.srcObject = null;
+      }
+      // Stop ringtone if playing
+      ringtone.current?.pause();
+      ringtone.current!.currentTime = 0;
+      // Close call UI
+      setShowCall(false);
+      setIsRinging(false);
+    };
+    socket.on("private-call-rejected", handleCallRejected);
+    return () => {
+      socket.off("private-call-rejected", handleCallRejected);
+    };
+  }, []);
 
 
   useEffect(() => {
-    
     socket.on("private-call-initiated", handleCallInitiated);
     return () => {
       socket.off("private-call-initiated", handleCallInitiated);
@@ -135,15 +126,23 @@ export default function PrivateCall({
       call_type: payload.call_type,
     });
     setIsRinging(true);
-    ringtone.current?.play().catch(() => {});
+    ringtone.current?.play().catch(() => { });
   };
 
   const handleOffer = async ({ sdp, from }: any) => {
     if (from === userId) return;
-    setRemoteOffer(sdp);
+
+    // Normalize the incoming SDP
+    const offerDesc =
+      typeof sdp === "string"
+        ? { type: "offer", sdp } // backend sent raw string
+        : sdp;
+
+    console.log("Received offer:", offerDesc);
+    setRemoteOffer(offerDesc);
     setCallData({ ...callData, from });
     setIsRinging(true);
-    ringtone.current?.play().catch(() => {});
+    ringtone.current?.play().catch(() => { });
   };
 
   const handleAnswer = async ({ sdp, from }: any) => {
@@ -169,7 +168,7 @@ export default function PrivateCall({
         remoteAudioRef.current.play().catch(() => {
           document.body.addEventListener(
             "click",
-            () => remoteAudioRef.current?.play().catch(() => {}),
+            () => remoteAudioRef.current?.play().catch(() => { }),
             { once: true }
           );
         });
@@ -194,9 +193,7 @@ export default function PrivateCall({
       peerRef.current = createPeerConnection(receiver_id);
 
       // Add local tracks
-      stream
-        .getTracks()
-        .forEach((track) => peerRef.current?.addTrack(track, stream));
+      stream.getTracks().forEach((track) => peerRef.current?.addTrack(track, stream));
 
       // Flush any pending ICE candidates
       pendingCandidates.current.forEach((c) =>
@@ -207,7 +204,8 @@ export default function PrivateCall({
       // Create and send offer immediately
       const offer = await peerRef.current.createOffer();
       await peerRef.current.setLocalDescription(offer);
-      socket.emit("webrtc-offer", { receiver_id, sdp: offer });
+      // socket.emit("webrtc-offer", { receiver_id, sdp: offer });
+      socket.emit("webrtc-offer", { receiver_id, sdp: { type: offer.type, sdp: offer.sdp } });
 
       // Notify server that call is initiated
       socket.emit("private-initiate-call", { receiver_id, call_type: "audio" });
@@ -219,22 +217,19 @@ export default function PrivateCall({
   // Receiver: accept call
   const acceptCall = async () => {
     console.log("remote offer", remoteOffer);
-    // if (!remoteOffer) {
-    //   console.error("No SDP to accept call yet");
-    //   return;
-    // }
+    if (!remoteOffer || !remoteOffer.type || !remoteOffer.sdp) {
+      console.error("No valid remote offer yet");
+      return;
+    }
+
     try {
       socket.emit("private-accept-call", { call_id: callData?.id });
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       localStreamRef.current = stream;
 
       peerRef.current = createPeerConnection(callData.from);
-
       // Add local tracks
-      stream
-        .getTracks()
-        .forEach((track) => peerRef.current?.addTrack(track, stream));
-
+      stream.getTracks().forEach((track) => peerRef.current?.addTrack(track, stream));
       // Flush pending ICE candidates
       pendingCandidates.current.forEach((c) =>
         peerRef.current?.addIceCandidate(new RTCIceCandidate(c))
@@ -278,8 +273,8 @@ export default function PrivateCall({
 
     socket.emit("private-end-call", { call_id: callData?.id });
     setShowCall(false);
-      setIsRinging(false);
-      ringtone.current?.pause();
+    setIsRinging(false);
+    ringtone.current?.pause();
   };
 
   //call ended
@@ -301,11 +296,9 @@ export default function PrivateCall({
           .forEach((track) => track.stop());
         remoteAudioRef.current.srcObject = null;
       }
-
       // Stop ringtone if playing
       ringtone.current?.pause();
       ringtone.current!.currentTime = 0;
-
       // Close call UI
       setShowCall(false);
     };
@@ -332,7 +325,7 @@ export default function PrivateCall({
     }
   }, []);
 
-  
+
   return (
     <div className="relative flex flex-col items-center justify-center h-full p-4">
       {!isCaller && isRinging && !callStarted && (
@@ -371,7 +364,6 @@ export default function PrivateCall({
       )}
 
       <audio ref={remoteAudioRef} autoPlay playsInline className="hidden" />
-
       {callStarted && (
         <div className="flex flex-col items-center gap-4">
           <div className="text-center">

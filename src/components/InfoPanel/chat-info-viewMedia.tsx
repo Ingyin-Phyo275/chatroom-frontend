@@ -30,7 +30,10 @@ export default function ChatInfoViewMedia({ media }: ChatInfoViewMediaProps) {
 
   const itemsToShow = mediaItems.slice(0, 3);
   const remainingCount = mediaItems.length - 3;
-  console.log("media", media);
+  //console.log("media", media);
+
+
+  
   return (
     <div className="w-full max-w-md mx-auto mt-2 bg-secondary rounded-lg mb-10 p-2">
       <p className="font-semibold mb-2">View Media</p>

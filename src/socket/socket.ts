@@ -47,19 +47,31 @@ export const disconnectSocket = () => {
 
 socket.on("connect", () => {
   console.log("✅ Socket connected! Socket ID:", socket.id);
+
   socket.on("receive-message", (msg) => {
     console.log("global receive-message", msg);
 
     const user = JSON.parse(localStorage.getItem("user") || "{}");
     let unreadCount = 0;
 
+    console.log("login user id", user?.user?.id)
+
     msg?.unreadCount?.forEach((unread: any) => {
-      if (unread.user_id === user?.id) unreadCount = unread.count;
+      if (unread.userId === user?.user?.id) unreadCount = unread.count;
     });
 
     const { setValue } = useCounterStore.getState();
     setValue(msg?.chatroom_id, unreadCount, "Group");
   });
+
+  // socket.on("private-receive-message", (msg) => {
+  //   console.log("global private receive-message", msg);
+  //   const user = JSON.parse(localStorage.getItem("user") || "{}");
+  //   let unreadCount = msg?.unreadCount;
+  //   console.log("private unread count", unreadCount)
+  //   const { setValue } = useCounterStore.getState();
+  //   setValue(user?.id, unreadCount, "Personal");
+  // })
 });
 
 socket.on("disconnect", (reason) => {

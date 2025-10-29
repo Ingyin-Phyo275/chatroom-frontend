@@ -1,5 +1,3 @@
-"use client";
-
 import { ArrowLeft, Info, Phone, Pin, Video, X } from "lucide-react";
 import type { ChatUserType } from "../dto/UserTypes";
 import { Button } from "./ui/button";
@@ -8,8 +6,6 @@ import { useState, useEffect } from "react";
 import ChatInfoPanel from "./chat-info-panel";
 import type { loginResponse } from "../dto/response/LoginResponse";
 import * as Avatar from "@radix-ui/react-avatar";
-import ChatRoom from "../chatroom";
-import GroupChatRoom from "./groupChatroom";
 import GroupCall from "./groupCall/GroupCall";
 import formatLastSeen from "@/utils/helper";
 import { socket } from "@/socket/socket";
@@ -25,6 +21,9 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"; // make sure this is the correct import path
+import type { PrivateCallResponse } from "../dto/response/PrivateCallResponse";
+import PrivateChat from "../features/PrivateChat/PrivateChat";
+import GroupChat from "../features/GroupChat/GroupChat";
 
 type chatroomPageProps = {
   selectedUser: ChatUserType;
@@ -70,7 +69,7 @@ export default function ChatroomPage({ selectedUser, loginUser }: chatroomPagePr
 
   //  Global listener for incoming private calls (even if no chat selected)
   useEffect(() => {
-    const handleIncomingPrivateCall = (payload: any) => {
+    const handleIncomingPrivateCall = (payload: PrivateCallResponse) => {
       const data = Array.isArray(payload) ? payload[0] : payload;
       console.log("Incoming private call:", data);
 
@@ -123,9 +122,7 @@ export default function ChatroomPage({ selectedUser, loginUser }: chatroomPagePr
       toast.error("Failed to unpin message");
     }
   };
-
-  //
-  console.log("pinned message", pinnedMessages)
+  //console.log("pinned message", pinnedMessages)
   return (
     <>
       {/* Header */}
@@ -309,23 +306,18 @@ export default function ChatroomPage({ selectedUser, loginUser }: chatroomPagePr
           </div>
         </div>
       )}
-
-      {/*  Pinned Messages Modal */}
-
-
-
       {/* Chat layout */}
       <div className="flex-1 flex border-l  h-[calc(100vh-4rem)] ">
         <div className={`flex-1  border-r lg:block ${showInfo ? "hidden lg:block" : "block"}`}>
           {selectedUser ? (
             selectedUser.is_group ? (
-              <GroupChatRoom
+              <GroupChat
                 user={selectedUser}
                 loginUser={loginUser}
                 key={`group-${selectedUser.id}`}
               />
             ) : (
-              <ChatRoom
+              <PrivateChat
                 user={selectedUser}
                 loginUser={loginUser}
                 key={`private-${selectedUser?.id}`}

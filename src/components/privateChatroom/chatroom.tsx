@@ -4,14 +4,17 @@ import { filterMessages } from "@/utils/helper";
 import type { PrivateChatMessage } from "@/dto/response/PrivateChatMessage";
 import { uploadAttachment } from "@/http/api/privateChat/uploadAttachment";
 import { toast } from "sonner";
-import useCounterStore from "@/store/UnreadCount";
-import { GetAllMessage } from "@/http/api/privateChat/getAllMessage";
-import { editPrivateChatMessage } from "@/http/api/privateChat/editPrivateChatMessage";
-import MessageList from "./privateChatroom/MessageList";
-import AttachmentPreview from "./privateChatroom/AttachmentPreview";
-import ChatInput from "./privateChatroom/ChatInput";
-import PreviewModal from "./privateChatroom/PreviewModal";
-
+import MessageList from "./MessageList";
+import AttachmentPreview from "./AttachmentPreview";
+import ChatInput from "./ChatInput";
+import PreviewModal from "./PreviewModal";
+import { GetAllMessage } from "../../http/api/privateChat/getAllMessage";
+import { editPrivateChatMessage } from "../../http/api/privateChat/editPrivateChatMessage";
+import useCounterStore from "../../store/UnreadCount";
+import type { ChatUserType } from "../../dto/UserTypes";
+import type { loginResponse } from "../../dto/response/LoginResponse";
+import type { PrivateMessageEdit } from "../../dto/input/PrivateChatMessageEdit";
+import type { PrivateIncomingMessage } from "../../dto/response/PrivateIncomingMessage";
 
 interface PreviewModal {
   preview: {
@@ -25,8 +28,8 @@ export default function ChatRoom({
   user,
   loginUser,
 }: {
-  user: any;
-  loginUser: any;
+  user: ChatUserType;
+  loginUser: loginResponse;
 }) {
   const [messages, setMessages] = useState<PrivateChatMessage[]>([]);
   const [text, setText] = useState("");
@@ -66,10 +69,10 @@ export default function ChatRoom({
     sender:
       m.sender && typeof m.sender === "object"
         ? {
-            id: m.sender.id,
-            username: m.sender.username ?? "Unknown",
-            avatar: m.sender.avatar_url ?? "",
-          }
+          id: m.sender.id,
+          username: m.sender.username ?? "Unknown",
+          avatar: m.sender.avatar_url ?? "",
+        }
         : { id: String(m.sender ?? ""), username: "Unknown", avatar: "" },
     receiver:
       m.receiver && typeof m.receiver === "object"
@@ -117,7 +120,7 @@ export default function ChatRoom({
         transformMessageFromApi
       );
 
-      // console.log("fetch message", res)
+      //console.log("fetch message", res)
       setMessages((prev) =>
         pageToFetch === 1
           ? filterMessages(newMsgs)
@@ -131,7 +134,7 @@ export default function ChatRoom({
 
   //handle edit message
   useEffect(() => {
-    const handleMessageEdited = ({ message_id, new_content }: any) => {
+    const handleMessageEdited = ({ message_id, new_content }: PrivateMessageEdit) => {
       setMessages((prev) =>
         prev.map((msg) =>
           Number(msg.id) === Number(message_id)
@@ -157,74 +160,90 @@ export default function ChatRoom({
   }, [user.id]);
 
   // Infinite scroll
-  useEffect(() => {
-    if (!chatContainerRef.current) return;
-    const readMessagesRef = new Set<string>();
+  //handles the initial or non-scroll read
+useEffect(() => {
+  if (!chatContainerRef.current) return;
 
-    const handleScroll = () => {
-      const container = chatContainerRef.current!;
-      const atBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 50;
-      setIsAtBottom(atBottom);
-      if (atBottom) setNewMessageCount(0);
+  const container = chatContainerRef.current;
+  const messageEls = Array.from(container.querySelectorAll<HTMLDivElement>(".message-item"));
+  messageEls.forEach((el) => {
+    const msgId = el.dataset.id;
+    const senderId = el.dataset.senderId;
+    if (!msgId) return;
 
-      // Detect top for infinite scroll
-      if (container.scrollTop < 50 && hasMore) {
-        const nextPage = pageRef.current + 1;
-        fetchMessages(nextPage);
-        pageRef.current = nextPage;
-      }
-
-      requestAnimationFrame(() => {
-        const messageEls = Array.from(
-          container.querySelectorAll<HTMLDivElement>(".message-item")
-        );
-        messageEls.forEach((el) => {
-          const msgId = el.dataset.id;
-          const senderId = el.dataset.senderId;
-          if (!msgId || readMessagesRef.has(msgId)) return;
-
-          if (String(senderId) !== String(loginUser.user.id)) {
-            socket.emit("message-read-private", {
-              messageId: Number(msgId),
-              readerId: Number(loginUser.user.id),
-              senderId: Number(user.id),
-            });
-            readMessagesRef.add(msgId);
-          }
-        });
+    if (String(senderId) !== String(loginUser.user.id)) {
+      socket.emit("message-read-private", {
+        messageId: Number(msgId),
+        readerId: Number(loginUser.user.id),
+        senderId: Number(user.id),
       });
-    };
+      setValue(user.id, 0, "Personal");
+    }
+  });
+}, [messages, loginUser.user.id, user.id]);
 
-    const container = chatContainerRef.current;
-    container.addEventListener("scroll", handleScroll);
-    handleScroll(); // initial run
-    return () => container.removeEventListener("scroll", handleScroll);
-  }, [loginUser.user.id, user.id]);
+//  Keep your scroll-based logic for dynamic reading
+useEffect(() => {
+  if (!chatContainerRef.current) return;
+  const readMessagesRef = new Set<string>();
 
-  //Socket event log
-  // useEffect(() => {
-  //   socket.onAny((event, ...args) => {
-  //     console.log("[SOCKET EVENT] in group chat", event, args);
-  //   });
-  // }, []);
+  const handleScroll = () => {
+    const container = chatContainerRef.current!;
+    const atBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 50;
+    setIsAtBottom(atBottom);
+    if (atBottom) setNewMessageCount(0);
+
+    if (container.scrollTop < 50 && hasMore) {
+      const nextPage = pageRef.current + 1;
+      fetchMessages(nextPage);
+      pageRef.current = nextPage;
+    }
+
+    requestAnimationFrame(() => {
+      const messageEls = Array.from(container.querySelectorAll<HTMLDivElement>(".message-item"));
+      messageEls.forEach((el) => {
+        const msgId = el.dataset.id;
+        const senderId = el.dataset.senderId;
+        if (!msgId || readMessagesRef.has(msgId)) return;
+
+        if (String(senderId) !== String(loginUser.user.id)) {
+          socket.emit("message-read-private", {
+            messageId: Number(msgId),
+            readerId: Number(loginUser.user.id),
+            senderId: Number(user.id),
+          });
+          setValue(user.id, 0, "Personal");
+          readMessagesRef.add(msgId);
+        }
+      });
+    });
+  };
+
+  const container = chatContainerRef.current;
+  container.addEventListener("scroll", handleScroll);
+  handleScroll(); // initial run
+  return () => container.removeEventListener("scroll", handleScroll);
+}, [loginUser.user.id, user.id]);
+
+
 
   // Socket join & listeners
   useEffect(() => {
     if (!socket) return;
     socket.emit("join", { userId: loginUser.user.id });
 
-    const handleIncomingMessage = (msg: any) => {
+    const handleIncomingMessage = (msg: PrivateIncomingMessage) => {
       //console.log("handleIncomingMessage called with:", msg);
 
       //  Extract the actual message
-      const messageData = msg.message ?? msg;
+      const messageData =  msg;
       const newMsg = transformMessageFromApi(messageData);
 
       //  Check if this message belongs to current chat
       const belongs =
         (String(newMsg.sender?.id ?? newMsg.sender) === String(user.id) &&
           String(newMsg.receiver?.id ?? newMsg.receiver) ===
-            String(loginUser.user.id)) ||
+          String(loginUser.user.id)) ||
         (String(newMsg.sender?.id ?? newMsg.sender) ===
           String(loginUser.user.id) &&
           String(newMsg.receiver?.id ?? newMsg.receiver) === String(user.id));
@@ -241,7 +260,7 @@ export default function ChatRoom({
             m.receiver === String(user.id) &&
             Math.abs(
               new Date(m.created_at).getTime() -
-                new Date(newMsg.created_at).getTime()
+              new Date(newMsg.created_at).getTime()
             ) < 3000
         );
 
@@ -257,9 +276,12 @@ export default function ChatRoom({
       });
 
       console.log("new message", msg);
-      // (msg.unreadCount) && setValue(user.id,  0, "group");
       if (msg?.sender?.id === loginUser?.user?.id) {
         setValue(user?.id, 0, "Personal");
+      }
+
+      if (String(msg?.sender?.id) !== String(loginUser.user.id)) {
+        setNewMessageCount(prev => (isAtBottom ? 0 : prev + 1));
       }
       //console.log("unreadcount in personal", value)
     };
@@ -358,7 +380,7 @@ export default function ChatRoom({
       toast.success(result?.message || "Message updated");
       setMessages((prev) => {
         const updated = prev.map((msg) =>
-          msg.id === editingMessageId ? { ...msg, content: text } : msg
+          msg.id === editingMessageId ? { ...msg, content: text, is_edit: true } : msg
         );
         return [...updated]; // force new reference
       });
@@ -435,13 +457,14 @@ export default function ChatRoom({
     };
   }, []);
 
-  const handleDeleteMessage = async (messageId: number) => {
+  const handleDeleteMessage = async (messageId: number, is_everyone: boolean) => {
     try {
       // await deleteMessage(messageId, user?.id); // delete in DB
       socket.emit("delete-message", {
         message_id: messageId,
         sender_id: loginUser?.user?.id,
         receiver_id: user?.id,
+        is_everyone,
       });
     } catch (err) {
       console.error("Failed to delete message:", err);
@@ -468,6 +491,7 @@ export default function ChatRoom({
           Number(m.id) === Number(messageId) ? { ...m, isRead: true } : m
         )
       );
+      setValue(user.id, 0, "Personal");
     };
 
     socket.on("message-read-private", handleMessageReadPrivate);
@@ -476,9 +500,22 @@ export default function ChatRoom({
     };
   }, []);
 
+  const handlePinMessage = async (messageId: number) => {
+    try {
+      socket.emit("message-pin", {
+        messageId,
+        isPinned: true,
+        receiverId: Number(user.id),
+      })
+    } catch (error) {
+      console.error("Error pinning message:", error);
+      toast.error("Failed to pin message");
+    }
+  }
+
   //console.log("chatroom message", messages)
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)] relative bg-white">
+    <div className="flex flex-col h-[calc(100vh-4rem)] relative">
       <MessageList
         messages={messages}
         loginUser={loginUser}
@@ -489,6 +526,7 @@ export default function ChatRoom({
         chatContainerRef={chatContainerRef}
         setIsAtBottom={setIsAtBottom}
         onDelete={handleDeleteMessage}
+        onPin={handlePinMessage}
       />
 
       {!isAtBottom && newMessageCount > 0 && (
