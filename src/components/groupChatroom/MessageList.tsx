@@ -1,3 +1,4 @@
+import * as React from "react";
 import * as Avatar from "@radix-ui/react-avatar";
 import { Pen, Pin, Trash } from "lucide-react";
 import { formatMessageDate } from "../../hooks/helper";
@@ -24,9 +25,14 @@ export default function GroupMessages({
   loginUser,
   onEditMessage,
   onPin,
-  onDelete
+  onDelete,
 }: Props) {
-  //console.log("group messages", groupedMessages)
+  // Track which message is clicked to show time
+  const [selectedMessageId, setSelectedMessageId] = React.useState<string | null>(null);
+  const handleToggleTime = (id: string) => {
+    setSelectedMessageId((prev) => (prev === id ? null : id)); // toggle
+  };
+
   return (
     <div className="space-y-3">
       {Object.keys(groupedMessages).length === 0 && (
@@ -46,25 +52,26 @@ export default function GroupMessages({
 
           {groupedMessages[dayKey].map((m) => {
             const isOwn = m.sender?.id === loginUser.user.id;
+            const isSelected = selectedMessageId === m.id.toString();
 
             return (
               <div
                 key={m.id}
-                className={`message-item flex ${
+                className={`message-item flex items-end gap-2 ${
                   isOwn ? "justify-end" : "justify-start"
-                } gap-3`}
+                }`}
                 data-id={m.id}
                 data-sender-id={m.sender?.id}
               >
                 {/* Avatar for others */}
                 {!isOwn && (
-                  <Avatar.Root className="w-10 h-10 rounded-full overflow-hidden">
+                  <Avatar.Root className="w-9 h-9 rounded-full overflow-hidden self-start">
                     <Avatar.Image
                       src={(m.sender as any)?.avatar || undefined}
                       alt={m.sender?.username || "User"}
                       className="w-full h-full rounded-full object-cover"
                     />
-                    <Avatar.Fallback className="w-full h-full rounded-full flex items-center justify-center bg-gray-500 text-white font-semibold">
+                    <Avatar.Fallback className="w-full h-full flex items-center justify-center bg-gray-500 text-white font-semibold">
                       {m.sender?.username
                         ? m.sender.username.slice(0, 2).toUpperCase()
                         : "U"}
@@ -72,87 +79,94 @@ export default function GroupMessages({
                   </Avatar.Root>
                 )}
 
-                {/* Message + Context Menu */}
-                <ContextMenu>
-                  <div
-                    className={`max-w-[70%] p-2 rounded-lg cursor-pointer ${
-                      isOwn
-                        ? "bg-primary text-white"
-                        : "bg-slate-200 text-slate-900"
-                    }`}
-                  >
-                    <ContextMenuTrigger>
-                      <div>
-                        {m.content && <p className="mb-1">{m.content}</p>}
-
-                        {/* Attachments */}
-                        {Array.isArray(m.attachment_url)
-                          ? m.attachment_url.map((url, i) => (
-                              <AttachmentPreview key={i} urls={url} />
-                            ))
-                          : m.attachment_url && (
-                              <AttachmentPreview urls={m.attachment_url} />
-                            )}
-                      </div>
-                    </ContextMenuTrigger>
-
-                    {/* Time + status */}
-                    <div className="text-xs text-slate-300 mt-1 flex justify-between gap-2">
-                      {m.is_edit && (
-                        <span className="italic text-gray-400">Edited</span>
-                      )}
-                      <span>
-                        {new Date(m.created_at!).toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                          hour12: true,
-                        })}
-                      </span>
-
-                      {/* Status for own messages */}
-                      {isOwn && (
-                        <>
-                          {m?.is_delivered && !m?.isRead && (
-                            <span className="italic text-slate-300">
-                              Delivered
-                            </span>
-                          )}
-                          {m?.isRead && (
-                            <span className="italic text-slate-300">Seen</span>
-                          )}
-                        </>
-                      )}
-                    </div>
-                    
-                  </div>
-
-                  {/* Right-click Context Menu */}
-                  <ContextMenuContent>
-                    <ContextMenuItem
-                      onClick={() => onPin(Number(m.id))}
+                {/* Message bubble + time */}
+                <div
+                  className={`flex flex-col ${isOwn ? "items-end" : "items-start"} gap-1`}
+                >
+                  <ContextMenu>
+                    <div
+                      onClick={() => handleToggleTime(String(m.id))}
+                      className={`max-w-[100%] p-2 rounded-lg cursor-pointer transition ${
+                        isOwn
+                          ? "bg-primary text-white rounded-br-none hover:bg-primary/90"
+                          : "bg-slate-200 text-slate-900 dark:bg-slate-700 dark:text-slate-100 rounded-bl-none hover:bg-slate-300/80"
+                      }`}
                     >
-                      <Pin className="w-4 h-4 mr-2" /> Pin
-                    </ContextMenuItem>
+                      <ContextMenuTrigger>
+                        <div>
+                          {m.content && <p className="mb-1">{m.content}</p>}
 
-                    {isOwn && (
-                      <ContextMenuItem
-                        onClick={() =>
-                          onEditMessage(String(m.id), m.content || "")
-                        }
-                      >
-                        <Pen className="w-4 h-4 mr-2" /> Edit
-                      </ContextMenuItem>
-                    )}
+                          {/* Attachments */}
+                          {Array.isArray(m.attachment_url)
+                            ? m.attachment_url.map((url, i) => (
+                                <AttachmentPreview key={i} urls={url} />
+                              ))
+                            : m.attachment_url && (
+                                <AttachmentPreview urls={m.attachment_url} />
+                              )}
+                        </div>
+                      </ContextMenuTrigger>
 
-                    {isOwn && (
-                      <ContextMenuItem
-                        onClick={() => onDelete(Number(m.id))}
-                      >
-                        <Trash className="w-4 h-4 mr-2" /> Delete
+                      {/* Edited + status */}
+                      <div className="flex justify-between items-center mt-1 text-xs text-slate-300 gap-2">
+                        {m.is_edit && (
+                          <span className="italic text-gray-400">Edited</span>
+                        )}
+
+                        {isOwn && (
+                          <>
+                            {m?.is_delivered && !m?.isRead && (
+                              <span className="italic text-slate-300">
+                                Delivered
+                              </span>
+                            )}
+                            {m?.isRead && (
+                              <span className="italic text-slate-300">Seen</span>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Context menu */}
+                    <ContextMenuContent>
+                      <ContextMenuItem onClick={() => onPin(Number(m.id))}>
+                        <Pin className="w-4 h-4 mr-2" /> Pin
                       </ContextMenuItem>
-                    )}
-                  </ContextMenuContent>
-                </ContextMenu>
+
+                      {isOwn && (
+                        <ContextMenuItem
+                          onClick={() =>
+                            onEditMessage(String(m.id), m.content || "")
+                          }
+                        >
+                          <Pen className="w-4 h-4 mr-2" /> Edit
+                        </ContextMenuItem>
+                      )}
+
+                      {isOwn && (
+                        <ContextMenuItem onClick={() => onDelete(Number(m.id))}>
+                          <Trash className="w-4 h-4 mr-2" /> Delete
+                        </ContextMenuItem>
+                      )}
+                    </ContextMenuContent>
+                  </ContextMenu>
+
+                  {/* Time (only shown if selected) */}
+                  {isSelected && (
+                    <span
+                      className={`text-[11px] mt-1 transition-opacity ${
+                        isOwn ? "text-slate-400 pr-1" : "text-slate-500 pl-1"
+                      }`}
+                    >
+                      {new Date(m.created_at!).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        hour12: true,
+                      })}
+                    </span>
+                  )}
+                </div>
               </div>
             );
           })}

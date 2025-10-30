@@ -138,7 +138,7 @@ export default function ChatRoom({
       setMessages((prev) =>
         prev.map((msg) =>
           Number(msg.id) === Number(message_id)
-            ? { ...msg, content: new_content, isEdited: true }
+            ? { ...msg, content: new_content, is_edit: true }
             : msg
         )
       );

@@ -1,3 +1,4 @@
+import * as React from "react";
 import type { PrivateChatMessage } from "@/dto/response/PrivateChatMessage";
 import type { ChatUserType } from "@/dto/UserTypes";
 import * as Avatar from "@radix-ui/react-avatar";
@@ -12,6 +13,7 @@ import {
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import { DropdownMenuSeparator } from "../ui/dropdown-menu";
+
 export default function MessageItem({
   message,
   isOwn,
@@ -32,12 +34,15 @@ export default function MessageItem({
   onPin: (messageId: number) => void;
 }) {
   const sender = user;
-  // console.log("props",filePath);
-  // console.log("Private messge", message)
+
+  //  Track time visibility
+  const [showTime, setShowTime] = React.useState(false);
+
+  const toggleTime = () => setShowTime((prev) => !prev);
 
   return (
     <div className={`flex ${isOwn ? "justify-end" : "justify-start"} gap-3`}>
-      {/* Avatar */}
+      {/* Avatar (only for other user) */}
       {!isOwn && (
         <Avatar.Root className="w-10 h-10 rounded-full overflow-hidden">
           <Avatar.Image
@@ -53,8 +58,9 @@ export default function MessageItem({
 
       {/* Message bubble */}
       <div
-        className={`message-item flex ${isOwn ? "justify-end" : "justify-start"
-          } gap-3`}
+        className={`message-item flex flex-col ${
+          isOwn ? "items-end" : "items-start"
+        } gap-1`}
         data-id={message.id}
         data-sender-id={
           typeof message.sender === "object"
@@ -64,22 +70,29 @@ export default function MessageItem({
       >
         <ContextMenu>
           <div
-            className={`max-w-[100%] p-2 rounded-lg ${isOwn
-                ? "bg-primary text-white rounded-br-none"
-                : "bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-100 rounded-bl-none"
-              }`}
+            onClick={toggleTime} //toggle time on click
+            className={`max-w-[100%] p-2 rounded-lg cursor-pointer transition ${
+              isOwn
+                ? "bg-primary text-white rounded-br-none hover:bg-primary/90"
+                : "bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-100 rounded-bl-none hover:bg-slate-300/80"
+            }`}
           >
             <ContextMenuTrigger>
+              {/* Message text */}
               {message?.content && message?.content}
+
+              {/* Duration (for media) */}
               {message.duration && (
                 <p
-                  className={`text-xs ${isOwn ? "text-slate-200" : "text-slate-400"
-                    }`}
+                  className={`text-xs ${
+                    isOwn ? "text-slate-200" : "text-slate-400"
+                  }`}
                 >
                   Duration: {message.duration}
                 </p>
               )}
-              {/* Message content */}
+
+              {/* Attachments */}
               {message.attachment_url && (
                 <div>
                   {filePath?.match(/\.(jpeg|jpg|png|gif)$/i) && (
@@ -106,99 +119,103 @@ export default function MessageItem({
 
                   {filePath?.match(/\.(mp3|wav)$/i) && (
                     <audio controls src={message.attachment_url} />
-                    // <AudioMessage file={message.attachment_url!} />
                   )}
 
                   {!filePath?.match(
                     /\.(jpeg|jpg|png|gif|mp4|webm|mp3|wav)$/i
                   ) && (
-                      <div className="relative flex flex-col items-center justify-center w-[200px] h-[200px] bg-gray-100 rounded-lg shadow-md p-4 hover:shadow-lg transition-shadow">
-                        {/* File Icon */}
-                        <File
-                          className="w-12 h-12 text-slate-500 mb-2"
-                          onClick={() =>
-                            setPreviewModal({
-                              type: "file",
-                              url: message.attachment_url,
-                            })
-                          }
-                        />
-                      </div>
-                    )}
+                    <div className="relative flex flex-col items-center justify-center w-[200px] h-[200px] bg-gray-100 rounded-lg shadow-md p-4 hover:shadow-lg transition-shadow">
+                      <File
+                        className="w-12 h-12 text-slate-500 mb-2"
+                        onClick={() =>
+                          setPreviewModal({
+                            type: "file",
+                            url: message.attachment_url,
+                          })
+                        }
+                      />
+                    </div>
+                  )}
                 </div>
               )}
             </ContextMenuTrigger>
 
-            {/* Footer: time & actions */}
+            {/* Footer inside bubble */}
             <div className="flex justify-between items-center mt-1 text-xs text-slate-300 gap-2">
               {message?.is_edit === true && (
                 <span className="text-grey-500 italic">Edited</span>
               )}
-              <span>
-                {new Date(
-                  message.created_at || message.created_at
-                ).toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                  hour12: true,
-                })}
-              </span>
 
-              <span className="ml-2 flex items-center gap-1">
-                {isOwn && (
-                  <>
-                    {message?.is_delivered && !message?.isRead && (
-                      <span className="italic text-slate-300">Delivered</span>
-                    )}
-                    {message?.isRead && (
-                      <span className="italic text-slate-300">Seen</span>
-                    )}
-                  </>
+              {isOwn && (
+                <span className="ml-2 flex items-center gap-1">
+                  {message?.is_delivered && !message?.isRead && (
+                    <span className="italic text-slate-300">Delivered</span>
+                  )}
+                  {message?.isRead && (
+                    <span className="italic text-slate-300">Seen</span>
+                  )}
+                </span>
+              )}
+            </div>
+
+            {/* Context Menu Items */}
+            <ContextMenuContent>
+              {/* Edit */}
+              {isOwn &&
+                !filePath?.match(
+                  /\.(jpeg|jpg|png|gif|mp4|webm|mp3|wav)$/i
+                ) && (
+                  <ContextMenuItem
+                    onClick={() => onEdit(message.id, message.content || "")}
+                  >
+                    <Pen className="w-4 h-4 mr-2" /> Edit
+                  </ContextMenuItem>
                 )}
 
-                <ContextMenuContent>
-                  {/* Sender-only actions */}
-                  {isOwn &&
-                    !filePath?.match(
-                      /\.(jpeg|jpg|png|gif|mp4|webm|mp3|wav)$/i
-                    ) && (
-                      <ContextMenuItem
-                        onClick={() =>
-                          onEdit(message.id, message.content || "")
-                        }
-                      >
-                        <Pen className="w-4 h-4 mr-2" /> Edit
-                      </ContextMenuItem>
-                    )}
+              {/* Delete submenu */}
+              {isOwn && (
+                <ContextMenuSub>
+                  <ContextMenuSubTrigger>
+                    <Trash className="w-4 h-4 mr-auto" /> Delete
+                  </ContextMenuSubTrigger>
+                  <ContextMenuSubContent className="w-44">
+                    <ContextMenuItem
+                      onClick={() => onDelete(Number(message.id), false)}
+                    >
+                      Delete For Me
+                    </ContextMenuItem>
+                    <DropdownMenuSeparator />
+                    <ContextMenuItem
+                      onClick={() => onDelete(Number(message.id), true)}
+                    >
+                      Delete For Everyone
+                    </ContextMenuItem>
+                  </ContextMenuSubContent>
+                </ContextMenuSub>
+              )}
 
-                  {isOwn && (
-                    // <ContextMenuItem
-                    //   onClick={() => onDelete(Number(message.id))}
-                    // >
-                    //   <Trash className="w-4 h-4 mr-2" /> Delete
-                    // </ContextMenuItem>
-                    <ContextMenuSub>
-                      <ContextMenuSubTrigger>
-                        <Trash className="w-4 h-4 mr-auto" /> Delete
-                      </ContextMenuSubTrigger>
-                      <ContextMenuSubContent className="w-44">
-                        <ContextMenuItem onClick={() => onDelete(Number(message.id), false)}>Delete For Me</ContextMenuItem>
-                        <DropdownMenuSeparator />
-                        <ContextMenuItem onClick={() => onDelete(Number(message.id), true)}>Delete For Everyone</ContextMenuItem>
-                      </ContextMenuSubContent>
-                    </ContextMenuSub>
-
-                  )}
-
-                  {/* Pin available for both sender and receiver */}
-                  <ContextMenuItem onClick={() => onPin(Number(message.id))}>
-                    <Pin className="w-4 h-4 mr-2" /> Pin
-                  </ContextMenuItem>
-                </ContextMenuContent>
-              </span>
-            </div>
+              {/* Pin */}
+              <ContextMenuItem onClick={() => onPin(Number(message.id))}>
+                <Pin className="w-4 h-4 mr-2" /> Pin
+              </ContextMenuItem>
+            </ContextMenuContent>
           </div>
         </ContextMenu>
+
+        {/* Time BELOW the bubble — only when clicked */}
+        {showTime && (
+          <span
+            className={`text-[11px] mt-1 transition-opacity ${
+              isOwn ? "text-slate-400 pr-2" : "text-slate-500 pl-2"
+            }`}
+          >
+            {new Date(message.created_at).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+              hour12: true,
+            })}
+          </span>
+        )}
       </div>
     </div>
   );
