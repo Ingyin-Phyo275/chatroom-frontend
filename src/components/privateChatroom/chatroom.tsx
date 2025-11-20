@@ -40,6 +40,8 @@ export default function ChatRoom({
   const [newMessageCount, setNewMessageCount] = useState(0);
   const [isAtBottom, setIsAtBottom] = useState(true);
 
+  const [sendingState, setSendingState] = useState(false); // true when sending message or attachment
+
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
@@ -305,6 +307,7 @@ useEffect(() => {
     const trimmedText = text.trim();
     if (!trimmedText && pendingAttachments.length === 0) return;
 
+    setSendingState(true);
     const uploadedAttachments: {
       url: string;
       imagePath?: string | null;
@@ -325,6 +328,7 @@ useEffect(() => {
         });
       } catch (err) {
         console.error(err);
+        setSendingState(false);
         toast?.error?.(`Failed to upload ${attachment.name}`);
         return;
       }
@@ -366,6 +370,8 @@ useEffect(() => {
       imagePaths: newMsg.imagePaths,
       attachment_type: newMsg.attachmentTypes,
     });
+
+    setSendingState(false);
   };
 
   // Edit message
@@ -564,6 +570,7 @@ useEffect(() => {
         }}
         showAttachmentMenu={showAttachmentMenu}
         setShowAttachmentMenu={setShowAttachmentMenu}
+        isSending={sendingState}
       />
 
       {previewModal && (
