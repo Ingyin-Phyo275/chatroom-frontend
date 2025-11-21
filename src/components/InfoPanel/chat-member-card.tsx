@@ -12,7 +12,7 @@ import { Button } from "../ui/button";
 import { Separator } from "@radix-ui/react-dropdown-menu";
 import { useQueryClient } from "@tanstack/react-query";
 import { removeMembers } from "../../http/api/groupChat/removeMember";
-import formatLastSeen from "@/utils/helper";
+import { toast } from "sonner";
 
 interface User {
   id: string;
@@ -63,12 +63,14 @@ export default function ChatMembersCard({ chatMembers, chatroomId }: ChatMembers
         userIds: [memberId]
       });
 
+      toast.success(response?.data?.messages || "Member remove successful!")
       console.log("Invalidating key:", ["chatroomDetails", String(chatroomId)]);
       await queryClient.invalidateQueries({ queryKey: ["chatroomDetails", String(chatroomId)] });
       await queryClient.refetchQueries({ queryKey: ["chatroomDetails", String(chatroomId)] });
       console.log("Remove member", response);
     } catch (error) {
       console.error("Failed to remove member", error);
+      toast.error(String(error) || "Something went wrong");
     }
   };
 
