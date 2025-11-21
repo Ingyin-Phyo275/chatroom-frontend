@@ -2,10 +2,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuPortal,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { ChatUserType } from "@/dto/UserTypes";
@@ -30,13 +26,13 @@ export default function ChatAction({ user, onSelectUser }: ChatActionProps) {
     }
   }
 
-  const handleDeleteForMe = async () => {
-    try {
-      socket.emit("delete-private-chat-for-me", { receiver_id: user?.id });
-    } catch (error) {
-      toast.error("Error while deleting chat!");
-    }
-  }
+  // const handleDeleteForMe = async () => {
+  //   try {
+  //     socket.emit("delete-private-chat-for-me", { receiver_id: user?.id });
+  //   } catch (error) {
+  //     toast.error("Error while deleting chat!");
+  //   }
+  // }
 
   useEffect(() => {
     socket.on("private-chat-deleted", () => {

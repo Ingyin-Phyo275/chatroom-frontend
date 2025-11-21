@@ -42,6 +42,7 @@ export default function ChatroomPage({ selectedUser, loginUser }: chatroomPagePr
   const [showPinnedModal, setShowPinnedModal] = useState(false);
   const [pinnedMessages, setPinnedMessages] = useState<any[]>([]);
 
+  console.log(showPinnedModal);
   // Listen globally for incoming group calls
   useEffect(() => {
     const handleIncomingGroupCall = (payload: any) => {

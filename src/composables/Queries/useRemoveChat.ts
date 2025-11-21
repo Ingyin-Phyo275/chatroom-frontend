@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query"
-import { deleteChat } from "../../http/api/deleteChat";
 import type { DeleteChatProps } from "../../dto/input/deleteChatProps";
+import { deleteChat } from "../../http/api/groupChat/deleteChat";
 
 export const useRemoveChat = (data: DeleteChatProps) => {
     const removeChatData = useQuery({

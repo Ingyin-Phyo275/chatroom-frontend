@@ -44,6 +44,8 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
   //zustand store
   const { setValue } = useCounterStore();
 
+  console.log(totalPages, unreadCount);
+
   //reset after selected group change
   useEffect(() => {
     setMessages([]);
