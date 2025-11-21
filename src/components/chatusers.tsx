@@ -175,7 +175,11 @@ export default function ChatUsers({ tabs, onSelectUser }: ChatUsersProps) {
               )}
             </div>
             <div className="ml-auto">
-              <ChatAction user={user} onSelectUser={onSelectUser} />
+              {
+                tabs !== "Contacts" && (
+                  <ChatAction user={user} onSelectUser={onSelectUser} />
+                )
+              }
             </div>
           </div>
         ))}

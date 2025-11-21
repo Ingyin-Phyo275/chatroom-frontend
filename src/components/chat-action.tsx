@@ -2,6 +2,10 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuPortal,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { ChatUserType } from "@/dto/UserTypes";
@@ -11,28 +15,37 @@ import { useQueryClient } from "@tanstack/react-query";
 import { socket } from "../socket/socket";
 import { useEffect } from "react";
 interface ChatActionProps {
-    user: ChatUserType
-    onSelectUser: (user: ChatUserType) => void;
+  user: ChatUserType
+  onSelectUser: (user: ChatUserType) => void;
 }
 
-export default function ChatAction({user, onSelectUser}: ChatActionProps) {
+export default function ChatAction({ user, onSelectUser }: ChatActionProps) {
   const queryClient = useQueryClient();
   const loginUser = JSON.parse(localStorage.getItem('user')!);
   const handleDelete = async () => {
-    try{
-      socket.emit("delete-private-chat", {receiver_id: user?.id});
-    }catch(error){
+    try {
+      socket.emit("delete-private-chat", { receiver_id: user?.id });
+    } catch (error) {
       toast.error("Error while deleting chat!");
     }
   }
 
-  useEffect( () => {
+  const handleDeleteForMe = async () => {
+    try {
+      socket.emit("delete-private-chat-for-me", { receiver_id: user?.id });
+    } catch (error) {
+      toast.error("Error while deleting chat!");
+    }
+  }
+
+  useEffect(() => {
     socket.on("private-chat-deleted", () => {
       queryClient.invalidateQueries({ queryKey: ["chatUserList"] });
       //@ts-ignore
       onSelectUser(null);
     })
-  },[])
+  }, [])
+
   return (
     <div>
       <DropdownMenu>
@@ -47,7 +60,7 @@ export default function ChatAction({user, onSelectUser}: ChatActionProps) {
 
         <DropdownMenuContent className="w-40">
           <DropdownMenuItem onClick={() => alert(`Pin chat: ${user.id}- ${loginUser.user.id}`)}>
-           <Pin className="w-4 h-4 mr-2" /> Pin 
+            <Pin className="w-4 h-4 mr-2" /> Pin
           </DropdownMenuItem>
           <DropdownMenuItem
             onClick={(e) => {
@@ -58,6 +71,23 @@ export default function ChatAction({user, onSelectUser}: ChatActionProps) {
           >
             <Trash className="w-4 h-4 mr-2" /> Delete
           </DropdownMenuItem>
+          {/* <DropdownMenuSub>
+            <DropdownMenuSubTrigger><Trash className="w-4 h-4 mr-2" /> Delete</DropdownMenuSubTrigger>
+            <DropdownMenuPortal>
+              <DropdownMenuSubContent>
+                <DropdownMenuItem onClick={(e) => {
+                  e.stopPropagation();
+                  handleDeleteForMe()
+                }
+                }>Delete for me</DropdownMenuItem>
+                <DropdownMenuItem onClick={(e) => {
+                  e.stopPropagation();
+                  handleDelete()
+                }
+                }>Delete for everyone</DropdownMenuItem>
+              </DropdownMenuSubContent>
+            </DropdownMenuPortal>
+          </DropdownMenuSub> */}
           <DropdownMenuItem
             onClick={() => alert(`Archive chat: ${user.username}`)}
           >

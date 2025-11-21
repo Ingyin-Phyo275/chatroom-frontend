@@ -80,6 +80,8 @@ export default function PrivateCall({
   const receiverName = callData?.receiver?.username;
   const callerName = callData?.initiator?.username;
 
+  // console.log("caller", callerName)
+  // console.log("receiver name", receiverName)
   //console.log("name check", callerName, receiverName)
   useEffect(() => {
     ringtone.current = new Audio("/ringtone.mp3");
