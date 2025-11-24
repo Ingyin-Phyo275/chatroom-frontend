@@ -352,7 +352,7 @@ const handleIncomingCall = (payload: any) => {
 
   return (
     <div className="relative flex flex-col items-center justify-center h-full p-4">
-      {!isCaller && isRinging && !callStarted && (
+      {!isCaller && !callStarted && (
         <div className="flex flex-col items-center space-y-4 p-4 bg-white rounded-lg shadow-lg">
           {/* <p className="bg-black text-2xl">Hello</p> */}
           <div className="w-16 h-16 rounded-full bg-gray-500 flex items-center justify-center text-white font-bold text-lg">
