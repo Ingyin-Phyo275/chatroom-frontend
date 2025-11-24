@@ -120,16 +120,38 @@ export default function PrivateCall({
     return `${mins}:${secs}`;
   };
 
-  const handleIncomingCall = (payload: any) => {
-    if (payload.from === userId) return;
-    setCallData({
-      ...payload.callData,
-      from: payload.from,
-      call_type: payload.call_type,
-    });
-    setIsRinging(true);
-    ringtone.current?.play().catch(() => { });
-  };
+  // const handleIncomingCall = (payload: any) => {
+  //   if (payload.from === userId) return;
+  //   setCallData({
+  //     ...payload.callData,
+  //     from: payload.from,
+  //     call_type: payload.call_type,
+  //   });
+  //   setIsRinging(true);
+  //   ringtone.current?.play().catch(() => { });
+  // };
+
+const handleIncomingCall = (payload: any) => {
+  const data = Array.isArray(payload) ? payload[0] : payload;
+  console.log("handleIncomingCall", data, "userId", userId);
+
+  if (!data) return;
+  if (data.from === userId) {
+    console.log("Incoming call ignored: from === userId");
+    return;
+  }
+
+  setCallData({
+    ...data.callData,
+    from: data.from,
+    call_type: data.call_type,
+  });
+
+  setIsRinging(true);
+  ringtone.current?.play().catch(() => {});
+};
+
+
 
   const handleOffer = async ({ sdp, from }: any) => {
     if (from === userId) return;
