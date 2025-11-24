@@ -17,6 +17,7 @@ export default function PrivateCall({
 }: PrivateCallProps) {
   const [isMuted, setIsMuted] = useState(false);
   const [isRinging, setIsRinging] = useState(false);
+  console.log(isRinging)
   const [callStarted, setCallStarted] = useState(false);
   const [callDuration, setCallDuration] = useState(0);
   const [callData, setCallData] = useState<any>(incomingCall || null);
