@@ -16,8 +16,7 @@ export default function PrivateCall({
   setShowCall,
 }: PrivateCallProps) {
   const [isMuted, setIsMuted] = useState(false);
-  const [isRinging, setIsRinging] = useState(false);
-  console.log(isRinging)
+  // const [isRinging, setIsRinging] = useState(false);
   const [callStarted, setCallStarted] = useState(false);
   const [callDuration, setCallDuration] = useState(0);
   const [callData, setCallData] = useState<any>(incomingCall || null);
@@ -62,7 +61,7 @@ export default function PrivateCall({
       ringtone.current!.currentTime = 0;
       // Close call UI
       setShowCall(false);
-      setIsRinging(false);
+      // setIsRinging(false);
     };
     socket.on("private-call-rejected", handleCallRejected);
     return () => {
@@ -148,13 +147,17 @@ const handleIncomingCall = (payload: any) => {
     call_type: data.call_type,
   });
 
-  setIsRinging(true);
+  // setIsRinging(true);
   ringtone.current?.play().catch(() => {});
 };
 
 
 
   const handleOffer = async ({ sdp, from }: any) => {
+
+    console.log("From Data", from);
+    console.log("User Id", userId);
+
     if (from === userId) return;
 
     // Normalize the incoming SDP
@@ -166,7 +169,7 @@ const handleIncomingCall = (payload: any) => {
     console.log("Received offer:", offerDesc);
     setRemoteOffer(offerDesc);
     setCallData({ ...callData, from });
-    setIsRinging(true);
+    // setIsRinging(true);
     ringtone.current?.play().catch(() => { });
   };
 
@@ -272,7 +275,7 @@ const handleIncomingCall = (payload: any) => {
       socket.emit("webrtc-answer", { receiver_id: callData.from, sdp: answer });
 
       setCallStarted(true);
-      setIsRinging(false);
+      // setIsRinging(false);
       ringtone.current?.pause();
     } catch (err) {
       console.error("Failed to accept call:", err);
@@ -298,7 +301,7 @@ const handleIncomingCall = (payload: any) => {
 
     socket.emit("private-end-call", { call_id: callData?.id });
     setShowCall(false);
-    setIsRinging(false);
+    // setIsRinging(false);
     ringtone.current?.pause();
   };
 
@@ -365,6 +368,7 @@ const handleIncomingCall = (payload: any) => {
           <div className="flex gap-4">
             <button
               onClick={acceptCall}
+              disabled={!remoteOffer}
               className="p-3 bg-green-500 rounded-full"
             >
               <Phone className="w-6 h-6 text-white" />
