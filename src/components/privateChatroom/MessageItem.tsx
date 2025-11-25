@@ -1,7 +1,7 @@
 import * as React from "react";
 import type { PrivateChatMessage } from "@/dto/response/PrivateChatMessage";
 import type { ChatUserType } from "@/dto/UserTypes";
-import type { UserListResponse } from "@/dto/response/UserListResponse"; // make sure this import exists
+import type { UserListResponse } from "@/dto/response/UserListResponse";
 import * as Avatar from "@radix-ui/react-avatar";
 import { Angry, CornerUpLeft, File, Heart, Pen, Pin, Smile, ThumbsUp, Trash } from "lucide-react";
 import {
@@ -17,6 +17,15 @@ import { DropdownMenuSeparator } from "../ui/dropdown-menu";
 import { socket } from "../../socket/socket";
 import { userListQuery } from "../../composables/Queries/userListQuery";
 
+type ReactionResponse = {
+  messageId: string;
+  reactions: {
+    userId: string;
+    emoji: string;
+  }[];
+};
+
+
 export default function MessageItem({
   message,
   isOwn,
@@ -28,7 +37,7 @@ export default function MessageItem({
   onPin,
   onForward,
   activeReactionMessageId,
-  setActiveReactionMessageId
+  setActiveReactionMessageId,
 }: {
   message: PrivateChatMessage;
   isOwn: boolean;
@@ -52,12 +61,50 @@ export default function MessageItem({
   const toggleTime = () => setShowTime((prev) => !prev);
   const isReactionActive = activeReactionMessageId === message.id;
 
+  const [isReacted, setIsReacted] = React.useState(false);
+  const [emoji, setEmoji] = React.useState("");
+
   const reactions = [
-    { icon: <Smile className="w-5 h-5" />, label: "smile" },
-    { icon: <Heart className="w-5 h-5" />, label: "love" },
-    { icon: <ThumbsUp className="w-5 h-5" />, label: "like" },
-    { icon: <Angry className="w-5 h-5" />, label: "angry" },
+    { icon: <Smile className="w-7 h-7 hover:bg-yellow-500 hover:text-white hover:rounded-full" />, label: "smile" },
+    { icon: <Heart className="w-7 h-7 hover:fill-green-500 hover:text-white hover:rounded-full" />, label: "love" },
+    { icon: <ThumbsUp className="w-7 h-7 hover:fill-primary hover:text-white hover:rounded-full" />, label: "like" },
+    { icon: <Angry className="w-7 h-7 hover:fill-red-500 hover:text-white hover:rounded-full" />, label: "angry" },
   ];
+
+  const reactionIcons: Record<string, React.JSX.Element> = {
+    smile: <Smile className="w-7 h-7 bg-gray-100 p-1 rounded-full stroke-white fill-yellow-500" />,
+    love: <Heart className="w-7 h-7 bg-gray-100 p-1 rounded-full stroke-white fill-green-500" />,
+    like: <ThumbsUp className="w-7 h-7 bg-gray-100 p-1 rounded-full stroke-white fill-primary" />,
+    angry: <Angry className="w-7 h-7 bg-gray-100 p-1 rounded-full stroke-white fill-red-500" />,
+  };
+
+
+  React.useEffect(() => {
+    const outgoing = (event: any, ...args: any[]) =>
+      console.log("📤 Outgoing event:", event, "Payload:", args);
+
+    const incoming = (event: any, ...args: any[]) =>
+      console.log("📥 Incoming event:", event, "Payload:", args);
+
+    socket.onAnyOutgoing(outgoing);
+    socket.onAny(incoming);
+
+    return () => {
+      socket.offAnyOutgoing(outgoing);
+      socket.offAny(incoming);
+    };
+  }, []);
+
+  React.useEffect(() => {
+    if (message.reactions && message.reactions.length > 0) {
+      // For simplicity, show the first reaction
+      setIsReacted(true);
+      setEmoji(message.reactions[0].react); // or emoji field if it's different
+    }
+  }, [message.reactions]);
+
+
+  //console.log("message with reactions", message)
 
   React.useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -65,29 +112,68 @@ export default function MessageItem({
         setActiveReactionMessageId(null);
       }
     };
+
     document.addEventListener("click", handleClickOutside);
     return () => document.removeEventListener("click", handleClickOutside);
   }, []);
 
+
   const handleSendReaction = (react: string) => {
     try {
+      if (isReacted && emoji === react) {
+        // Remove reaction
+        socket.emit("private-message-unreact", { messageId: message?.id });
+        setIsReacted(false);
+        setEmoji("");
+      } else {
+        // Add/Update reaction
+        socket.emit("private-message-react", { messageId: message?.id, emoji: react });
+        setIsReacted(true);
+        setEmoji(react);
+      }
+      // Auto-close reaction bar
+      setActiveReactionMessageId(null);
 
-      const data = { messageId: message?.id, emoji: react }
-      socket.emit("private-message-ract", data)
-      console.log("enter handle send reaction", data)
     } catch (error) {
-      console.log("Error react message")
+      console.log("Error handling reaction");
     }
-  }
+  };
+
+  const handleReactMessageUI = (data: ReactionResponse) => {
+    if (data.messageId === message.id && data.reactions?.length > 0) {
+      setIsReacted(true);
+      setEmoji(data.reactions[0].emoji); // update to first reaction or merge logic
+    } else if (data.messageId === message.id && data.reactions.length === 0) {
+      // No reactions left
+      setIsReacted(false);
+      setEmoji("");
+    }
+  };
+
+  React.useEffect(() => {
+    socket.on("private-message-reacted", handleReactMessageUI);
+    return () => { socket.off("private-message-reacted", handleReactMessageUI) };
+  }, [message.id]);
+
+
+
+  React.useEffect(() => {
+    socket.on("private-message-reacted", handleReactMessageUI);
+
+    return () => {
+      socket.off("private-message-reacted", handleReactMessageUI);
+    };
+  }, [handleReactMessageUI]);
 
   const { userListData } = userListQuery();
 
-  const chatUsers: ChatUserType[] = userListData?.map((u: UserListResponse) => ({
-    id: u.id,
-    username: u.username,
-    avatar_url: u.avatar_url,
-    status: typeof u.status === "string" ? u.status : "",
-  })) || [];
+  const chatUsers: ChatUserType[] =
+    userListData?.map((u: UserListResponse) => ({
+      id: u.id,
+      username: u.username,
+      avatar_url: u.avatar_url,
+      status: typeof u.status === "string" ? u.status : "",
+    })) || [];
 
   const toggleUserSelection = (userId: number) => {
     setSelectedUsers((prev) =>
@@ -102,6 +188,8 @@ export default function MessageItem({
       setSelectedUsers([]);
     }
   };
+
+  
 
   return (
     <div className={`flex ${isOwn ? "justify-end" : "justify-start"} gap-3`}>
@@ -132,7 +220,12 @@ export default function MessageItem({
               }}
               className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition"
             >
-              <Heart className="w-5 h-5 bg-gray-200 p-1 rounded-full text-primary" />
+              {/* Show reacted emoji OR default heart */}
+              {isReacted && reactionIcons[emoji] ? (
+                reactionIcons[emoji]
+              ) : (
+                <Heart className="w-5 h-5 bg-gray-200 p-1 rounded-full text-primary" />
+              )}
             </button>
           )}
 
@@ -160,26 +253,21 @@ export default function MessageItem({
                         src={message.attachment_url}
                         alt="attachment"
                         className="max-w-full max-h-60 rounded-lg cursor-pointer"
-                        onClick={() =>
-                          setPreviewModal({ type: "image", url: message.attachment_url })
-                        }
+                        onClick={() => setPreviewModal({ type: "image", url: message.attachment_url })}
                       />
                     )}
+
                     {filePath?.match(/\.(mp4|webm)$/i) && (
-                      <video
-                        src={message.attachment_url}
-                        controls
-                        className="max-w-full max-h-60 rounded-lg"
-                      />
+                      <video src={message.attachment_url} controls className="max-w-full max-h-60 rounded-lg" />
                     )}
+
                     {filePath?.match(/\.(mp3|wav)$/i) && <audio controls src={message.attachment_url} />}
+
                     {!filePath?.match(/\.(jpeg|jpg|png|gif|mp4|webm|mp3|wav)$/i) && (
                       <div className="relative flex flex-col items-center justify-center w-[200px] h-[200px] bg-gray-100 rounded-lg shadow-md p-4 hover:shadow-lg transition-shadow">
                         <File
                           className="w-12 h-12 text-slate-500 mb-2"
-                          onClick={() =>
-                            setPreviewModal({ type: "file", url: message.attachment_url })
-                          }
+                          onClick={() => setPreviewModal({ type: "file", url: message.attachment_url })}
                         />
                       </div>
                     )}
@@ -191,7 +279,9 @@ export default function MessageItem({
                 {message?.is_edit && <span className="text-grey-500 italic">Edited</span>}
                 {isOwn && (
                   <span className="ml-2 flex items-center gap-1">
-                    {message?.is_delivered && !message?.isRead && <span className="italic text-slate-300">Delivered</span>}
+                    {message?.is_delivered && !message?.isRead && (
+                      <span className="italic text-slate-300">Delivered</span>
+                    )}
                     {message?.isRead && <span className="italic text-slate-300">Seen</span>}
                   </span>
                 )}
@@ -203,6 +293,7 @@ export default function MessageItem({
                     <Pen className="w-4 h-4 mr-2" /> Edit
                   </ContextMenuItem>
                 )}
+
                 {isOwn && (
                   <ContextMenuSub>
                     <ContextMenuSubTrigger>
@@ -219,9 +310,11 @@ export default function MessageItem({
                     </ContextMenuSubContent>
                   </ContextMenuSub>
                 )}
+
                 <ContextMenuItem onClick={() => onPin(Number(message.id))}>
                   <Pin className="w-4 h-4 mr-2" /> Pin
                 </ContextMenuItem>
+
                 <ContextMenuItem
                   onClick={() => {
                     setForwardMessageId(Number(message.id));
@@ -240,16 +333,29 @@ export default function MessageItem({
                 e.stopPropagation();
                 setActiveReactionMessageId(isReactionActive ? null : message.id);
               }}
-              className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition"
+              className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition flex gap-1 items-center"
             >
-              <Heart className="w-5 h-5 bg-gray-200 p-1 rounded-full text-primary" />
+              {/* Your own reaction or default */}
+              {isReacted && reactionIcons[emoji] ? (
+                reactionIcons[emoji]
+              ) : (
+                <Heart className="w-5 h-5 bg-gray-200 p-1 rounded-full text-primary" />
+              )}
+
+              {/* Show other reactions (except current user) */}
+              {message.reactions?.filter(r => r.userId !== user.id).map((r, idx) => (
+                <span key={idx}>
+                  {reactionIcons[r.react]}
+                </span>
+              ))}
             </button>
+
           )}
 
           {isReactionActive && (
             <div
-              className={`absolute -top-12 z-10 flex items-center gap-2 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-full p-2 shadow-lg transition-transform duration-200 ease-out scale-100 animate-scale-in
-      ${isOwn ? "right-0 -translate-x-0" : "left-0 -translate-x-0"}`}
+              className={`absolute -top-12 z-10 flex items-center gap-2 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-full p-2 shadow-lg transition-transform duration-200 ease-out scale-100 animate-scale-in ${isOwn ? "right-0" : "left-0"
+                }`}
             >
               {reactions.map((reaction) => (
                 <button
@@ -262,12 +368,18 @@ export default function MessageItem({
               ))}
             </div>
           )}
-
         </div>
 
         {showTime && (
-          <span className={`text-[11px] mt-1 transition-opacity ${isOwn ? "text-slate-400 pr-2" : "text-slate-500 pl-2"}`}>
-            {new Date(message.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: true })}
+          <span
+            className={`text-[11px] mt-1 transition-opacity ${isOwn ? "text-slate-400 pr-2" : "text-slate-500 pl-2"
+              }`}
+          >
+            {new Date(message.created_at).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+              hour12: true,
+            })}
           </span>
         )}
       </div>
@@ -283,7 +395,6 @@ export default function MessageItem({
                   key={user.id}
                   className="flex items-center justify-between p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
                 >
-                  {/* LEFT SIDE: avatar + username */}
                   <div className="flex items-center gap-3">
                     <Avatar.Root className="w-10 h-10 rounded-full overflow-hidden">
                       <Avatar.Image
@@ -299,7 +410,6 @@ export default function MessageItem({
                     <span className="text-sm">{user.username}</span>
                   </div>
 
-                  {/* RIGHT SIDE: checkbox */}
                   <input
                     type="checkbox"
                     checked={selectedUsers.includes(Number(user.id))}
