@@ -1,8 +1,9 @@
 import * as React from "react";
 import type { PrivateChatMessage } from "@/dto/response/PrivateChatMessage";
 import type { ChatUserType } from "@/dto/UserTypes";
+import type { UserListResponse } from "@/dto/response/UserListResponse"; // make sure this import exists
 import * as Avatar from "@radix-ui/react-avatar";
-import { Angry, ArrowBigDown, CornerUpLeft, File, Heart, Pen, Pin, Smile, ThumbsUp, Trash } from "lucide-react";
+import { Angry, CornerUpLeft, File, Heart, Pen, Pin, Smile, ThumbsUp, Trash } from "lucide-react";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -13,9 +14,8 @@ import {
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import { DropdownMenuSeparator } from "../ui/dropdown-menu";
-import axios from "axios";
-import axiosInstance from "../../http/httpClient";
 import { socket } from "../../socket/socket";
+import { userListQuery } from "../../composables/Queries/userListQuery";
 
 export default function MessageItem({
   message,
@@ -26,6 +26,7 @@ export default function MessageItem({
   setPreviewModal,
   onDelete,
   onPin,
+  onForward,
   activeReactionMessageId,
   setActiveReactionMessageId
 }: {
@@ -37,17 +38,19 @@ export default function MessageItem({
   setPreviewModal: (preview: any) => void;
   onDelete: (messageId: number, is_everyone: boolean) => void;
   onPin: (messageId: number) => void;
+  onForward: (messageId: number, receiverIds: number[]) => void;
   activeReactionMessageId: string | null;
   setActiveReactionMessageId: (id: string | null) => void;
 }) {
   const sender = user;
 
   const [showTime, setShowTime] = React.useState(false);
+  const [showForwardDialog, setShowForwardDialog] = React.useState(false);
+  const [forwardMessageId, setForwardMessageId] = React.useState<number | null>(null);
+  const [selectedUsers, setSelectedUsers] = React.useState<number[]>([]);
 
   const toggleTime = () => setShowTime((prev) => !prev);
-
   const isReactionActive = activeReactionMessageId === message.id;
-
 
   const reactions = [
     { icon: <Smile className="w-5 h-5" />, label: "smile" },
@@ -66,19 +69,42 @@ export default function MessageItem({
     return () => document.removeEventListener("click", handleClickOutside);
   }, []);
 
-  const handlSendReaction =  (react: string) => {
+  const handleSendReaction = (react: string) => {
     try {
+
       const data = { messageId: message?.id, emoji: react }
       socket.emit("private-message-ract", data)
-      console.log("reactiondata", data)
+      console.log("enter handle send reaction", data)
     } catch (error) {
       console.log("Error react message")
     }
   }
 
+  const { userListData } = userListQuery();
+
+  const chatUsers: ChatUserType[] = userListData?.map((u: UserListResponse) => ({
+    id: u.id,
+    username: u.username,
+    avatar_url: u.avatar_url,
+    status: typeof u.status === "string" ? u.status : "",
+  })) || [];
+
+  const toggleUserSelection = (userId: number) => {
+    setSelectedUsers((prev) =>
+      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
+    );
+  };
+
+  const sendForward = () => {
+    if (forwardMessageId && selectedUsers.length > 0) {
+      onForward(forwardMessageId, selectedUsers);
+      setShowForwardDialog(false);
+      setSelectedUsers([]);
+    }
+  };
+
   return (
     <div className={`flex ${isOwn ? "justify-end" : "justify-start"} gap-3`}>
-      {/* Avatar for receiver */}
       {!isOwn && (
         <Avatar.Root className="w-10 h-10 rounded-full overflow-hidden">
           <Avatar.Image
@@ -92,14 +118,12 @@ export default function MessageItem({
         </Avatar.Root>
       )}
 
-      {/* Message container */}
       <div
         className={`relative message-item flex flex-col ${isOwn ? "items-end" : "items-start"} gap-1`}
         data-id={message.id}
         data-sender-id={typeof message.sender === "object" ? message.sender.id : message.sender}
       >
         <div className="relative flex items-center gap-1">
-          {/* Sender side: Preview/Reaction button before bubble */}
           {isOwn && (
             <button
               onClick={(e) => {
@@ -110,15 +134,13 @@ export default function MessageItem({
             >
               <Heart className="w-5 h-5 bg-gray-200 p-1 rounded-full text-primary" />
             </button>
-            
           )}
 
-          {/* Message bubble */}
           <div
             onClick={toggleTime}
             className={`max-w-[100%] p-2 rounded-lg cursor-pointer transition ${isOwn
-                ? "bg-primary text-white rounded-br-none hover:bg-primary/90"
-                : "bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-100 rounded-bl-none hover:bg-slate-300/80"
+              ? "bg-primary text-white rounded-br-none hover:bg-primary/90"
+              : "bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-100 rounded-bl-none hover:bg-slate-300/80"
               }`}
           >
             <ContextMenu>
@@ -165,7 +187,6 @@ export default function MessageItem({
                 )}
               </ContextMenuTrigger>
 
-              {/* Footer */}
               <div className="flex justify-between items-center mt-1 text-xs text-slate-300 gap-2">
                 {message?.is_edit && <span className="text-grey-500 italic">Edited</span>}
                 {isOwn && (
@@ -176,7 +197,6 @@ export default function MessageItem({
                 )}
               </div>
 
-              {/* Context Menu Items */}
               <ContextMenuContent>
                 {isOwn && !filePath?.match(/\.(jpeg|jpg|png|gif|mp4|webm|mp3|wav)$/i) && (
                   <ContextMenuItem onClick={() => onEdit(message.id, message.content || "")}>
@@ -202,14 +222,18 @@ export default function MessageItem({
                 <ContextMenuItem onClick={() => onPin(Number(message.id))}>
                   <Pin className="w-4 h-4 mr-2" /> Pin
                 </ContextMenuItem>
-                <ContextMenuItem onClick={() => onPin(Number(message.id))}>
+                <ContextMenuItem
+                  onClick={() => {
+                    setForwardMessageId(Number(message.id));
+                    setShowForwardDialog(true);
+                  }}
+                >
                   <CornerUpLeft className="w-4 h-4 mr-2" /> Forward
                 </ContextMenuItem>
               </ContextMenuContent>
             </ContextMenu>
           </div>
 
-          {/* Receiver side: Preview/Reaction button after bubble */}
           {!isOwn && (
             <button
               onClick={(e) => {
@@ -222,7 +246,6 @@ export default function MessageItem({
             </button>
           )}
 
-          {/* Reaction bar */}
           {isReactionActive && (
             <div
               className={`absolute -top-12 z-10 flex items-center gap-2 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-full p-2 shadow-lg transition-transform duration-200 ease-out scale-100 animate-scale-in
@@ -232,7 +255,7 @@ export default function MessageItem({
                 <button
                   key={reaction.label}
                   className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition"
-                  onClick={() => handlSendReaction(reaction.label)}
+                  onClick={() => handleSendReaction(reaction.label)}
                 >
                   {reaction.icon}
                 </button>
@@ -242,13 +265,69 @@ export default function MessageItem({
 
         </div>
 
-        {/* Time */}
         {showTime && (
           <span className={`text-[11px] mt-1 transition-opacity ${isOwn ? "text-slate-400 pr-2" : "text-slate-500 pl-2"}`}>
             {new Date(message.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: true })}
           </span>
         )}
       </div>
+
+      {/* Forward Dialog */}
+      {showForwardDialog && forwardMessageId !== null && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 w-96">
+            <h2 className="text-lg font-semibold mb-2">Select users to forward</h2>
+            <ul className="max-h-64 overflow-y-auto">
+              {chatUsers.map((user) => (
+                <li
+                  key={user.id}
+                  className="flex items-center justify-between p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+                >
+                  {/* LEFT SIDE: avatar + username */}
+                  <div className="flex items-center gap-3">
+                    <Avatar.Root className="w-10 h-10 rounded-full overflow-hidden">
+                      <Avatar.Image
+                        src={user.avatar_url}
+                        alt={user.username}
+                        className="w-full h-full object-cover"
+                      />
+                      <Avatar.Fallback className="w-full h-full flex items-center justify-center bg-gray-500 text-white text-xs font-semibold">
+                        {user.username.slice(0, 2).toUpperCase()}
+                      </Avatar.Fallback>
+                    </Avatar.Root>
+
+                    <span className="text-sm">{user.username}</span>
+                  </div>
+
+                  {/* RIGHT SIDE: checkbox */}
+                  <input
+                    type="checkbox"
+                    checked={selectedUsers.includes(Number(user.id))}
+                    onChange={() => toggleUserSelection(Number(user.id))}
+                    className="w-5 h-5"
+                  />
+                </li>
+              ))}
+            </ul>
+
+            <div className="flex justify-end gap-2 mt-4">
+              <button
+                className="px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded"
+                onClick={() => setShowForwardDialog(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="px-4 py-2 bg-primary text-white rounded disabled:opacity-50"
+                disabled={selectedUsers.length === 0}
+                onClick={sendForward}
+              >
+                Send
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

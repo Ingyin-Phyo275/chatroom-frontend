@@ -96,39 +96,4 @@ socket.on("incoming-group-call", (payload) => {
   window.dispatchEvent(new CustomEvent("incomingGroupCall", { detail: data }));
 });
 
-// socket.on("receive-message", (msg) => {
-//   console.log("global receive-message", msg)
-//   console.log("chatroom id", msg?.chatroom_id)
-//   console.log("unread count global", msg?.unreadCount)
-//     const user = JSON.parse(localStorage.getItem("user") || "{}");
-//   console.log("login user", user?.id)
 
-//   let unreadCount;
-
-//   msg?.unreadCount.map((unread: any) => {
-//     if (unread.user_id === user?.id) {
-//       unreadCount = unread.count;
-//     }
-//   })
-//   const { setValue } = useCounterStore();
-//   setValue(msg?.chatroom_id, unreadCount, "Group");
-// });
-
-// Global listener for all group messages
-// socket.on("receive-message", (msg) => {
-//   console.log("📥 Global group message received:", msg);
-
-//   // update unread counts in Zustand store (or wherever you track them)
-//   const setValue = useCounterStore.getState().setValue;
-
-//   const groupId = msg?.chatroom_id || msg?.group_id;
-//   if (!groupId) return;
-
-//   // if user is not in that chatroom, increase unread count
-//   const currentPath = window.location.pathname;
-//   const isViewingThisGroup = currentPath.includes(String(groupId));
-
-//   if (!isViewingThisGroup) {
-//     setValue(groupId, 1, "Group"); // increment unread
-//   }
-// });
