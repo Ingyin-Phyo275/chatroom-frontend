@@ -1,5 +1,5 @@
 // MessageList.tsx
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import MessageItem from "./MessageItem";
 import { groupMessagesByDay } from "@/utils/helper";
 import type { PrivateChatMessage } from "@/dto/response/PrivateChatMessage";
@@ -62,7 +62,9 @@ export default function MessageList({
     }
   };
 
-// console.log("private message list", messages)
+    const [activeReactionMessageId, setActiveReactionMessageId] = useState<string | null>(null);
+
+
   return (
     <div
       ref={chatContainerRef}
@@ -99,6 +101,8 @@ export default function MessageList({
                 setPreviewModal={setPreviewModal}
                 onDelete={onDelete}
                 onPin={onPin}
+                activeReactionMessageId={activeReactionMessageId}
+          setActiveReactionMessageId={setActiveReactionMessageId}
               />
             );
           })}
