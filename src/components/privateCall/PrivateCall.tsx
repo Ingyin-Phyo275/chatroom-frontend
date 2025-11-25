@@ -141,8 +141,12 @@ const handleIncomingCall = useCallback((payload: any) => {
 
   const createPeerConnection = (otherId: number) => {
     const pc = new RTCPeerConnection({
-      iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
-    });
+  iceServers: [
+    { urls: "stun:stun.mtg.com.mm:3478" },
+    { urls: "turn:stun.mtg.com.mm:3478?transport=udp", username: "MTGRtc", credential: "MTG@dmin123" },
+    { urls: "turns:stun.mtg.com.mm:5349?transport=tcp", username: "MTGRtc", credential: "MTG@dmin123" }
+  ]
+});
 
     pc.ontrack = (event) => {
       const [remoteStream] = event.streams;
