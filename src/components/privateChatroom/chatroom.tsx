@@ -356,12 +356,12 @@ useEffect(() => {
       duration: "",
     };
 
-    setMessages((prev) => [...prev, newMsg]);
+    //setMessages((prev) => [...prev, newMsg]);
     setText("");
     setPendingAttachments([]);
     scrollToBottom();
 
-    //console.log("new messages", messages)
+    console.log("new messages", messages)
     socket.emit("send-message", {
       sender_id: newMsg.sender,
       receiver_id: newMsg.receiver,

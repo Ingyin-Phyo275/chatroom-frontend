@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { Phone, PhoneOff, Mic, MicOff } from "lucide-react";
 import { socket } from "@/socket/socket";
 
@@ -29,6 +29,13 @@ export default function PrivateCall({
 
   const pendingCandidates = useRef<RTCIceCandidateInit[]>([]);
   const isCaller = !incomingCall;
+
+  useEffect(() => {
+  console.log("Component socket object:", socket);
+  console.log("socket.id:", socket?.id, "connected:", socket?.connected);
+  socket.on("connect", () => console.log("socket connected with id", socket.id));
+}, []);
+
 
   useEffect(() => {
     if (remoteAudioRef.current) {
@@ -83,24 +90,7 @@ export default function PrivateCall({
   // console.log("caller", callerName)
   // console.log("receiver name", receiverName)
   //console.log("name check", callerName, receiverName)
-  useEffect(() => {
-    ringtone.current = new Audio("/ringtone.mp3");
-    ringtone.current.loop = true;
-  }, []);
 
-  useEffect(() => {
-    socket.on("private-incoming-call", handleIncomingCall);
-    socket.on("webrtc-offer", handleOffer);
-    socket.on("webrtc-answer", handleAnswer);
-    socket.on("webrtc-candidate", handleCandidate);
-
-    return () => {
-      socket.off("private-incoming-call", handleIncomingCall);
-      socket.off("webrtc-offer", handleOffer);
-      socket.off("webrtc-answer", handleAnswer);
-      socket.off("webrtc-candidate", handleCandidate);
-    };
-  }, []);
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
@@ -131,15 +121,13 @@ export default function PrivateCall({
   //   ringtone.current?.play().catch(() => { });
   // };
 
-const handleIncomingCall = (payload: any) => {
+const handleIncomingCall = useCallback((payload: any) => {
   const data = Array.isArray(payload) ? payload[0] : payload;
+
   console.log("handleIncomingCall", data, "userId", userId);
 
   if (!data) return;
-  if (data.from === userId) {
-    console.log("Incoming call ignored: from === userId");
-    return;
-  }
+  if (data.from === userId) return;
 
   setCallData({
     ...data.callData,
@@ -147,42 +135,9 @@ const handleIncomingCall = (payload: any) => {
     call_type: data.call_type,
   });
 
-  // setIsRinging(true);
   ringtone.current?.play().catch(() => {});
-};
+}, [userId]);
 
-
-
-  const handleOffer = async ({ sdp, from }: any) => {
-
-    console.log("From Data", from);
-    console.log("User Id", userId);
-
-    if (from === userId) return;
-
-    // Normalize the incoming SDP
-    const offerDesc =
-      typeof sdp === "string"
-        ? { type: "offer", sdp } // backend sent raw string
-        : sdp;
-
-    console.log("Received offer:", offerDesc);
-    setRemoteOffer(offerDesc);
-    setCallData({ ...callData, from });
-    // setIsRinging(true);
-    ringtone.current?.play().catch(() => { });
-  };
-
-  const handleAnswer = async ({ sdp, from }: any) => {
-    if (from === userId) return;
-    if (peerRef.current) {
-      console.log("Setting remote description with SDP:", sdp);
-      await peerRef.current.setRemoteDescription(
-        new RTCSessionDescription(sdp)
-      );
-      setCallStarted(true);
-    }
-  };
 
   const createPeerConnection = (otherId: number) => {
     const pc = new RTCPeerConnection({
@@ -212,6 +167,48 @@ const handleIncomingCall = (payload: any) => {
     };
     return pc;
   };
+
+
+const handleOffer = useCallback((payload: any) => {
+  const data = Array.isArray(payload) ? payload[0] : payload;
+
+  console.log("handleOffer payload:", data);
+
+  if (!data) return;
+
+  const { sdp, from } = data;
+
+  // Ignore your own echo
+  if (from === userId) return;
+
+  // Save the remote offer
+  setRemoteOffer(sdp); // sdp is already { type, sdp }
+
+  // Update callData without losing previous values
+  setCallData((prev: any) => ({
+    ...prev,
+    from,
+  }));
+
+  // Start ringing on offer
+  ringtone.current?.play().catch(() => {});
+}, [userId]);  // Dependencies
+
+
+const handleAnswer = useCallback(async ({ sdp, from }: any) => {
+  if (from === userId) return;
+
+  if (peerRef.current) {
+    console.log("Setting remote description with SDP:", sdp);
+    await peerRef.current.setRemoteDescription(
+      new RTCSessionDescription(sdp)
+    );
+    setCallStarted(true);
+  }
+}, [userId]);
+
+
+
 
   // Caller: initiate call
   const initiateCall = async () => {
@@ -283,16 +280,18 @@ const handleIncomingCall = (payload: any) => {
   };
 
   // Handle incoming ICE candidates
-  const handleCandidate = ({ candidate, from }: any) => {
-    if (from === userId || !candidate || !candidate.candidate) return;
-    if (peerRef.current) {
-      peerRef.current
-        .addIceCandidate(new RTCIceCandidate(candidate))
-        .catch(console.error);
-    } else {
-      pendingCandidates.current.push(candidate);
-    }
-  };
+const handleCandidate = useCallback(({ candidate, from }: any) => {
+  if (from === userId || !candidate || !candidate.candidate) return;
+
+  if (peerRef.current) {
+    peerRef.current
+      .addIceCandidate(new RTCIceCandidate(candidate))
+      .catch(console.error);
+  } else {
+    pendingCandidates.current.push(candidate);
+  }
+}, [userId]);
+
   const endCall = () => {
     localStreamRef.current?.getTracks().forEach((track) => track.stop());
     peerRef.current?.close();
@@ -352,6 +351,26 @@ const handleIncomingCall = (payload: any) => {
       initiateCall();
     }
   }, []);
+
+    useEffect(() => {
+    ringtone.current = new Audio("/ringtone.mp3");
+    ringtone.current.loop = true;
+  }, []);
+
+  useEffect(() => {
+    console.log("enter socker listener")
+    socket.on("private-incoming-call", handleIncomingCall);
+    socket.on("webrtc-offer", handleOffer);
+    socket.on("webrtc-answer", handleAnswer);
+    socket.on("webrtc-candidate", handleCandidate);
+
+    return () => {
+      socket.off("private-incoming-call", handleIncomingCall);
+      socket.off("webrtc-offer", handleOffer);
+      socket.off("webrtc-answer", handleAnswer);
+      socket.off("webrtc-candidate", handleCandidate);
+    };
+  }, [handleIncomingCall, handleOffer, handleAnswer, handleCandidate]);
 
 
   return (

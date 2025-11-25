@@ -82,13 +82,13 @@ socket.on("connect_error", (err) => {
   console.error("❌ Socket connection error:", err.message);
 });
 
-socket.onAnyOutgoing((event, ...args) => {
-  console.log("📤 Outgoing event:", event, "Payload:", args);
-});
+// socket.onAnyOutgoing((event, ...args) => {
+//   console.log("📤 Outgoing event:", event, "Payload:", args);
+// });
 
-socket.onAny((event, ...args) => {
-  console.log("📥 Incoming event:", event, "Payload:", args);
-});
+// socket.onAny((event, ...args) => {
+//   console.log("📥 Incoming event:", event, "Payload:", args);
+// });
 
 // Global incoming group call listener
 socket.on("incoming-group-call", (payload) => {
