@@ -57,6 +57,7 @@ export default function MessageItem({
   const [selectedUsers, setSelectedUsers] = React.useState<number[]>([]);
 
   const toggleTime = () => setShowTime((prev) => !prev);
+
   const isReactionActive = activeReactionMessageId === message.id;
 
   const [isReacted, setIsReacted] = React.useState(false);
@@ -74,27 +75,27 @@ const [messageReactions, setMessageReactions] = React.useState(message.reactions
   ];
 
   const reactionIcons: Record<string, React.JSX.Element> = {
-    smile: <Smile className="w-7 h-7 bg-gray-100 p-1 rounded-full stroke-white fill-yellow-500" />,
-    love: <Heart className="w-7 h-7 bg-gray-100 p-1 rounded-full stroke-white fill-green-500" />,
-    like: <ThumbsUp className="w-7 h-7 bg-gray-100 p-1 rounded-full stroke-white fill-primary" />,
-    angry: <Angry className="w-7 h-7 bg-gray-100 p-1 rounded-full stroke-white fill-red-500" />,
+    smile: <Smile className="w-7 h-7 p-1 rounded-full stroke-white bg-orange-400" />,
+    love: <Heart className="w-7 h-7  p-1 rounded-full stroke-white bg-green-600" />,
+    like: <ThumbsUp className="w-7 h-7  p-1 rounded-full stroke-white bg-primary" />,
+    angry: <Angry className="w-7 h-7  p-1 rounded-full stroke-white bg-red-600" />,
   };
 
-  React.useEffect(() => {
-    const outgoing = (event: any, ...args: any[]) =>
-      console.log("📤 Outgoing event:", event, "Payload:", args);
+  // React.useEffect(() => {
+  //   const outgoing = (event: any, ...args: any[]) =>
+  //     console.log("📤 Outgoing event:", event, "Payload:", args);
 
-    const incoming = (event: any, ...args: any[]) =>
-      console.log("📥 Incoming event:", event, "Payload:", args);
+  //   const incoming = (event: any, ...args: any[]) =>
+  //     console.log("📥 Incoming event:", event, "Payload:", args);
 
-    socket.onAnyOutgoing(outgoing);
-    socket.onAny(incoming);
+  //   socket.onAnyOutgoing(outgoing);
+  //   socket.onAny(incoming);
 
-    return () => {
-      socket.offAnyOutgoing(outgoing);
-      socket.offAny(incoming);
-    };
-  }, []);
+  //   return () => {
+  //     socket.offAnyOutgoing(outgoing);
+  //     socket.offAny(incoming);
+  //   };
+  // }, []);
 
   React.useEffect(() => {
     if (showForwardDialog) setSelectedUsers([]);
@@ -194,22 +195,20 @@ const renderReactions = () => {
           {reactionIcons[myReaction.react]}
         </button>
       ) : (
-        <button className="bg-gray-200 rounded-full p-0">
-          <Heart className="w-5 h-5 fill-gray-400 stroke-white" />
+        <button className="rounded-full p-0">
+          <Heart className="w-5 h-5 fill-gray-500 stroke-white" />
         </button>
       )}
 
       {/* Show first other user's reaction if exists */}
       {otherReactions[0] && (
-        <button disabled className="opacity-60 pointer-none">
+        <button disabled className="opacity-40 cursor-not-allowed pointer-none ">
           {reactionIcons[otherReactions[0].react]}
         </button>
       )}
     </div>
   );
 };
-
-
 
   return (
     <div className={`flex ${isOwn ? "justify-end" : "justify-start"} gap-3`}>

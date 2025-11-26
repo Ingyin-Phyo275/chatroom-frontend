@@ -33,7 +33,7 @@ export default function MessageList({
   onDelete: (messageId: number, is_everyone: boolean) => void;
   onPin: (messageId: number) => void;
   onForward: (messageId: number, receiverIds: number[]) => void;
-  loading?: boolean; // optional
+  loading: boolean; // optional
 }) {
   // Track if user is at bottom
   useEffect(() => {
@@ -80,6 +80,7 @@ export default function MessageList({
           No messages yet. Say hello
         </div>
       ) : null}
+
       {sortedDays.map((day) => (
         <div key={day} className="space-y-3">
           <div className="flex justify-center">

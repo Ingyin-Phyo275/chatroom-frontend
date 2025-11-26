@@ -1,6 +1,6 @@
 import * as React from "react";
 import * as Avatar from "@radix-ui/react-avatar";
-import { Pen, Pin, Trash } from "lucide-react";
+import { CornerUpLeft, Pen, Pin, Trash } from "lucide-react";
 import { formatMessageDate } from "../../hooks/helper";
 import type { GetAllMessage } from "../../dto/response/GetAllMessage";
 import type { loginResponse } from "../../dto/response/LoginResponse";
@@ -11,6 +11,12 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
+import { userListQuery } from "../../composables/Queries/userListQuery";
+import type { ChatUserType } from "../../dto/UserTypes";
+import type { UserListResponse } from "../../dto/response/UserListResponse";
+import ForwardDialog from "./ForwardDialog";
+import { useGroupChatList } from "../../composables/Queries/useGroupChatList";
+import type { GroupChatResponse } from "../../dto/response/ChatRoom";
 
 type Props = {
   groupedMessages: Record<string, GetAllMessage[]>;
@@ -18,7 +24,10 @@ type Props = {
   onEditMessage: (id: string, text: string) => void;
   onPin: (id: number) => void;
   onDelete: (id: number) => void;
+  onForward: (id: number, receiverIds: number[], groupIds: number[]) => void;
 };
+type SelectedItem = { type: "user" | "group"; id: number };
+
 
 export default function GroupMessages({
   groupedMessages,
@@ -26,18 +35,56 @@ export default function GroupMessages({
   onEditMessage,
   onPin,
   onDelete,
+  onForward
 }: Props) {
-  // Track which message is clicked to show time
+
   const [selectedMessageId, setSelectedMessageId] = React.useState<string | null>(null);
-  const handleToggleTime = (id: string) => {
+  const handleToggleTime = (id: string) => { 
     setSelectedMessageId((prev) => (prev === id ? null : id)); // toggle
+  };
+
+  const [showForwardDialog, setShowForwardDialog] = React.useState(false);
+  const [forwardMessageId, setForwardMessageId] = React.useState<number | null>(null);
+
+  const { userListData } = userListQuery();
+
+  const chatUsers: ChatUserType[] = userListData?.map((u: UserListResponse) => ({
+    id: u.id,
+    username: u.username,
+    avatar_url: u.avatar_url,
+    status: typeof u.status === "string" ? u.status : "",
+  })) || [];
+
+  const { groupChatListQuery: groupChatList = [] as GroupChatResponse[] } = useGroupChatList({ page: 1, pageSize: 15 });
+
+
+  const [selectedUsers, setSelectedUsers] = React.useState<SelectedItem[]>([]);
+
+  // Toggle user/group selection
+  const toggleUserSelection = (item: SelectedItem) => {
+    setSelectedUsers(prev =>
+      prev.some(i => i.type === item.type && i.id === item.id)
+        ? prev.filter(i => !(i.type === item.type && i.id === item.id))
+        : [...prev, item]
+    );
+  };
+  React.useEffect(() => {
+    if (showForwardDialog) setSelectedUsers([]);
+  }, [showForwardDialog]);
+
+  // Forward handler
+  const handleForward = (messageId: number, items: SelectedItem[]) => {
+    // Separate users and groups if needed
+    const userIds = items.filter(i => i.type === "user").map(i => i.id);
+    const groupIds = items.filter(i => i.type === "group").map(i => i.id);
+    onForward(messageId, userIds, groupIds);
   };
 
   return (
     <div className="space-y-3">
       {Object.keys(groupedMessages).length === 0 && (
         <div className="text-center text-sm text-slate-400 mt-6">
-          No messages yet. Say hello 
+          No messages yet. Say hello
         </div>
       )}
 
@@ -57,9 +104,8 @@ export default function GroupMessages({
             return (
               <div
                 key={m.id}
-                className={`message-item flex items-end gap-2 ${
-                  isOwn ? "justify-end" : "justify-start"
-                }`}
+                className={`message-item flex items-end gap-2 ${isOwn ? "justify-end" : "justify-start"
+                  }`}
                 data-id={m.id}
                 data-sender-id={m.sender?.id}
               >
@@ -86,11 +132,10 @@ export default function GroupMessages({
                   <ContextMenu>
                     <div
                       onClick={() => handleToggleTime(String(m.id))}
-                      className={`max-w-[100%] p-2 rounded-lg cursor-pointer transition ${
-                        isOwn
-                          ? "bg-primary text-white rounded-br-none hover:bg-primary/90"
-                          : "bg-slate-200 text-slate-900 dark:bg-slate-700 dark:text-slate-100 rounded-bl-none hover:bg-slate-300/80"
-                      }`}
+                      className={`max-w-[100%] p-2 rounded-lg cursor-pointer transition ${isOwn
+                        ? "bg-primary text-white rounded-br-none hover:bg-primary/90"
+                        : "bg-slate-200 text-slate-900 dark:bg-slate-700 dark:text-slate-100 rounded-bl-none hover:bg-slate-300/80"
+                        }`}
                     >
                       <ContextMenuTrigger>
                         <div>
@@ -99,11 +144,11 @@ export default function GroupMessages({
                           {/* Attachments */}
                           {Array.isArray(m.attachment_url)
                             ? m.attachment_url.map((url, i) => (
-                                <AttachmentPreview key={i} urls={url} />
-                              ))
+                              <AttachmentPreview key={i} urls={url} />
+                            ))
                             : m.attachment_url && (
-                                <AttachmentPreview urls={m.attachment_url} />
-                              )}
+                              <AttachmentPreview urls={m.attachment_url} />
+                            )}
                         </div>
                       </ContextMenuTrigger>
 
@@ -149,15 +194,23 @@ export default function GroupMessages({
                           <Trash className="w-4 h-4 mr-2" /> Delete
                         </ContextMenuItem>
                       )}
+
+                      <ContextMenuItem
+                        onClick={() => {
+                          setForwardMessageId(Number(m.id));
+                          setShowForwardDialog(true);
+                        }}
+                      >
+                        <CornerUpLeft className="w-4 h-4 mr-2" /> Forward
+                      </ContextMenuItem>
                     </ContextMenuContent>
                   </ContextMenu>
 
                   {/* Time (only shown if selected) */}
                   {isSelected && (
                     <span
-                      className={`text-[11px] mt-1 transition-opacity ${
-                        isOwn ? "text-slate-400 pr-1" : "text-slate-500 pl-1"
-                      }`}
+                      className={`text-[11px] mt-1 transition-opacity ${isOwn ? "text-slate-400 pr-1" : "text-slate-500 pl-1"
+                        }`}
                     >
                       {new Date(m.created_at!).toLocaleTimeString([], {
                         hour: "2-digit",
@@ -172,6 +225,19 @@ export default function GroupMessages({
           })}
         </div>
       ))}
+      {showForwardDialog && forwardMessageId !== null && (
+        <ForwardDialog
+          open={showForwardDialog}
+          onClose={() => setShowForwardDialog(false)}
+          chatUsers={chatUsers}
+          groupChats={groupChatList}
+          selectedUsers={selectedUsers}
+          toggleUserSelection={toggleUserSelection}
+          sendForward={handleForward}
+          messageId={forwardMessageId}
+        />
+      )}
+
     </div>
   );
 }

@@ -17,4 +17,9 @@ export interface GetAllMessage {
   unreadCount?: { userId: number; unreadCount: number }[];
   isRead?: boolean;
   chatroom_id?: number;
+  reactions?: {
+    userId: number;
+    emoji: string;
+    userName: string
+  }[]
 }

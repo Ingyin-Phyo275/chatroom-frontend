@@ -509,6 +509,18 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
     }
   };
 
+  const handleForwardMessage = async (messageId: number, receiverIds: number[], groupIds:number[]) => {
+    try {
+      socket.emit("group-forward-message", {
+        messageId,
+        receiverIds,
+        groupIds
+      })
+    } catch (error) {
+      toast.error("Failed to forward message");
+    }
+  }
+
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)] relative">
       <div ref={listRef} className="flex-1 overflow-auto p-4 space-y-3 bg-white">
@@ -518,6 +530,7 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
           onEditMessage={handleEditMessage}
           onPin={handlePinMessage}
           onDelete={handleDeleteMessage}
+          onForward={handleForwardMessage}
         />
       </div>
 
