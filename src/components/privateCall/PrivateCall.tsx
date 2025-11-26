@@ -6,6 +6,7 @@ type PrivateCallProps = {
   userId: number;
   receiver_id: number;
   incomingCall?: any;
+  pendingOffer?: any; // 🔧 FIX: Offer that arrived before component mounted
   setShowCall: (val: boolean) => void;
 };
 
@@ -13,6 +14,7 @@ export default function PrivateCall({
   userId,
   receiver_id,
   incomingCall,
+  pendingOffer,
   setShowCall,
 }: PrivateCallProps) {
   const [isMuted, setIsMuted] = useState(false);
@@ -20,6 +22,8 @@ export default function PrivateCall({
   const [callStarted, setCallStarted] = useState(false);
   const [callDuration, setCallDuration] = useState(0);
   const [callData, setCallData] = useState<any>(incomingCall || null);
+  console.log("Incoming Call: ", incomingCall);
+  console.log("Call Data State: ", callData);
   const [remoteOffer, setRemoteOffer] = useState<RTCSessionDescriptionInit | null>(null);
 
   const localStreamRef = useRef<MediaStream | null>(null);
@@ -30,12 +34,48 @@ export default function PrivateCall({
   const pendingCandidates = useRef<RTCIceCandidateInit[]>([]);
   const isCaller = !incomingCall;
 
+  // 🔧 FIX: Use pending offer if it arrived before component mounted
+  useEffect(() => {
+    if (pendingOffer && !isCaller) {
+      console.log("✅ [PRIVATECALL] Using pendingOffer from parent:", pendingOffer);
+      setRemoteOffer(pendingOffer.sdp);
+      setCallData((prev: any) => ({
+        ...prev,
+        from: pendingOffer.from,
+      }));
+      ringtone.current?.play().catch(() => {});
+    }
+  }, [pendingOffer, isCaller]);
+
   useEffect(() => {
   console.log("Component socket object:", socket);
   console.log("socket.id:", socket?.id, "connected:", socket?.connected);
   socket.on("connect", () => console.log("socket connected with id", socket.id));
 }, []);
 
+  // ✅ LOG ALL INCOMING SOCKET EVENTS (CATCH-ALL)
+  useEffect(() => {
+    const logAllEvents = (eventName: string, ...args: any[]) => {
+      console.log(`📡 [SOCKET EVENT] "${eventName}"`, args);
+    };
+
+    console.log("🔍 Setting up catch-all socket logger");
+    console.log("Socket object:", socket);
+    console.log("socket.onAny available:", typeof socket.onAny);
+
+    if (socket.onAny) {
+      socket.onAny(logAllEvents);
+      console.log("✅ Catch-all logger registered using onAny");
+    } else {
+      console.warn("⚠️ socket.onAny is not available on this socket instance");
+    }
+
+    return () => {
+      if (socket.offAny) {
+        socket.offAny(logAllEvents);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (remoteAudioRef.current) {
@@ -44,6 +84,7 @@ export default function PrivateCall({
   }, []);
 
   const handleCallInitiated = ({ callData }: any) => {
+    console.log("📞 [HANDLER] private-call-initiated:", callData);
     setCallData(callData);
   };
 
@@ -83,14 +124,6 @@ export default function PrivateCall({
       socket.off("private-call-initiated", handleCallInitiated);
     };
   }, []);
-
-  const receiverName = callData?.receiver?.username;
-  const callerName = callData?.initiator?.username;
-
-  // console.log("caller", callerName)
-  // console.log("receiver name", receiverName)
-  //console.log("name check", callerName, receiverName)
-
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
@@ -174,16 +207,26 @@ const handleIncomingCall = useCallback((payload: any) => {
 
 
 const handleOffer = useCallback((payload: any) => {
+  console.log("🔔 [HANDLER] webrtc-offer FIRED! Raw payload:", payload);
+
   const data = Array.isArray(payload) ? payload[0] : payload;
+  console.log("📦 Parsed data:", data);
 
-  console.log("handleOffer payload:", data);
-
-  if (!data) return;
+  if (!data) {
+    console.log("❌ No data in payload, exiting");
+    return;
+  }
 
   const { sdp, from } = data;
+  console.log("📝 SDP:", sdp, "From:", from, "My userId:", userId);
 
   // Ignore your own echo
-  if (from === userId) return;
+  if (from === userId) {
+    console.log("⚠️ Ignoring my own offer (from === userId)");
+    return;
+  }
+
+  console.log("✅ Setting remote offer and updating callData");
 
   // Save the remote offer
   setRemoteOffer(sdp); // sdp is already { type, sdp }
@@ -233,10 +276,13 @@ const handleAnswer = useCallback(async ({ sdp, from }: any) => {
       // Create and send offer immediately
       const offer = await peerRef.current.createOffer();
       await peerRef.current.setLocalDescription(offer);
-      // socket.emit("webrtc-offer", { receiver_id, sdp: offer });
-      socket.emit("webrtc-offer", { receiver_id, sdp: { type: offer.type, sdp: offer.sdp } });
+
+      const offerPayload = { receiver_id, sdp: { type: offer.type, sdp: offer.sdp } };
+      console.log("📤 EMITTING webrtc-offer to server:", offerPayload);
+      socket.emit("webrtc-offer", offerPayload);
 
       // Notify server that call is initiated
+      console.log("📤 EMITTING private-initiate-call to server:", { receiver_id, call_type: "audio" });
       socket.emit("private-initiate-call", { receiver_id, call_type: "audio" });
     } catch (err) {
       console.error("Error initiating call:", err);
@@ -285,13 +331,17 @@ const handleAnswer = useCallback(async ({ sdp, from }: any) => {
 
   // Handle incoming ICE candidates
 const handleCandidate = useCallback(({ candidate, from }: any) => {
+  console.log("🧊 [HANDLER] webrtc-candidate from:", from, "candidate:", candidate);
+
   if (from === userId || !candidate || !candidate.candidate) return;
 
   if (peerRef.current) {
+    console.log("✅ Adding ICE candidate to peer connection");
     peerRef.current
       .addIceCandidate(new RTCIceCandidate(candidate))
       .catch(console.error);
   } else {
+    console.log("⏳ Peer connection not ready, queuing candidate");
     pendingCandidates.current.push(candidate);
   }
 }, [userId]);
@@ -362,13 +412,23 @@ const handleCandidate = useCallback(({ candidate, from }: any) => {
   }, []);
 
   useEffect(() => {
-    console.log("enter socker listener")
+    console.log("🎯 Setting up socket listeners...");
+    console.log("📌 Registering: private-incoming-call");
     socket.on("private-incoming-call", handleIncomingCall);
+
+    console.log("📌 Registering: webrtc-offer");
     socket.on("webrtc-offer", handleOffer);
+
+    console.log("📌 Registering: webrtc-answer");
     socket.on("webrtc-answer", handleAnswer);
+
+    console.log("📌 Registering: webrtc-candidate");
     socket.on("webrtc-candidate", handleCandidate);
 
+    console.log("✅ All socket listeners registered!");
+
     return () => {
+      console.log("🧹 Cleaning up socket listeners...");
       socket.off("private-incoming-call", handleIncomingCall);
       socket.off("webrtc-offer", handleOffer);
       socket.off("webrtc-answer", handleAnswer);
@@ -376,17 +436,16 @@ const handleCandidate = useCallback(({ candidate, from }: any) => {
     };
   }, [handleIncomingCall, handleOffer, handleAnswer, handleCandidate]);
 
-
   return (
     <div className="relative flex flex-col items-center justify-center h-full p-4">
       {!isCaller && !callStarted && (
         <div className="flex flex-col items-center space-y-4 p-4 bg-white rounded-lg shadow-lg">
           {/* <p className="bg-black text-2xl">Hello</p> */}
           <div className="w-16 h-16 rounded-full bg-gray-500 flex items-center justify-center text-white font-bold text-lg">
-            {callerName?.slice(0, 2).toUpperCase()}
+            {callData?.callData?.initiator?.username?.slice(0, 2).toUpperCase()}
           </div>
           <p className="text-lg font-semibold">
-            Incoming audio call from {callerName || "Unknown"}
+            Incoming audio call from {callData?.callData?.initiator?.username || "Unknown"}
           </p>
           <div className="flex gap-4">
             <button
@@ -406,7 +465,7 @@ const handleCandidate = useCallback(({ candidate, from }: any) => {
       {isCaller && !callStarted && (
         <div className="flex flex-col items-center space-y-4">
           <p className="text-lg font-semibold">
-            Calling to {receiverName || "Unknown"}
+            Calling to {callData?.receiver?.username || "Unknown"}
           </p>
           <p className="text-md italic">Waiting for participant</p>
           <button onClick={endCall} className="p-3 bg-red-500 rounded-full">
@@ -420,10 +479,10 @@ const handleCandidate = useCallback(({ candidate, from }: any) => {
         <div className="flex flex-col items-center gap-4">
           <div className="text-center">
             <div className="w-20 h-20 bg-gray-300 dark:bg-gray-600 rounded-full relative flex items-center justify-center text-black dark:text-white font-semibold text-lg">
-              {isCaller ? receiverName?.slice(0, 2) : callerName?.slice(0, 2)}
+              {isCaller ? callData?.receiver?.username?.slice(0, 2) : callData?.callData?.initiator?.username?.slice(0, 2)}
             </div>
             <p className="text-lg font-semibold rounded-full">
-              {isCaller ? receiverName : callerName}
+              {isCaller ? callData?.receiver?.username : callData?.callData?.initiator?.username}
             </p>
             <p className="text-sm text-gray-600">
               {formatDuration(callDuration)}

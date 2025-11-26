@@ -48,6 +48,11 @@ export const disconnectSocket = () => {
 socket.on("connect", () => {
   console.log("✅ Socket connected! Socket ID:", socket.id);
 
+  // 🔍 DEBUG: Check user info and rooms
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  console.log("👤 Connected user:", user?.user?.id, user?.user?.username);
+  console.log("🔑 Auth token exists:", !!user?.token);
+
   socket.on("receive-message", (msg) => {
     console.log("global receive-message", msg);
 
@@ -82,18 +87,31 @@ socket.on("connect_error", (err) => {
   console.error("❌ Socket connection error:", err.message);
 });
 
-// socket.onAnyOutgoing((event, ...args) => {
-//   console.log("📤 Outgoing event:", event, "Payload:", args);
-// });
+socket.onAnyOutgoing((event, ...args) => {
+  console.log("📤 [GLOBAL] Outgoing event:", event, "Payload:", args);
+});
 
-// socket.onAny((event, ...args) => {
-//   console.log("📥 Incoming event:", event, "Payload:", args);
-// });
+socket.onAny((event, ...args) => {
+  console.log("📥 [GLOBAL] Incoming event:", event, "Payload:", args);
+});
 
 // Global incoming group call listener
 socket.on("incoming-group-call", (payload) => {
   const data = Array.isArray(payload) ? payload[0] : payload;
   window.dispatchEvent(new CustomEvent("incomingGroupCall", { detail: data }));
+});
+
+// 🔍 DEBUG: Global WebRTC event listeners
+socket.on("webrtc-offer", (payload) => {
+  console.log("🌍 [GLOBAL] webrtc-offer received:", payload);
+});
+
+socket.on("webrtc-answer", (payload) => {
+  console.log("🌍 [GLOBAL] webrtc-answer received:", payload);
+});
+
+socket.on("webrtc-candidate", (payload) => {
+  console.log("🌍 [GLOBAL] webrtc-candidate received:", payload);
 });
 
 // socket.on("receive-message", (msg) => {
