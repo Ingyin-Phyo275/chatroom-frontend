@@ -3,19 +3,12 @@ import type { PrivateChatMessage } from "@/dto/response/PrivateChatMessage";
 import type { ChatUserType } from "@/dto/UserTypes";
 import type { UserListResponse } from "@/dto/response/UserListResponse";
 import * as Avatar from "@radix-ui/react-avatar";
-import { Angry, CornerUpLeft, File, Heart, Pen, Pin, Smile, ThumbsUp, Trash } from "lucide-react";
-import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuSub,
-  ContextMenuSubContent,
-  ContextMenuSubTrigger,
-  ContextMenuTrigger,
-} from "@/components/ui/context-menu";
-import { DropdownMenuSeparator } from "../ui/dropdown-menu";
+import { Angry, Heart, Smile, ThumbsUp, } from "lucide-react";
+
 import { socket } from "../../socket/socket";
 import { userListQuery } from "../../composables/Queries/userListQuery";
+import ForwardDialog from "./ForwardDialog";
+import MessageBubble from "./MessageBubble";
 
 type ReactionResponse = {
   messageId: string;
@@ -78,7 +71,6 @@ export default function MessageItem({
     angry: <Angry className="w-7 h-7 bg-gray-100 p-1 rounded-full stroke-white fill-red-500" />,
   };
 
-
   React.useEffect(() => {
     const outgoing = (event: any, ...args: any[]) =>
       console.log("📤 Outgoing event:", event, "Payload:", args);
@@ -102,7 +94,6 @@ export default function MessageItem({
       setEmoji(message.reactions[0].react); // or emoji field if it's different
     }
   }, [message.reactions]);
-
 
   //console.log("message with reactions", message)
 
@@ -139,31 +130,23 @@ export default function MessageItem({
     }
   };
 
-  const handleReactMessageUI = (data: ReactionResponse) => {
-    if (data.messageId === message.id && data.reactions?.length > 0) {
-      setIsReacted(true);
-      setEmoji(data.reactions[0].emoji); // update to first reaction or merge logic
-    } else if (data.messageId === message.id && data.reactions.length === 0) {
-      // No reactions left
-      setIsReacted(false);
-      setEmoji("");
-    }
-  };
-
   React.useEffect(() => {
+    const handleReactMessageUI = (data: ReactionResponse) => {
+      if (data.messageId === message.id) {
+        if (data.reactions.length > 0) {
+          setIsReacted(true);
+          setEmoji(data.reactions[0].emoji); // you might want to merge reactions properly
+        } else {
+          setIsReacted(false);
+          setEmoji("");
+        }
+      }
+    };
+
     socket.on("private-message-reacted", handleReactMessageUI);
     return () => { socket.off("private-message-reacted", handleReactMessageUI) };
   }, [message.id]);
 
-
-
-  React.useEffect(() => {
-    socket.on("private-message-reacted", handleReactMessageUI);
-
-    return () => {
-      socket.off("private-message-reacted", handleReactMessageUI);
-    };
-  }, [handleReactMessageUI]);
 
   const { userListData } = userListQuery();
 
@@ -181,15 +164,12 @@ export default function MessageItem({
     );
   };
 
-  const sendForward = () => {
-    if (forwardMessageId && selectedUsers.length > 0) {
-      onForward(forwardMessageId, selectedUsers);
-      setShowForwardDialog(false);
-      setSelectedUsers([]);
+  // Reset selected users on open
+  React.useEffect(() => {
+    if (showForwardDialog) {
+      setSelectedUsers([]); // clear old selections
     }
-  };
-
-  
+  }, [showForwardDialog]);
 
   return (
     <div className={`flex ${isOwn ? "justify-end" : "justify-start"} gap-3`}>
@@ -212,121 +192,49 @@ export default function MessageItem({
         data-sender-id={typeof message.sender === "object" ? message.sender.id : message.sender}
       >
         <div className="relative flex items-center gap-1">
+          {/* sender side reaction btn*/}
           {isOwn && (
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 setActiveReactionMessageId(isReactionActive ? null : message.id);
               }}
-              className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition"
+              className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition flex gap-1 items-center"
             >
               {/* Show reacted emoji OR default heart */}
-              {isReacted && reactionIcons[emoji] ? (
-                reactionIcons[emoji]
-              ) : (
-                <Heart className="w-5 h-5 bg-gray-200 p-1 rounded-full text-primary" />
+              {isReacted && reactionIcons[emoji] && (
+                message?.reactions?.map((r, idx) => (
+                  r.userId !== user.id ? (<span key={idx} className="cursor-pointer">{reactionIcons[r.react]}</span>) :
+                    (<button
+                      key={idx}
+                      disabled
+                      className="cursor-not-allowed opacity-50"
+                    >
+                      {reactionIcons[r.react]}
+                    </button>
+                    )
+                ))
               )}
+
             </button>
           )}
 
-          <div
-            onClick={toggleTime}
-            className={`max-w-[100%] p-2 rounded-lg cursor-pointer transition ${isOwn
-              ? "bg-primary text-white rounded-br-none hover:bg-primary/90"
-              : "bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-100 rounded-bl-none hover:bg-slate-300/80"
-              }`}
-          >
-            <ContextMenu>
-              <ContextMenuTrigger>
-                {message?.content}
+          {/* message bubble */}
 
-                {message.duration && (
-                  <p className={`text-xs ${isOwn ? "text-slate-200" : "text-slate-400"}`}>
-                    Duration: {message.duration}
-                  </p>
-                )}
+          <MessageBubble
+            message={message}
+            isOwn={isOwn}
+            toggleTime={toggleTime}
+            filePath={filePath}
+            setPreviewModal={setPreviewModal}
+            onEdit={onEdit}
+            onDelete={onDelete}
+            onPin={onPin}
+            setForwardMessageId={setForwardMessageId}
+            setShowForwardDialog={setShowForwardDialog}
+          />
 
-                {message.attachment_url && (
-                  <div>
-                    {filePath?.match(/\.(jpeg|jpg|png|gif)$/i) && (
-                      <img
-                        src={message.attachment_url}
-                        alt="attachment"
-                        className="max-w-full max-h-60 rounded-lg cursor-pointer"
-                        onClick={() => setPreviewModal({ type: "image", url: message.attachment_url })}
-                      />
-                    )}
-
-                    {filePath?.match(/\.(mp4|webm)$/i) && (
-                      <video src={message.attachment_url} controls className="max-w-full max-h-60 rounded-lg" />
-                    )}
-
-                    {filePath?.match(/\.(mp3|wav)$/i) && <audio controls src={message.attachment_url} />}
-
-                    {!filePath?.match(/\.(jpeg|jpg|png|gif|mp4|webm|mp3|wav)$/i) && (
-                      <div className="relative flex flex-col items-center justify-center w-[200px] h-[200px] bg-gray-100 rounded-lg shadow-md p-4 hover:shadow-lg transition-shadow">
-                        <File
-                          className="w-12 h-12 text-slate-500 mb-2"
-                          onClick={() => setPreviewModal({ type: "file", url: message.attachment_url })}
-                        />
-                      </div>
-                    )}
-                  </div>
-                )}
-              </ContextMenuTrigger>
-
-              <div className="flex justify-between items-center mt-1 text-xs text-slate-300 gap-2">
-                {message?.is_edit && <span className="text-grey-500 italic">Edited</span>}
-                {isOwn && (
-                  <span className="ml-2 flex items-center gap-1">
-                    {message?.is_delivered && !message?.isRead && (
-                      <span className="italic text-slate-300">Delivered</span>
-                    )}
-                    {message?.isRead && <span className="italic text-slate-300">Seen</span>}
-                  </span>
-                )}
-              </div>
-
-              <ContextMenuContent>
-                {isOwn && !filePath?.match(/\.(jpeg|jpg|png|gif|mp4|webm|mp3|wav)$/i) && (
-                  <ContextMenuItem onClick={() => onEdit(message.id, message.content || "")}>
-                    <Pen className="w-4 h-4 mr-2" /> Edit
-                  </ContextMenuItem>
-                )}
-
-                {isOwn && (
-                  <ContextMenuSub>
-                    <ContextMenuSubTrigger>
-                      <Trash className="w-4 h-4 mr-auto" /> Delete
-                    </ContextMenuSubTrigger>
-                    <ContextMenuSubContent className="w-44">
-                      <ContextMenuItem onClick={() => onDelete(Number(message.id), false)}>
-                        Delete For Me
-                      </ContextMenuItem>
-                      <DropdownMenuSeparator />
-                      <ContextMenuItem onClick={() => onDelete(Number(message.id), true)}>
-                        Delete For Everyone
-                      </ContextMenuItem>
-                    </ContextMenuSubContent>
-                  </ContextMenuSub>
-                )}
-
-                <ContextMenuItem onClick={() => onPin(Number(message.id))}>
-                  <Pin className="w-4 h-4 mr-2" /> Pin
-                </ContextMenuItem>
-
-                <ContextMenuItem
-                  onClick={() => {
-                    setForwardMessageId(Number(message.id));
-                    setShowForwardDialog(true);
-                  }}
-                >
-                  <CornerUpLeft className="w-4 h-4 mr-2" /> Forward
-                </ContextMenuItem>
-              </ContextMenuContent>
-            </ContextMenu>
-          </div>
-
+          {/* receiver side */}
           {!isOwn && (
             <button
               onClick={(e) => {
@@ -335,19 +243,24 @@ export default function MessageItem({
               }}
               className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition flex gap-1 items-center"
             >
-              {/* Your own reaction or default */}
+              {/* Show reacted emoji OR default heart */}
               {isReacted && reactionIcons[emoji] ? (
-                reactionIcons[emoji]
+                message?.reactions?.map((r, idx) => (
+                  r.userId !== user.id ? (<span key={idx} className="cursor-pointer">{reactionIcons[r.react]}</span>) :
+                    (<button
+                      key={idx}
+                      disabled
+                      className="cursor-not-allowed opacity-50"
+                    >
+                      {reactionIcons[r.react]}
+                    </button>
+
+
+                    )
+                ))
               ) : (
                 <Heart className="w-5 h-5 bg-gray-200 p-1 rounded-full text-primary" />
               )}
-
-              {/* Show other reactions (except current user) */}
-              {message.reactions?.filter(r => r.userId !== user.id).map((r, idx) => (
-                <span key={idx}>
-                  {reactionIcons[r.react]}
-                </span>
-              ))}
             </button>
 
           )}
@@ -386,57 +299,16 @@ export default function MessageItem({
 
       {/* Forward Dialog */}
       {showForwardDialog && forwardMessageId !== null && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 w-96">
-            <h2 className="text-lg font-semibold mb-2">Select users to forward</h2>
-            <ul className="max-h-64 overflow-y-auto">
-              {chatUsers.map((user) => (
-                <li
-                  key={user.id}
-                  className="flex items-center justify-between p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
-                >
-                  <div className="flex items-center gap-3">
-                    <Avatar.Root className="w-10 h-10 rounded-full overflow-hidden">
-                      <Avatar.Image
-                        src={user.avatar_url}
-                        alt={user.username}
-                        className="w-full h-full object-cover"
-                      />
-                      <Avatar.Fallback className="w-full h-full flex items-center justify-center bg-gray-500 text-white text-xs font-semibold">
-                        {user.username.slice(0, 2).toUpperCase()}
-                      </Avatar.Fallback>
-                    </Avatar.Root>
+        <ForwardDialog
+          open={showForwardDialog}
+          onClose={() => setShowForwardDialog(false)}
+          chatUsers={chatUsers}
+          selectedUsers={selectedUsers}
+          toggleUserSelection={toggleUserSelection}
+          sendForward={onForward}
+          messageId={forwardMessageId}
+        />
 
-                    <span className="text-sm">{user.username}</span>
-                  </div>
-
-                  <input
-                    type="checkbox"
-                    checked={selectedUsers.includes(Number(user.id))}
-                    onChange={() => toggleUserSelection(Number(user.id))}
-                    className="w-5 h-5"
-                  />
-                </li>
-              ))}
-            </ul>
-
-            <div className="flex justify-end gap-2 mt-4">
-              <button
-                className="px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded"
-                onClick={() => setShowForwardDialog(false)}
-              >
-                Cancel
-              </button>
-              <button
-                className="px-4 py-2 bg-primary text-white rounded disabled:opacity-50"
-                disabled={selectedUsers.length === 0}
-                onClick={sendForward}
-              >
-                Send
-              </button>
-            </div>
-          </div>
-        </div>
       )}
     </div>
   );
