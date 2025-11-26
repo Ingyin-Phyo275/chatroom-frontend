@@ -62,46 +62,21 @@ export default function MessageItem({
   const [isReacted, setIsReacted] = React.useState(false);
   const [emoji, setEmoji] = React.useState("");
 
+  const loginUser = JSON.parse(localStorage.getItem("user") || '{}') ;
+  const loggedInUserId  = loginUser?.user?.id;
+
   const reactions = [
-    {
-      icon: (
-        <Smile className="w-7 h-7 hover:fill-yellow-500 hover:text-white hover:rounded-full" />
-      ),
-      label: "smile",
-    },
-    {
-      icon: (
-        <Heart className="w-7 h-7 hover:fill-green-500 hover:text-white hover:rounded-full" />
-      ),
-      label: "love",
-    },
-    {
-      icon: (
-        <ThumbsUp className="w-7 h-7 hover:fill-primary hover:text-white hover:rounded-full" />
-      ),
-      label: "like",
-    },
-    {
-      icon: (
-        <Angry className="w-7 h-7 hover:fill-red-500 hover:text-white hover:rounded-full" />
-      ),
-      label: "angry",
-    },
+    { icon: <Smile className="w-7 h-7 hover:fill-yellow-500 hover:text-white hover:rounded-full" />, label: "smile" },
+    { icon: <Heart className="w-7 h-7 hover:fill-green-500 hover:text-white hover:rounded-full" />, label: "love" },
+    { icon: <ThumbsUp className="w-7 h-7 hover:fill-primary hover:text-white hover:rounded-full" />, label: "like" },
+    { icon: <Angry className="w-7 h-7 hover:fill-red-500 hover:text-white hover:rounded-full" />, label: "angry" },
   ];
 
   const reactionIcons: Record<string, React.JSX.Element> = {
-    smile: (
-      <Smile className="w-7 h-7 bg-gray-100 p-1 rounded-full stroke-white fill-yellow-500" />
-    ),
-    love: (
-      <Heart className="w-7 h-7 bg-gray-100 p-1 rounded-full stroke-white fill-green-500" />
-    ),
-    like: (
-      <ThumbsUp className="w-7 h-7 bg-gray-100 p-1 rounded-full stroke-white fill-primary" />
-    ),
-    angry: (
-      <Angry className="w-7 h-7 bg-gray-100 p-1 rounded-full stroke-white fill-red-500" />
-    ),
+    smile: <Smile className="w-7 h-7 bg-gray-100 p-1 rounded-full stroke-white fill-yellow-500" />,
+    love: <Heart className="w-7 h-7 bg-gray-100 p-1 rounded-full stroke-white fill-green-500" />,
+    like: <ThumbsUp className="w-7 h-7 bg-gray-100 p-1 rounded-full stroke-white fill-primary" />,
+    angry: <Angry className="w-7 h-7 bg-gray-100 p-1 rounded-full stroke-white fill-red-500" />,
   };
 
   React.useEffect(() => {
@@ -120,22 +95,16 @@ export default function MessageItem({
     };
   }, []);
 
-  // Reset selected users on open
   React.useEffect(() => {
-    if (showForwardDialog) {
-      setSelectedUsers([]); // clear old selections
-    }
+    if (showForwardDialog) setSelectedUsers([]);
   }, [showForwardDialog]);
 
   React.useEffect(() => {
     if (message.reactions && message.reactions.length > 0) {
-      // For simplicity, show the first reaction
       setIsReacted(true);
-      setEmoji(message.reactions[0].react); // or emoji field if it's different
+      setEmoji(message.reactions[0].react);
     }
   }, [message.reactions]);
-
-  //console.log("message with reactions", message)
 
   React.useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -151,12 +120,10 @@ export default function MessageItem({
   const handleSendReaction = (react: string) => {
     try {
       if (isReacted && emoji === react) {
-        // Remove reaction
         socket.emit("private-message-unreact", { messageId: message?.id });
         setIsReacted(false);
         setEmoji("");
       } else {
-        // Add/Update reaction
         socket.emit("private-message-react", {
           messageId: message?.id,
           emoji: react,
@@ -164,7 +131,6 @@ export default function MessageItem({
         setIsReacted(true);
         setEmoji(react);
       }
-      // Auto-close reaction bar
       setActiveReactionMessageId(null);
     } catch (error) {
       console.log("Error handling reaction");
@@ -186,9 +152,7 @@ export default function MessageItem({
 
   React.useEffect(() => {
     socket.on("private-message-reacted", handleReactMessageUI);
-    return () => {
-      socket.off("private-message-reacted", handleReactMessageUI);
-    };
+    return () => {socket.off("private-message-reacted", handleReactMessageUI)};
   }, [message.id]);
 
   const { userListData } = userListQuery();
@@ -209,7 +173,58 @@ export default function MessageItem({
     );
   };
 
-  // console.log("user id from props", user);
+
+  const renderReactions = () => {
+    const reactions = message.reactions || [];
+    const count = reactions.length;
+
+    const myReaction = reactions.find(r => r.userId == loggedInUserId);
+    const otherReaction = reactions.find(r => r.userId != loggedInUserId);
+
+    // No reactions
+    if (count === 0) {
+      return (
+        <Heart className="w-5 h-5 bg-gray-200 p-1 rounded-full text-primary" />
+      );
+    }
+
+    // One reaction
+    if (count === 1) {
+      if (myReaction) {
+        return (
+          <div className="flex items-center gap-1">
+            {reactionIcons[myReaction.react]}
+            {!isOwn && (
+              <Heart className="w-5 h-5 bg-gray-200 opacity-60 p-1 rounded-full text-primary" />
+            )}
+          </div>
+        );
+      }
+
+      if (otherReaction) {
+        return (
+          <div className="flex items-center gap-1">
+            {reactionIcons[otherReaction.react]}
+            {!isOwn && (
+              <Heart className="w-5 h-5 bg-gray-200 opacity-60 p-1 rounded-full text-primary" />
+            )}
+          </div>
+        );
+      }
+    }
+
+    // Both reacted
+    return (
+      <div className="flex items-center gap-1">
+        {myReaction && (
+          <button className="bg-primary rounded-full p-0">{reactionIcons[myReaction.react]}</button>
+        )}
+        {otherReaction && (
+          <button disabled className="opacity-60 pointer-none">{reactionIcons[otherReaction.react]}</button>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className={`flex ${isOwn ? "justify-end" : "justify-start"} gap-3`}>
@@ -227,49 +242,25 @@ export default function MessageItem({
       )}
 
       <div
-        className={`relative message-item flex flex-col ${isOwn ? "items-end" : "items-start"
-          } gap-1`}
+        className={`relative message-item flex flex-col ${
+          isOwn ? "items-end" : "items-start"
+        } gap-1`}
         data-id={message.id}
-        data-sender-id={
-          typeof message.sender === "object"
-            ? message.sender.id
-            : message.sender
-        }
       >
         <div className="relative flex items-center gap-1">
-          {/* sender side */}
-{/* sender side */}
-{isOwn && (
-  <button
-    onClick={(e) => {
-      e.stopPropagation();
-      setActiveReactionMessageId(isReactionActive ? null : message.id);
-    }}
-    className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition flex items-center gap-1"
-  >
-    {message.reactions && message.reactions.length === 0 && (
-      <Heart className="w-5 h-5 bg-gray-200 p-1 rounded-full text-primary" />
-    )}
 
-    {message.reactions && message.reactions.length === 1 && (
-      <>
-        <Heart className="w-5 h-5 bg-gray-200 p-1 rounded-full text-primary" />
-        <span>{reactionIcons[message.reactions[0].react]}</span>
-      </>
-    )}
-
-    {message.reactions && message.reactions.length > 1 && (
-      <>
-        <span>{reactionIcons[message.reactions[0].react]}</span>
-        <span>{reactionIcons[message.reactions[1].react]}</span>
-      </>
-    )}
-  </button>
-)}
-
-
-
-
+          {/* Sender side reactions */}
+          {isOwn && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setActiveReactionMessageId(isReactionActive ? null : message.id);
+              }}
+              className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition flex items-center gap-1"
+            >
+              {renderReactions()}
+            </button>
+          )}
 
           <MessageBubble
             message={message}
@@ -284,43 +275,25 @@ export default function MessageItem({
             setShowForwardDialog={setShowForwardDialog}
           />
 
-          {/* receiver side */}
-{/* receiver side */}
-{!isOwn && (
-  <button
-    onClick={(e) => {
-      e.stopPropagation();
-      setActiveReactionMessageId(isReactionActive ? null : message.id);
-    }}
-    className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition flex items-center gap-1"
-  >
-    {message.reactions && message.reactions.length === 0 && (
-      <Heart className="w-5 h-5 bg-gray-200 p-1 rounded-full text-primary" />
-    )}
+          {/* Receiver side reactions */}
+          {!isOwn && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setActiveReactionMessageId(isReactionActive ? null : message.id);
+              }}
+              className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition flex items-center gap-1"
+            >
+              {renderReactions()}
+            </button>
+          )}
 
-    {message.reactions && message.reactions.length === 1 && (
-      <>
-        <Heart className="w-5 h-5 bg-gray-200 p-1 rounded-full text-primary" />
-        <span>{reactionIcons[message.reactions[0].react]}</span>
-      </>
-    )}
-
-    {message.reactions && message.reactions.length > 1 && (
-      <>
-        <span>{reactionIcons[message.reactions[0].react]}</span>
-        <span>{reactionIcons[message.reactions[1].react]}</span>
-      </>
-    )}
-  </button>
-)}
-
-
-
-          {/* reaction bar */}
+          {/* Reaction bar */}
           {isReactionActive && (
             <div
-              className={`absolute -top-12 z-10 flex items-center gap-2 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-full p-2 shadow-lg transition-transform duration-200 ease-out scale-100 animate-scale-in ${isOwn ? "right-0" : "left-0"
-                }`}
+              className={`absolute -top-12 z-10 flex items-center gap-2 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-full p-2 shadow-lg transition-transform duration-200 ease-out ${
+                isOwn ? "right-0" : "left-0"
+              }`}
             >
               {reactions.map((reaction) => (
                 <button
@@ -337,8 +310,9 @@ export default function MessageItem({
 
         {showTime && (
           <span
-            className={`text-[11px] mt-1 transition-opacity ${isOwn ? "text-slate-400 pr-2" : "text-slate-500 pl-2"
-              }`}
+            className={`text-[11px] mt-1 ${
+              isOwn ? "text-slate-400 pr-2" : "text-slate-500 pl-2"
+            }`}
           >
             {new Date(message.created_at).toLocaleTimeString([], {
               hour: "2-digit",
@@ -349,7 +323,6 @@ export default function MessageItem({
         )}
       </div>
 
-      {/* Forward Dialog */}
       {showForwardDialog && forwardMessageId !== null && (
         <ForwardDialog
           open={showForwardDialog}
