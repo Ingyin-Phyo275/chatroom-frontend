@@ -522,7 +522,7 @@ useEffect(() => {
 
   const handleForward = async (messageId: number, receiverIds: number[]) => {
     try {
-      socket.emit("message-forward", {
+      socket.emit("private-forward-message", {
         messageId,
         receiverIds
       })

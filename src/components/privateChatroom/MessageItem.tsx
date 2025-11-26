@@ -64,6 +64,7 @@ export default function MessageItem({
 
   const loginUser = JSON.parse(localStorage.getItem("user") || '{}') ;
   const loggedInUserId  = loginUser?.user?.id;
+const [messageReactions, setMessageReactions] = React.useState(message.reactions || []);
 
   const reactions = [
     { icon: <Smile className="w-7 h-7 hover:fill-yellow-500 hover:text-white hover:rounded-full" />, label: "smile" },
@@ -137,18 +138,21 @@ export default function MessageItem({
     }
   };
 
-  const handleReactMessageUI = React.useCallback(
-    (data: ReactionResponse) => {
-      if (data.messageId === message.id && data.reactions?.length > 0) {
-        setIsReacted(true);
-        setEmoji(data.reactions[0].emoji);
-      } else if (data.messageId === message.id) {
-        setIsReacted(false);
-        setEmoji("");
-      }
-    },
-    [message.id]
-  );
+const handleReactMessageUI = React.useCallback(
+  (data: ReactionResponse) => {
+    if (data.messageId === message.id) {
+      setMessageReactions(data?.reactions?.map((reaction) => ({
+  ...reaction,
+  react: reaction.emoji, // Assuming 'emoji' is the value for 'react'
+})) || []);
+      const myReaction = data.reactions?.find(r => r.userId === loggedInUserId);
+      setIsReacted(!!myReaction);
+      setEmoji(myReaction?.emoji || "");
+    }
+  },
+  [message.id, loggedInUserId]
+);
+
 
   React.useEffect(() => {
     socket.on("private-message-reacted", handleReactMessageUI);
@@ -174,57 +178,38 @@ export default function MessageItem({
   };
 
 
-  const renderReactions = () => {
-    const reactions = message.reactions || [];
-    const count = reactions.length;
+const renderReactions = () => {
+  const reactions = messageReactions;
 
-    const myReaction = reactions.find(r => r.userId == loggedInUserId);
-    const otherReaction = reactions.find(r => r.userId != loggedInUserId);
+  // Current user's reaction
+  const myReaction = reactions.find(r => r.userId === loggedInUserId);
+  // Other reactions (excluding current user)
+  const otherReactions = reactions.filter(r => r.userId !== loggedInUserId);
 
-    // No reactions
-    if (count === 0) {
-      return (
-        <Heart className="w-5 h-5 bg-gray-200 p-1 rounded-full text-primary" />
-      );
-    }
+  return (
+    <div className="flex items-center gap-1">
+      {/* Show my reaction if I reacted, else show default icon */}
+      {myReaction ? (
+        <button className="bg-primary rounded-full p-0">
+          {reactionIcons[myReaction.react]}
+        </button>
+      ) : (
+        <button className="bg-gray-200 rounded-full p-0">
+          <Heart className="w-5 h-5 fill-gray-400 stroke-white" />
+        </button>
+      )}
 
-    // One reaction
-    if (count === 1) {
-      if (myReaction) {
-        return (
-          <div className="flex items-center gap-1">
-            {reactionIcons[myReaction.react]}
-            {!isOwn && (
-              <Heart className="w-5 h-5 bg-gray-200 opacity-60 p-1 rounded-full text-primary" />
-            )}
-          </div>
-        );
-      }
+      {/* Show first other user's reaction if exists */}
+      {otherReactions[0] && (
+        <button disabled className="opacity-60 pointer-none">
+          {reactionIcons[otherReactions[0].react]}
+        </button>
+      )}
+    </div>
+  );
+};
 
-      if (otherReaction) {
-        return (
-          <div className="flex items-center gap-1">
-            {reactionIcons[otherReaction.react]}
-            {!isOwn && (
-              <Heart className="w-5 h-5 bg-gray-200 opacity-60 p-1 rounded-full text-primary" />
-            )}
-          </div>
-        );
-      }
-    }
 
-    // Both reacted
-    return (
-      <div className="flex items-center gap-1">
-        {myReaction && (
-          <button className="bg-primary rounded-full p-0">{reactionIcons[myReaction.react]}</button>
-        )}
-        {otherReaction && (
-          <button disabled className="opacity-60 pointer-none">{reactionIcons[otherReaction.react]}</button>
-        )}
-      </div>
-    );
-  };
 
   return (
     <div className={`flex ${isOwn ? "justify-end" : "justify-start"} gap-3`}>
