@@ -38,6 +38,7 @@ export default function ChatroomPage({ selectedUser, loginUser }: chatroomPagePr
   const [showPrivateCall, setShowPrivateCall] = useState(false);
   const [incomingCall, setIncomingCall] = useState<any>(null);
   const [incomingFromUser, setIncomingFromUser] = useState<any>(null); // store sender data
+  const [pendingOffer, setPendingOffer] = useState<any>(null); // Store webrtc-offer before component mounts
 
   const [showPinnedModal, setShowPinnedModal] = useState(false);
   const [pinnedMessages, setPinnedMessages] = useState<any[]>([]);
@@ -92,6 +93,27 @@ export default function ChatroomPage({ selectedUser, loginUser }: chatroomPagePr
     socket.on("private-incoming-call", handleIncomingPrivateCall);
     return () => {
       socket.off("private-incoming-call", handleIncomingPrivateCall);
+    };
+  }, [loginUser.user.id]);
+
+  // 🔧 FIX: Global listener for webrtc-offer (may arrive before PrivateCall mounts)
+  useEffect(() => {
+    const handleWebRTCOffer = (payload: any) => {
+      const data = Array.isArray(payload) ? payload[0] : payload;
+      console.log("📞 [CHATROOM-PAGE] Caught webrtc-offer globally:", data);
+
+      if (data.from === loginUser.user.id) {
+        console.log("⚠️ Ignoring own offer");
+        return;
+      }
+
+      // Store the offer so PrivateCall component can use it when it mounts
+      setPendingOffer(data);
+    };
+
+    socket.on("webrtc-offer", handleWebRTCOffer);
+    return () => {
+      socket.off("webrtc-offer", handleWebRTCOffer);
     };
   }, [loginUser.user.id]);
 
@@ -286,7 +308,10 @@ export default function ChatroomPage({ selectedUser, loginUser }: chatroomPagePr
           <div className="relative w-full max-w-3xl h-[80vh] bg-white/80 dark:bg-slate-800/80 rounded-lg shadow-lg overflow-hidden backdrop-blur-md animate-fade-in">
             <button
               className="absolute cursor-pointer top-3 right-3 p-2 bg-gray-200/70 dark:bg-slate-700/70 hover:bg-gray-300 dark:hover:bg-slate-600 transition-colors"
-              onClick={() => setShowPrivateCall(false)}
+              onClick={() => {
+                setShowPrivateCall(false);
+                setPendingOffer(null); // Clear pending offer when closing
+              }}
             >
               <X className="w-5 h-5 text-gray-600 dark:text-gray-300" />
             </button>
@@ -301,6 +326,7 @@ export default function ChatroomPage({ selectedUser, loginUser }: chatroomPagePr
                   incomingFromUser?.id
                 )}
                 incomingCall={incomingCall}
+                pendingOffer={pendingOffer}
                 setShowCall={setShowPrivateCall}
               />
             </div>

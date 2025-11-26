@@ -3,8 +3,12 @@ import type { PrivateChatMessage } from "@/dto/response/PrivateChatMessage";
 import type { ChatUserType } from "@/dto/UserTypes";
 import type { UserListResponse } from "@/dto/response/UserListResponse";
 import * as Avatar from "@radix-ui/react-avatar";
-import { Angry, Heart, Smile, ThumbsUp, } from "lucide-react";
-
+import {
+  Angry,
+  Heart,
+  Smile,
+  ThumbsUp,
+} from "lucide-react";
 import { socket } from "../../socket/socket";
 import { userListQuery } from "../../composables/Queries/userListQuery";
 import ForwardDialog from "./ForwardDialog";
@@ -17,7 +21,6 @@ type ReactionResponse = {
     emoji: string;
   }[];
 };
-
 
 export default function MessageItem({
   message,
@@ -48,7 +51,9 @@ export default function MessageItem({
 
   const [showTime, setShowTime] = React.useState(false);
   const [showForwardDialog, setShowForwardDialog] = React.useState(false);
-  const [forwardMessageId, setForwardMessageId] = React.useState<number | null>(null);
+  const [forwardMessageId, setForwardMessageId] = React.useState<number | null>(
+    null
+  );
   const [selectedUsers, setSelectedUsers] = React.useState<number[]>([]);
 
   const toggleTime = () => setShowTime((prev) => !prev);
@@ -58,17 +63,45 @@ export default function MessageItem({
   const [emoji, setEmoji] = React.useState("");
 
   const reactions = [
-    { icon: <Smile className="w-7 h-7 hover:bg-yellow-500 hover:text-white hover:rounded-full" />, label: "smile" },
-    { icon: <Heart className="w-7 h-7 hover:fill-green-500 hover:text-white hover:rounded-full" />, label: "love" },
-    { icon: <ThumbsUp className="w-7 h-7 hover:fill-primary hover:text-white hover:rounded-full" />, label: "like" },
-    { icon: <Angry className="w-7 h-7 hover:fill-red-500 hover:text-white hover:rounded-full" />, label: "angry" },
+    {
+      icon: (
+        <Smile className="w-7 h-7 hover:fill-yellow-500 hover:text-white hover:rounded-full" />
+      ),
+      label: "smile",
+    },
+    {
+      icon: (
+        <Heart className="w-7 h-7 hover:fill-green-500 hover:text-white hover:rounded-full" />
+      ),
+      label: "love",
+    },
+    {
+      icon: (
+        <ThumbsUp className="w-7 h-7 hover:fill-primary hover:text-white hover:rounded-full" />
+      ),
+      label: "like",
+    },
+    {
+      icon: (
+        <Angry className="w-7 h-7 hover:fill-red-500 hover:text-white hover:rounded-full" />
+      ),
+      label: "angry",
+    },
   ];
 
   const reactionIcons: Record<string, React.JSX.Element> = {
-    smile: <Smile className="w-7 h-7 bg-gray-100 p-1 rounded-full stroke-white fill-yellow-500" />,
-    love: <Heart className="w-7 h-7 bg-gray-100 p-1 rounded-full stroke-white fill-green-500" />,
-    like: <ThumbsUp className="w-7 h-7 bg-gray-100 p-1 rounded-full stroke-white fill-primary" />,
-    angry: <Angry className="w-7 h-7 bg-gray-100 p-1 rounded-full stroke-white fill-red-500" />,
+    smile: (
+      <Smile className="w-7 h-7 bg-gray-100 p-1 rounded-full stroke-white fill-yellow-500" />
+    ),
+    love: (
+      <Heart className="w-7 h-7 bg-gray-100 p-1 rounded-full stroke-white fill-green-500" />
+    ),
+    like: (
+      <ThumbsUp className="w-7 h-7 bg-gray-100 p-1 rounded-full stroke-white fill-primary" />
+    ),
+    angry: (
+      <Angry className="w-7 h-7 bg-gray-100 p-1 rounded-full stroke-white fill-red-500" />
+    ),
   };
 
   React.useEffect(() => {
@@ -86,6 +119,13 @@ export default function MessageItem({
       socket.offAny(incoming);
     };
   }, []);
+
+  // Reset selected users on open
+  React.useEffect(() => {
+    if (showForwardDialog) {
+      setSelectedUsers([]); // clear old selections
+    }
+  }, [showForwardDialog]);
 
   React.useEffect(() => {
     if (message.reactions && message.reactions.length > 0) {
@@ -108,7 +148,6 @@ export default function MessageItem({
     return () => document.removeEventListener("click", handleClickOutside);
   }, []);
 
-
   const handleSendReaction = (react: string) => {
     try {
       if (isReacted && emoji === react) {
@@ -118,35 +157,39 @@ export default function MessageItem({
         setEmoji("");
       } else {
         // Add/Update reaction
-        socket.emit("private-message-react", { messageId: message?.id, emoji: react });
+        socket.emit("private-message-react", {
+          messageId: message?.id,
+          emoji: react,
+        });
         setIsReacted(true);
         setEmoji(react);
       }
       // Auto-close reaction bar
       setActiveReactionMessageId(null);
-
     } catch (error) {
       console.log("Error handling reaction");
     }
   };
 
-  React.useEffect(() => {
-    const handleReactMessageUI = (data: ReactionResponse) => {
-      if (data.messageId === message.id) {
-        if (data.reactions.length > 0) {
-          setIsReacted(true);
-          setEmoji(data.reactions[0].emoji); // you might want to merge reactions properly
-        } else {
-          setIsReacted(false);
-          setEmoji("");
-        }
+  const handleReactMessageUI = React.useCallback(
+    (data: ReactionResponse) => {
+      if (data.messageId === message.id && data.reactions?.length > 0) {
+        setIsReacted(true);
+        setEmoji(data.reactions[0].emoji);
+      } else if (data.messageId === message.id) {
+        setIsReacted(false);
+        setEmoji("");
       }
-    };
+    },
+    [message.id]
+  );
 
+  React.useEffect(() => {
     socket.on("private-message-reacted", handleReactMessageUI);
-    return () => { socket.off("private-message-reacted", handleReactMessageUI) };
+    return () => {
+      socket.off("private-message-reacted", handleReactMessageUI);
+    };
   }, [message.id]);
-
 
   const { userListData } = userListQuery();
 
@@ -160,16 +203,13 @@ export default function MessageItem({
 
   const toggleUserSelection = (userId: number) => {
     setSelectedUsers((prev) =>
-      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
+      prev.includes(userId)
+        ? prev.filter((id) => id !== userId)
+        : [...prev, userId]
     );
   };
 
-  // Reset selected users on open
-  React.useEffect(() => {
-    if (showForwardDialog) {
-      setSelectedUsers([]); // clear old selections
-    }
-  }, [showForwardDialog]);
+  // console.log("user id from props", user);
 
   return (
     <div className={`flex ${isOwn ? "justify-end" : "justify-start"} gap-3`}>
@@ -187,39 +227,49 @@ export default function MessageItem({
       )}
 
       <div
-        className={`relative message-item flex flex-col ${isOwn ? "items-end" : "items-start"} gap-1`}
+        className={`relative message-item flex flex-col ${isOwn ? "items-end" : "items-start"
+          } gap-1`}
         data-id={message.id}
-        data-sender-id={typeof message.sender === "object" ? message.sender.id : message.sender}
+        data-sender-id={
+          typeof message.sender === "object"
+            ? message.sender.id
+            : message.sender
+        }
       >
         <div className="relative flex items-center gap-1">
-          {/* sender side reaction btn*/}
-          {isOwn && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setActiveReactionMessageId(isReactionActive ? null : message.id);
-              }}
-              className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition flex gap-1 items-center"
-            >
-              {/* Show reacted emoji OR default heart */}
-              {isReacted && reactionIcons[emoji] && (
-                message?.reactions?.map((r, idx) => (
-                  r.userId !== user.id ? (<span key={idx} className="cursor-pointer">{reactionIcons[r.react]}</span>) :
-                    (<button
-                      key={idx}
-                      disabled
-                      className="cursor-not-allowed opacity-50"
-                    >
-                      {reactionIcons[r.react]}
-                    </button>
-                    )
-                ))
-              )}
+          {/* sender side */}
+{/* sender side */}
+{isOwn && (
+  <button
+    onClick={(e) => {
+      e.stopPropagation();
+      setActiveReactionMessageId(isReactionActive ? null : message.id);
+    }}
+    className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition flex items-center gap-1"
+  >
+    {message.reactions && message.reactions.length === 0 && (
+      <Heart className="w-5 h-5 bg-gray-200 p-1 rounded-full text-primary" />
+    )}
 
-            </button>
-          )}
+    {message.reactions && message.reactions.length === 1 && (
+      <>
+        <Heart className="w-5 h-5 bg-gray-200 p-1 rounded-full text-primary" />
+        <span>{reactionIcons[message.reactions[0].react]}</span>
+      </>
+    )}
 
-          {/* message bubble */}
+    {message.reactions && message.reactions.length > 1 && (
+      <>
+        <span>{reactionIcons[message.reactions[0].react]}</span>
+        <span>{reactionIcons[message.reactions[1].react]}</span>
+      </>
+    )}
+  </button>
+)}
+
+
+
+
 
           <MessageBubble
             message={message}
@@ -235,36 +285,38 @@ export default function MessageItem({
           />
 
           {/* receiver side */}
-          {!isOwn && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setActiveReactionMessageId(isReactionActive ? null : message.id);
-              }}
-              className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition flex gap-1 items-center"
-            >
-              {/* Show reacted emoji OR default heart */}
-              {isReacted && reactionIcons[emoji] ? (
-                message?.reactions?.map((r, idx) => (
-                  r.userId !== user.id ? (<span key={idx} className="cursor-pointer">{reactionIcons[r.react]}</span>) :
-                    (<button
-                      key={idx}
-                      disabled
-                      className="cursor-not-allowed opacity-50"
-                    >
-                      {reactionIcons[r.react]}
-                    </button>
+{/* receiver side */}
+{!isOwn && (
+  <button
+    onClick={(e) => {
+      e.stopPropagation();
+      setActiveReactionMessageId(isReactionActive ? null : message.id);
+    }}
+    className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition flex items-center gap-1"
+  >
+    {message.reactions && message.reactions.length === 0 && (
+      <Heart className="w-5 h-5 bg-gray-200 p-1 rounded-full text-primary" />
+    )}
+
+    {message.reactions && message.reactions.length === 1 && (
+      <>
+        <Heart className="w-5 h-5 bg-gray-200 p-1 rounded-full text-primary" />
+        <span>{reactionIcons[message.reactions[0].react]}</span>
+      </>
+    )}
+
+    {message.reactions && message.reactions.length > 1 && (
+      <>
+        <span>{reactionIcons[message.reactions[0].react]}</span>
+        <span>{reactionIcons[message.reactions[1].react]}</span>
+      </>
+    )}
+  </button>
+)}
 
 
-                    )
-                ))
-              ) : (
-                <Heart className="w-5 h-5 bg-gray-200 p-1 rounded-full text-primary" />
-              )}
-            </button>
 
-          )}
-
+          {/* reaction bar */}
           {isReactionActive && (
             <div
               className={`absolute -top-12 z-10 flex items-center gap-2 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-full p-2 shadow-lg transition-transform duration-200 ease-out scale-100 animate-scale-in ${isOwn ? "right-0" : "left-0"
@@ -273,7 +325,7 @@ export default function MessageItem({
               {reactions.map((reaction) => (
                 <button
                   key={reaction.label}
-                  className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition"
+                  className="w-5 h-5 flex items-center justify-center rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition"
                   onClick={() => handleSendReaction(reaction.label)}
                 >
                   {reaction.icon}
@@ -308,7 +360,6 @@ export default function MessageItem({
           sendForward={onForward}
           messageId={forwardMessageId}
         />
-
       )}
     </div>
   );
