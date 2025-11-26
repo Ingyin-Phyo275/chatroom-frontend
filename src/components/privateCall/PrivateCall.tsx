@@ -173,6 +173,7 @@ const handleIncomingCall = useCallback((payload: any) => {
 
 
   const createPeerConnection = (otherId: number) => {
+    console.log("🔗 Creating peer connection for:", otherId);
     const pc = new RTCPeerConnection({
   iceServers: [
     { urls: "stun:stun.mtg.com.mm:3478" },
@@ -182,13 +183,28 @@ const handleIncomingCall = useCallback((payload: any) => {
 });
 
     pc.ontrack = (event) => {
+      console.log("🎵 [ONTRACK] Received remote track!", event);
+      console.log("🎵 Streams:", event.streams);
+      console.log("🎵 Track:", event.track);
+
       const [remoteStream] = event.streams;
+      if (remoteStream) {
+        console.log("🎵 Remote stream tracks:", remoteStream.getTracks());
+        console.log("🎵 Audio tracks:", remoteStream.getAudioTracks());
+      }
+
       if (remoteAudioRef.current) {
         remoteAudioRef.current.srcObject = remoteStream;
-        remoteAudioRef.current.play().catch(() => {
+        console.log("🎵 Set remote audio srcObject");
+
+        remoteAudioRef.current.play().catch((err) => {
+          console.error("❌ Failed to autoplay remote audio:", err);
           document.body.addEventListener(
             "click",
-            () => remoteAudioRef.current?.play().catch(() => { }),
+            () => {
+              console.log("🖱️ User clicked, attempting to play audio");
+              remoteAudioRef.current?.play().catch(console.error);
+            },
             { once: true }
           );
         });
@@ -197,11 +213,21 @@ const handleIncomingCall = useCallback((payload: any) => {
 
     pc.onicecandidate = (event) => {
       if (!event.candidate || !event.candidate.candidate) return;
+      console.log("🧊 Sending ICE candidate to:", otherId);
       socket.emit("webrtc-candidate", {
         receiver_id: otherId,
         candidate: event.candidate,
       });
     };
+
+    pc.oniceconnectionstatechange = () => {
+      console.log("🔌 ICE Connection State:", pc.iceConnectionState);
+    };
+
+    pc.onconnectionstatechange = () => {
+      console.log("🔗 Connection State:", pc.connectionState);
+    };
+
     return pc;
   };
 
@@ -243,14 +269,22 @@ const handleOffer = useCallback((payload: any) => {
 
 
 const handleAnswer = useCallback(async ({ sdp, from }: any) => {
-  if (from === userId) return;
+  console.log("📞 [HANDLER] webrtc-answer from:", from, "sdp:", sdp);
+
+  if (from === userId) {
+    console.log("⚠️ Ignoring own answer");
+    return;
+  }
 
   if (peerRef.current) {
-    console.log("Setting remote description with SDP:", sdp);
+    console.log("📝 [CALLER] Setting remote description (answer)");
     await peerRef.current.setRemoteDescription(
       new RTCSessionDescription(sdp)
     );
+    console.log("✅ [CALLER] Remote description set, call started!");
     setCallStarted(true);
+  } else {
+    console.error("❌ No peer connection when handling answer!");
   }
 }, [userId]);
 
@@ -260,12 +294,19 @@ const handleAnswer = useCallback(async ({ sdp, from }: any) => {
   // Caller: initiate call
   const initiateCall = async () => {
     try {
+      console.log("📞 [CALLER] Initiating call to:", receiver_id);
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      console.log("🎤 [CALLER] Got local stream:", stream);
+      console.log("🎤 [CALLER] Audio tracks:", stream.getAudioTracks());
+
       localStreamRef.current = stream;
       peerRef.current = createPeerConnection(receiver_id);
 
       // Add local tracks
-      stream.getTracks().forEach((track) => peerRef.current?.addTrack(track, stream));
+      stream.getTracks().forEach((track) => {
+        console.log("➕ [CALLER] Adding track to peer:", track.kind, track.enabled);
+        peerRef.current?.addTrack(track, stream);
+      });
 
       // Flush any pending ICE candidates
       pendingCandidates.current.forEach((c) =>
@@ -275,6 +316,7 @@ const handleAnswer = useCallback(async ({ sdp, from }: any) => {
 
       // Create and send offer immediately
       const offer = await peerRef.current.createOffer();
+      console.log("📝 [CALLER] Created offer:", offer);
       await peerRef.current.setLocalDescription(offer);
 
       const offerPayload = { receiver_id, sdp: { type: offer.type, sdp: offer.sdp } };
@@ -291,41 +333,59 @@ const handleAnswer = useCallback(async ({ sdp, from }: any) => {
 
   // Receiver: accept call
   const acceptCall = async () => {
-    console.log("remote offer", remoteOffer);
+    console.log("📞 [RECEIVER] Accepting call, remote offer:", remoteOffer);
     if (!remoteOffer || !remoteOffer.type || !remoteOffer.sdp) {
-      console.error("No valid remote offer yet");
+      console.error("❌ No valid remote offer yet");
       return;
     }
 
     try {
+      console.log("📤 [RECEIVER] Notifying server: private-accept-call");
       socket.emit("private-accept-call", { call_id: callData?.id });
+
+      console.log("🎤 [RECEIVER] Getting local media stream...");
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      console.log("🎤 [RECEIVER] Got local stream:", stream);
+      console.log("🎤 [RECEIVER] Audio tracks:", stream.getAudioTracks());
+
       localStreamRef.current = stream;
 
+      console.log("🔗 [RECEIVER] Creating peer connection for:", callData.from);
       peerRef.current = createPeerConnection(callData.from);
+
       // Add local tracks
-      stream.getTracks().forEach((track) => peerRef.current?.addTrack(track, stream));
+      stream.getTracks().forEach((track) => {
+        console.log("➕ [RECEIVER] Adding track to peer:", track.kind, track.enabled);
+        peerRef.current?.addTrack(track, stream);
+      });
+
       // Flush pending ICE candidates
+      console.log("🧊 [RECEIVER] Flushing", pendingCandidates.current.length, "pending ICE candidates");
       pendingCandidates.current.forEach((c) =>
         peerRef.current?.addIceCandidate(new RTCIceCandidate(c))
       );
       pendingCandidates.current = [];
 
       // Set remote description (offer from caller)
+      console.log("📝 [RECEIVER] Setting remote description (offer)");
       await peerRef.current.setRemoteDescription(
         new RTCSessionDescription(remoteOffer!)
       );
 
       // Create and send answer
+      console.log("📝 [RECEIVER] Creating answer...");
       const answer = await peerRef.current.createAnswer();
+      console.log("📝 [RECEIVER] Created answer:", answer);
       await peerRef.current.setLocalDescription(answer);
+
+      console.log("📤 [RECEIVER] Sending webrtc-answer to:", callData.from);
       socket.emit("webrtc-answer", { receiver_id: callData.from, sdp: answer });
 
       setCallStarted(true);
-      // setIsRinging(false);
       ringtone.current?.pause();
+      console.log("✅ [RECEIVER] Call started!");
     } catch (err) {
-      console.error("Failed to accept call:", err);
+      console.error("❌ [RECEIVER] Failed to accept call:", err);
     }
   };
 
