@@ -20,7 +20,7 @@ export interface GetAllMessage {
   isRead?: boolean;
   chatroom_id?: number;
   reactions?: {
-    userId: string | number;
+    userId:  string;
     userName?: string
     react: string;
   }[];

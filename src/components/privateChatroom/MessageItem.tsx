@@ -7,6 +7,16 @@ import { socket } from "../../socket/socket";
 import { userListQuery } from "../../composables/Queries/userListQuery";
 import ForwardDialog from "./ForwardDialog";
 import MessageBubble from "./MessageBubble";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { Separator } from "../ui/separator";
+
 
 type ReactionResponse = {
   messageId: string;
@@ -164,7 +174,7 @@ export default function MessageItem({
 
         {/* Show first other user's reaction if exists */}
         {otherReactions[0] && (
-          <button disabled className="cursor-not-allowed pointer-none ">
+          <button  className="">
             {reactionIcons[otherReactions[0].react]}
           </button>
         )}
@@ -214,9 +224,8 @@ export default function MessageItem({
       )}
 
       <div
-        className={`relative message-item flex flex-col ${
-          isOwn ? "items-end" : "items-start"
-        } gap-1`}
+        className={`relative message-item flex flex-col ${isOwn ? "items-end" : "items-start"
+          } gap-1`}
         data-id={message.id}
       >
         <div className="relative flex items-center gap-1">
@@ -231,7 +240,27 @@ export default function MessageItem({
               }}
               className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition flex items-center gap-1"
             >
-              {renderReactions()}
+              <Dialog>
+                <DialogTrigger>{renderReactions()}</DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle className="text-start">Reactions</DialogTitle>
+                    <Separator/>
+                    <DialogDescription>
+                    </DialogDescription>
+                    {
+                      messageReactions?.map((r) => (
+                        <>
+                          <div className="flex flex-row justify-between items-center gap-1">
+                          <p className="text-black">{r?.userName} {r?.userId === loggedInUserId && "(You)"}</p>
+                          <p>{reactionIcons[r.react]}</p>
+                        </div>
+                        </>
+                      ))
+                    }
+                  </DialogHeader>
+                </DialogContent>
+              </Dialog>
             </button>
           )}
 
@@ -262,16 +291,35 @@ export default function MessageItem({
               }}
               className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition flex items-center gap-1"
             >
-              {renderReactions()}
+              <Dialog>
+                <DialogTrigger>{renderReactions()}</DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle className="text-start">Reactions</DialogTitle>
+                    <Separator/>
+                    <DialogDescription>
+                    </DialogDescription>
+                    {
+                      messageReactions?.map((r) => (
+                        <>
+                          <div className="flex flex-row justify-between items-center gap-1">
+                          <p className="text-black">{r?.userName} {r?.userId === loggedInUserId && "(You)"}</p>
+                          <p>{reactionIcons[r.react]}</p>
+                        </div>
+                        </>
+                      ))
+                    }
+                  </DialogHeader>
+                </DialogContent>
+              </Dialog>
             </button>
           )}
         </div>
 
         {showTime && (
           <span
-            className={`text-[11px] mt-1 ${
-              isOwn ? "text-slate-400 pr-2" : "text-slate-500 pl-2"
-            }`}
+            className={`text-[11px] mt-1 ${isOwn ? "text-slate-400 pr-2" : "text-slate-500 pl-2"
+              }`}
           >
             {new Date(message.created_at).toLocaleTimeString([], {
               hour: "2-digit",

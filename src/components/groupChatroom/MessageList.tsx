@@ -26,14 +26,31 @@ type Props = {
   onPin: (id: number) => void;
   onDelete: (id: number) => void;
   onForward: (id: number, receiverIds: number[], groupIds: number[]) => void;
-
+  chatroom_id: number
+  messages: GetAllMessage[]
 };
 
 type SelectedItem = { type: "user" | "group"; id: number };
 
+type ReactionResponse = {
+  messageId: string;
+  reactions: {
+    userId: string;
+    emoji: string;
+    userName: string
+  }[];
+};
+
 // Reaction choices
-const REACTIONS = ["❤️", "😂", "👍", "😮", "😢", "😡"];
-const reactionIcons: Record<string, React.JSX.Element> = {
+  const Reactions = [
+    { icon: "❤️", label: "love" },
+    { icon: "😂", label: "haha" },
+    { icon: "👍", label: "like" },
+    { icon: "😮", label: "wow" },
+    { icon: "😢", label: "sad" },
+    { icon: "😡", label: "angry" },
+  ];
+  const reactionIcons: Record<string, React.JSX.Element> = {
   love: <span>❤️</span>,
   haha: <span>😂</span>,
   like: <span>👍</span>,
@@ -48,6 +65,8 @@ export default function GroupMessages({
   onPin,
   onDelete,
   onForward,
+  chatroom_id,
+  messages
 }: Props) {
   const [selectedMessageId, setSelectedMessageId] = React.useState<
     string | null
@@ -60,10 +79,15 @@ export default function GroupMessages({
   const [forwardMessageId, setForwardMessageId] = React.useState<number | null>(
     null
   );
-  const loggedInUserId = loginUser?.user?.id
+  const loggedInUserId = Number(loginUser?.user?.id)
 
   const [isReacted, setIsReacted] = React.useState(false);
   const [emoji, setEmoji] = React.useState("");
+  const [messageReactions, setMessageReactions] = React.useState(
+    messages?.reactions || []
+  );
+
+  console.log("group data", messages)
 
   const { userListData } = userListQuery();
 
@@ -75,10 +99,11 @@ export default function GroupMessages({
       status: typeof u.status === "string" ? u.status : "",
     })) || [];
 
-  const { groupChatListQuery: groupChatList = [] as GroupChatResponse[] } =
-    useGroupChatList({ page: 1, pageSize: 15 });
+  const { groupChatListQuery: groupChatList = [] as GroupChatResponse[] } = useGroupChatList({ page: 1, pageSize: 15 });
 
   const [selectedUsers, setSelectedUsers] = React.useState<SelectedItem[]>([]);
+
+
 
   const toggleUserSelection = (item: SelectedItem) => {
     setSelectedUsers((prev) =>
@@ -100,8 +125,12 @@ export default function GroupMessages({
 
 
   const renderReactions = () => {
-    const reactions = groupedMessages?.reactions;
+   const reactions = messageReactions;
     if (!reactions || reactions.length === 0) return null;
+    // Current user's reaction
+    const myReaction = reactions.find((r: any) => r.userId === loggedInUserId);
+    // Other reactions (excluding current user)
+    const otherReactions = reactions.filter((r: any) => r.userId !== loggedInUserId);
     // Current user's reaction
     // const myReaction = reactions.find((r) => r?.userId === loggedInUserId);
     // // Other reactions (excluding current user)
@@ -110,21 +139,51 @@ export default function GroupMessages({
     return (
       <div className="flex items-center gap-1 bg-gray-300 rounded-lg p-0.5">
         {/* Show my reaction if I reacted, else show default icon */}
-        {/* {myReaction && (
+        {myReaction && (
           <button className="bg-blue-400 rounded-full  p-0">
-            {reactionIcons[myReaction.react]}
+            {reactionIcons[myReaction?.react]}
           </button>
-        )} */}
+        )}
 
         {/* Show first other user's reaction if exists */}
-        {/* {otherReactions[0] && (
+        {otherReactions[0] && (
           <button disabled className="cursor-not-allowed pointer-none ">
             {reactionIcons[otherReactions[0].react]}
           </button>
-        )} */}
+        )}
       </div>
     );
   };
+
+  const handleReactMessageUI = React.useCallback(
+    (data: ReactionResponse) => {
+          console.log("reaction group data", data)
+          console.log("group message id", messages)
+      if (data.messageId === String(groupedMessages.id)) {
+        setMessageReactions(
+          data?.reactions?.map((reaction) => ({
+            userId: reaction.userId,
+            userName: "", // Replace "" with the actual value if you have it
+            react: reaction?.emoji, // Replace "" with the actual value if you have it
+            reactions: [],
+          })) || []
+        );
+        const myReaction = data.reactions?.find(
+          (r) => Number(r.userId) === loggedInUserId
+        );
+        setIsReacted(!!myReaction);
+        setEmoji(myReaction?.emoji || "");
+      }
+    },
+    [groupedMessages.id, loggedInUserId]
+  );
+
+  React.useEffect(() => {
+    socket.on("group-message-reacted", handleReactMessageUI);
+    return () => {
+      socket.off("grou[-message-reacted", handleReactMessageUI);
+    };
+  }, [groupedMessages.id]);
 
   const handleSendReaction = (messageId: string, react: string) => {
     try {
@@ -137,6 +196,7 @@ export default function GroupMessages({
         socket.emit("group-message-react", {
           messageId: messageId,
           emoji: react,
+          chatroomId: chatroom_id
         });
         setIsReacted(true);
         setEmoji(react);
@@ -266,13 +326,13 @@ export default function GroupMessages({
                     <ContextMenuContent>
                       {/* REACTION BAR */}
                       <div className="flex gap-2 px-2 py-1 border-b border-slate-200 dark:border-slate-600">
-                        {REACTIONS.map((emoji) => (
+                        {Reactions.map((emoji) => (
                           <button
-                            key={emoji}
-                            onClick={() => handleSendReaction(String(m?.id), emoji)}
+                            key={emoji?.label}
+                            onClick={() => handleSendReaction(String(m?.id), emoji?.label)}
                             className="text-xl hover:scale-125 transition"
                           >
-                            {emoji}
+                            {emoji?.icon}
                           </button>
                         ))}
                       </div>

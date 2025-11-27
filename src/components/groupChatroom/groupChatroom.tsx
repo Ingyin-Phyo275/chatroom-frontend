@@ -183,7 +183,7 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
       forwarded_from: m.forwarded_from,
       is_group: true,
       isRead: m.isRead,
-      reactions: m.reactions,
+      reactions: m?.reactions,
 
     }));
 
@@ -533,6 +533,8 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
           onPin={handlePinMessage}
           onDelete={handleDeleteMessage}
           onForward={handleForwardMessage}
+          chatroom_id={Number(user?.id)}
+          messages={messages}
         />
       </div>
 
