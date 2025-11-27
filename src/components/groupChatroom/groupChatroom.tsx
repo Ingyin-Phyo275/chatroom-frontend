@@ -180,8 +180,10 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
       is_delivered: m.is_delivered ?? false,
       is_pinned: m.is_pinned ?? false,
       is_edit: m.is_edit,
+      forwarded_from: m.forwarded_from,
       is_group: true,
       isRead: m.isRead,
+      reactions: m.reactions,
 
     }));
 
@@ -514,7 +516,7 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
       socket.emit("group-forward-message", {
         messageId,
         receiverIds,
-        groupIds
+        chatroomIds: groupIds
       })
     } catch (error) {
       toast.error("Failed to forward message");

@@ -1,5 +1,5 @@
 export interface GetAllMessage {
-  id: number | string;
+  id?: number | string;
   sender?: { id: number | string; username: string };
   chatroom?: { id: number | string; username: string };
   content?: string;
@@ -14,12 +14,14 @@ export interface GetAllMessage {
   is_pinned?: boolean;
   is_group?: boolean;
   is_edit?: boolean;
+  forwarded_from?: string | null;
+  forwarded_from_id?: string | null;
   unreadCount?: { userId: number; unreadCount: number }[];
   isRead?: boolean;
   chatroom_id?: number;
   reactions?: {
-    userId: number;
-    emoji: string;
-    userName: string
-  }[]
+    userId: string | number;
+    userName?: string
+    react: string;
+  }[];
 }

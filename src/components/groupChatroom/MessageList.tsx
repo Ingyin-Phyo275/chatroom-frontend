@@ -17,6 +17,7 @@ import type { UserListResponse } from "../../dto/response/UserListResponse";
 import ForwardDialog from "./ForwardDialog";
 import { useGroupChatList } from "../../composables/Queries/useGroupChatList";
 import type { GroupChatResponse } from "../../dto/response/ChatRoom";
+import { socket } from "../../socket/socket";
 
 type Props = {
   groupedMessages: Record<string, GetAllMessage[]>;
@@ -25,14 +26,21 @@ type Props = {
   onPin: (id: number) => void;
   onDelete: (id: number) => void;
   onForward: (id: number, receiverIds: number[], groupIds: number[]) => void;
-  onReact: (id: number, emoji: string) => void;
+
 };
 
 type SelectedItem = { type: "user" | "group"; id: number };
 
 // Reaction choices
 const REACTIONS = ["❤️", "😂", "👍", "😮", "😢", "😡"];
-
+const reactionIcons: Record<string, React.JSX.Element> = {
+  love: <span>❤️</span>,
+  haha: <span>😂</span>,
+  like: <span>👍</span>,
+  wow: <span>😮</span>,
+  sad: <span>😢</span>,
+  angry: <span>😡</span>,
+};
 export default function GroupMessages({
   groupedMessages,
   loginUser,
@@ -40,7 +48,6 @@ export default function GroupMessages({
   onPin,
   onDelete,
   onForward,
-  onReact,
 }: Props) {
   const [selectedMessageId, setSelectedMessageId] = React.useState<
     string | null
@@ -53,6 +60,10 @@ export default function GroupMessages({
   const [forwardMessageId, setForwardMessageId] = React.useState<number | null>(
     null
   );
+  const loggedInUserId = loginUser?.user?.id
+
+  const [isReacted, setIsReacted] = React.useState(false);
+  const [emoji, setEmoji] = React.useState("");
 
   const { userListData } = userListQuery();
 
@@ -87,6 +98,61 @@ export default function GroupMessages({
     onForward(messageId, userIds, groupIds);
   };
 
+
+  const renderReactions = () => {
+    const reactions = groupedMessages?.reactions;
+    if (!reactions || reactions.length === 0) return null;
+    // Current user's reaction
+    // const myReaction = reactions.find((r) => r?.userId === loggedInUserId);
+    // // Other reactions (excluding current user)
+    // const otherReactions = reactions.filter((r) => r.userId !== loggedInUserId);
+
+    return (
+      <div className="flex items-center gap-1 bg-gray-300 rounded-lg p-0.5">
+        {/* Show my reaction if I reacted, else show default icon */}
+        {/* {myReaction && (
+          <button className="bg-blue-400 rounded-full  p-0">
+            {reactionIcons[myReaction.react]}
+          </button>
+        )} */}
+
+        {/* Show first other user's reaction if exists */}
+        {/* {otherReactions[0] && (
+          <button disabled className="cursor-not-allowed pointer-none ">
+            {reactionIcons[otherReactions[0].react]}
+          </button>
+        )} */}
+      </div>
+    );
+  };
+
+  const handleSendReaction = (messageId: string, react: string) => {
+    try {
+      // console.log("message id in react", messageId)
+      if (isReacted && emoji === react) {
+        socket.emit("group-message-unreact", { messageId: messageId });
+        setIsReacted(false);
+        setEmoji("");
+      } else {
+        socket.emit("group-message-react", {
+          messageId: messageId,
+          emoji: react,
+        });
+        setIsReacted(true);
+        setEmoji(react);
+      }
+    } catch (error) {
+      console.log("Error handling reaction");
+    }
+  };
+
+  React.useEffect(() => {
+    if (groupedMessages.reactions && groupedMessages.reactions.length > 0) {
+      setIsReacted(true);
+      setEmoji((groupedMessages.reactions[0] as { emoji: string })?.emoji);
+    }
+  }, [groupedMessages.reactions]);
+
   return (
     <div className="space-y-3">
       {Object.keys(groupedMessages).length === 0 && (
@@ -106,14 +172,13 @@ export default function GroupMessages({
 
           {groupedMessages[dayKey].map((m) => {
             const isOwn = m.sender?.id === loginUser.user.id;
-            const isSelected = selectedMessageId === m.id.toString();
+            const isSelected = selectedMessageId === m?.id?.toString();
 
             return (
               <div
                 key={m.id}
-                className={`message-item flex items-end gap-2 ${
-                  isOwn ? "justify-end" : "justify-start"
-                }`}
+                className={`message-item flex items-end gap-2 ${isOwn ? "justify-end" : "justify-start"
+                  }`}
                 data-id={m.id}
               >
                 {/* Avatar */}
@@ -132,32 +197,46 @@ export default function GroupMessages({
                   </Avatar.Root>
                 )}
 
+                {isOwn && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+
+                    }}
+                    className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition flex items-center gap-1"
+                  >
+                    {renderReactions()}
+                  </button>
+                )}
                 {/* Message */}
                 <div
-                  className={`flex flex-col ${
-                    isOwn ? "items-end" : "items-start"
-                  } gap-1`}
+                  className={`flex flex-col ${isOwn ? "items-end" : "items-start"
+                    } gap-1`}
                 >
                   <ContextMenu>
                     <div
                       onClick={() => handleToggleTime(String(m.id))}
-                      className={`max-w-[100%] p-2 rounded-lg cursor-pointer transition ${
-                        isOwn
-                          ? "bg-primary text-white rounded-br-none hover:bg-primary/90"
-                          : "bg-slate-200 text-slate-900 dark:bg-slate-700 dark:text-slate-100 rounded-bl-none hover:bg-slate-300/80"
-                      }`}
+                      className={`max-w-[100%] p-2 rounded-lg cursor-pointer transition ${isOwn
+                        ? "bg-primary text-white rounded-br-none hover:bg-primary/90"
+                        : "bg-slate-200 text-slate-900 dark:bg-slate-700 dark:text-slate-100 rounded-bl-none hover:bg-slate-300/80"
+                        }`}
                     >
                       <ContextMenuTrigger>
                         <div>
+                          {
+                            m.forwarded_from_id && (
+                              <p>Forward from {m.forwarded_from_id}</p>
+                            )
+                          }
                           {m.content && <p className="mb-1">{m.content}</p>}
                           {/* Attachments */}
                           {Array.isArray(m.attachment_url)
                             ? m.attachment_url.map((url, i) => (
-                                <AttachmentPreview key={i} urls={url} />
-                              ))
+                              <AttachmentPreview key={i} urls={url} />
+                            ))
                             : m.attachment_url && (
-                                <AttachmentPreview urls={m.attachment_url} />
-                              )}
+                              <AttachmentPreview urls={m.attachment_url} />
+                            )}
                         </div>
                       </ContextMenuTrigger>
 
@@ -190,7 +269,7 @@ export default function GroupMessages({
                         {REACTIONS.map((emoji) => (
                           <button
                             key={emoji}
-                            onClick={() => onReact(Number(m.id), emoji)}
+                            onClick={() => handleSendReaction(String(m?.id), emoji)}
                             className="text-xl hover:scale-125 transition"
                           >
                             {emoji}
@@ -233,36 +312,24 @@ export default function GroupMessages({
                     </ContextMenuContent>
                   </ContextMenu>
 
-                  {/* Reaction display under message */}
-                  {Array.isArray(m.reactions) && m.reactions.length > 0 && (
-                    <div
-                      className={`flex gap-1 mt-1 ${
-                        isOwn ? "justify-end" : "justify-start"
-                      }`}
+                  {/* Receiver side reactions */}
+                  {!isOwn && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+
+                      }}
+                      className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition flex items-center gap-1"
                     >
-                      {Object.entries(
-                        m.reactions.reduce((acc: any, r: any) => {
-                          acc[r.emoji] = (acc[r.emoji] || 0) + 1;
-                          return acc;
-                        }, {})
-                      ).map(([emoji, count]) => (
-                        <span
-                          key={emoji}
-                          className="px-2 py-0.5 text-sm bg-slate-200 dark:bg-slate-700 rounded-full flex items-center gap-1"
-                        >
-                          {emoji}{" "}
-                          <span className="text-xs">{count as number}</span>
-                        </span>
-                      ))}
-                    </div>
+                      {renderReactions()}
+                    </button>
                   )}
 
                   {/* Time display */}
                   {isSelected && (
                     <span
-                      className={`text-[11px] mt-1 transition-opacity ${
-                        isOwn ? "text-slate-400 pr-1" : "text-slate-500 pl-1"
-                      }`}
+                      className={`text-[11px] mt-1 transition-opacity ${isOwn ? "text-slate-400 pr-1" : "text-slate-500 pl-1"
+                        }`}
                     >
                       {new Date(m.created_at!).toLocaleTimeString([], {
                         hour: "2-digit",
