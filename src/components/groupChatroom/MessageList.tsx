@@ -25,9 +25,13 @@ type Props = {
   onPin: (id: number) => void;
   onDelete: (id: number) => void;
   onForward: (id: number, receiverIds: number[], groupIds: number[]) => void;
+  onReact: (id: number, emoji: string) => void;
 };
+
 type SelectedItem = { type: "user" | "group"; id: number };
 
+// Reaction choices
+const REACTIONS = ["❤️", "😂", "👍", "😮", "😢", "😡"];
 
 export default function GroupMessages({
   groupedMessages,
@@ -35,48 +39,51 @@ export default function GroupMessages({
   onEditMessage,
   onPin,
   onDelete,
-  onForward
+  onForward,
+  onReact,
 }: Props) {
-
-  const [selectedMessageId, setSelectedMessageId] = React.useState<string | null>(null);
-  const handleToggleTime = (id: string) => { 
-    setSelectedMessageId((prev) => (prev === id ? null : id)); // toggle
+  const [selectedMessageId, setSelectedMessageId] = React.useState<
+    string | null
+  >(null);
+  const handleToggleTime = (id: string) => {
+    setSelectedMessageId((prev) => (prev === id ? null : id));
   };
 
   const [showForwardDialog, setShowForwardDialog] = React.useState(false);
-  const [forwardMessageId, setForwardMessageId] = React.useState<number | null>(null);
+  const [forwardMessageId, setForwardMessageId] = React.useState<number | null>(
+    null
+  );
 
   const { userListData } = userListQuery();
 
-  const chatUsers: ChatUserType[] = userListData?.map((u: UserListResponse) => ({
-    id: u.id,
-    username: u.username,
-    avatar_url: u.avatar_url,
-    status: typeof u.status === "string" ? u.status : "",
-  })) || [];
+  const chatUsers: ChatUserType[] =
+    userListData?.map((u: UserListResponse) => ({
+      id: u.id,
+      username: u.username,
+      avatar_url: u.avatar_url,
+      status: typeof u.status === "string" ? u.status : "",
+    })) || [];
 
-  const { groupChatListQuery: groupChatList = [] as GroupChatResponse[] } = useGroupChatList({ page: 1, pageSize: 15 });
-
+  const { groupChatListQuery: groupChatList = [] as GroupChatResponse[] } =
+    useGroupChatList({ page: 1, pageSize: 15 });
 
   const [selectedUsers, setSelectedUsers] = React.useState<SelectedItem[]>([]);
 
-  // Toggle user/group selection
   const toggleUserSelection = (item: SelectedItem) => {
-    setSelectedUsers(prev =>
-      prev.some(i => i.type === item.type && i.id === item.id)
-        ? prev.filter(i => !(i.type === item.type && i.id === item.id))
+    setSelectedUsers((prev) =>
+      prev.some((i) => i.type === item.type && i.id === item.id)
+        ? prev.filter((i) => !(i.type === item.type && i.id === item.id))
         : [...prev, item]
     );
   };
+
   React.useEffect(() => {
     if (showForwardDialog) setSelectedUsers([]);
   }, [showForwardDialog]);
 
-  // Forward handler
   const handleForward = (messageId: number, items: SelectedItem[]) => {
-    // Separate users and groups if needed
-    const userIds = items.filter(i => i.type === "user").map(i => i.id);
-    const groupIds = items.filter(i => i.type === "group").map(i => i.id);
+    const userIds = items.filter((i) => i.type === "user").map((i) => i.id);
+    const groupIds = items.filter((i) => i.type === "group").map((i) => i.id);
     onForward(messageId, userIds, groupIds);
   };
 
@@ -104,12 +111,12 @@ export default function GroupMessages({
             return (
               <div
                 key={m.id}
-                className={`message-item flex items-end gap-2 ${isOwn ? "justify-end" : "justify-start"
-                  }`}
+                className={`message-item flex items-end gap-2 ${
+                  isOwn ? "justify-end" : "justify-start"
+                }`}
                 data-id={m.id}
-                data-sender-id={m.sender?.id}
               >
-                {/* Avatar for others */}
+                {/* Avatar */}
                 {!isOwn && (
                   <Avatar.Root className="w-9 h-9 rounded-full overflow-hidden self-start">
                     <Avatar.Image
@@ -125,30 +132,32 @@ export default function GroupMessages({
                   </Avatar.Root>
                 )}
 
-                {/* Message bubble + time */}
+                {/* Message */}
                 <div
-                  className={`flex flex-col ${isOwn ? "items-end" : "items-start"} gap-1`}
+                  className={`flex flex-col ${
+                    isOwn ? "items-end" : "items-start"
+                  } gap-1`}
                 >
                   <ContextMenu>
                     <div
                       onClick={() => handleToggleTime(String(m.id))}
-                      className={`max-w-[100%] p-2 rounded-lg cursor-pointer transition ${isOwn
-                        ? "bg-primary text-white rounded-br-none hover:bg-primary/90"
-                        : "bg-slate-200 text-slate-900 dark:bg-slate-700 dark:text-slate-100 rounded-bl-none hover:bg-slate-300/80"
-                        }`}
+                      className={`max-w-[100%] p-2 rounded-lg cursor-pointer transition ${
+                        isOwn
+                          ? "bg-primary text-white rounded-br-none hover:bg-primary/90"
+                          : "bg-slate-200 text-slate-900 dark:bg-slate-700 dark:text-slate-100 rounded-bl-none hover:bg-slate-300/80"
+                      }`}
                     >
                       <ContextMenuTrigger>
                         <div>
                           {m.content && <p className="mb-1">{m.content}</p>}
-
                           {/* Attachments */}
                           {Array.isArray(m.attachment_url)
                             ? m.attachment_url.map((url, i) => (
-                              <AttachmentPreview key={i} urls={url} />
-                            ))
+                                <AttachmentPreview key={i} urls={url} />
+                              ))
                             : m.attachment_url && (
-                              <AttachmentPreview urls={m.attachment_url} />
-                            )}
+                                <AttachmentPreview urls={m.attachment_url} />
+                              )}
                         </div>
                       </ContextMenuTrigger>
 
@@ -166,19 +175,35 @@ export default function GroupMessages({
                               </span>
                             )}
                             {m?.isRead && (
-                              <span className="italic text-slate-300">Seen</span>
+                              <span className="italic text-slate-300">
+                                Seen
+                              </span>
                             )}
                           </>
                         )}
                       </div>
                     </div>
-
-                    {/* Context menu */}
+                    {/* CONTEXT MENU */}
                     <ContextMenuContent>
+                      {/* REACTION BAR */}
+                      <div className="flex gap-2 px-2 py-1 border-b border-slate-200 dark:border-slate-600">
+                        {REACTIONS.map((emoji) => (
+                          <button
+                            key={emoji}
+                            onClick={() => onReact(Number(m.id), emoji)}
+                            className="text-xl hover:scale-125 transition"
+                          >
+                            {emoji}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Pin */}
                       <ContextMenuItem onClick={() => onPin(Number(m.id))}>
                         <Pin className="w-4 h-4 mr-2" /> Pin
                       </ContextMenuItem>
 
+                      {/* Edit */}
                       {isOwn && (
                         <ContextMenuItem
                           onClick={() =>
@@ -189,12 +214,14 @@ export default function GroupMessages({
                         </ContextMenuItem>
                       )}
 
+                      {/* Delete */}
                       {isOwn && (
                         <ContextMenuItem onClick={() => onDelete(Number(m.id))}>
                           <Trash className="w-4 h-4 mr-2" /> Delete
                         </ContextMenuItem>
                       )}
 
+                      {/* Forward */}
                       <ContextMenuItem
                         onClick={() => {
                           setForwardMessageId(Number(m.id));
@@ -206,11 +233,36 @@ export default function GroupMessages({
                     </ContextMenuContent>
                   </ContextMenu>
 
-                  {/* Time (only shown if selected) */}
+                  {/* Reaction display under message */}
+                  {Array.isArray(m.reactions) && m.reactions.length > 0 && (
+                    <div
+                      className={`flex gap-1 mt-1 ${
+                        isOwn ? "justify-end" : "justify-start"
+                      }`}
+                    >
+                      {Object.entries(
+                        m.reactions.reduce((acc: any, r: any) => {
+                          acc[r.emoji] = (acc[r.emoji] || 0) + 1;
+                          return acc;
+                        }, {})
+                      ).map(([emoji, count]) => (
+                        <span
+                          key={emoji}
+                          className="px-2 py-0.5 text-sm bg-slate-200 dark:bg-slate-700 rounded-full flex items-center gap-1"
+                        >
+                          {emoji}{" "}
+                          <span className="text-xs">{count as number}</span>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Time display */}
                   {isSelected && (
                     <span
-                      className={`text-[11px] mt-1 transition-opacity ${isOwn ? "text-slate-400 pr-1" : "text-slate-500 pl-1"
-                        }`}
+                      className={`text-[11px] mt-1 transition-opacity ${
+                        isOwn ? "text-slate-400 pr-1" : "text-slate-500 pl-1"
+                      }`}
                     >
                       {new Date(m.created_at!).toLocaleTimeString([], {
                         hour: "2-digit",
@@ -225,6 +277,8 @@ export default function GroupMessages({
           })}
         </div>
       ))}
+
+      {/* Forward dialog */}
       {showForwardDialog && forwardMessageId !== null && (
         <ForwardDialog
           open={showForwardDialog}
@@ -237,7 +291,6 @@ export default function GroupMessages({
           messageId={forwardMessageId}
         />
       )}
-
     </div>
   );
 }
