@@ -251,7 +251,7 @@ export default function MessageItem({
                       messageReactions?.map((r) => (
                         <>
                           <div className="flex flex-row justify-between items-center gap-1">
-                          <p className="text-black">{r?.userName} {r?.userId === loggedInUserId && "(You)"}</p>
+                          <p className="text-black">{r?.userName} {r?.userId === loggedInUserId && "(Me)"}</p>
                           <p>{reactionIcons[r.react]}</p>
                         </div>
                         </>
@@ -302,7 +302,7 @@ export default function MessageItem({
                       messageReactions?.map((r) => (
                         <>
                           <div className="flex flex-row justify-between items-center gap-1">
-                          <p className="text-black">{r?.userName} {r?.userId === loggedInUserId && "(You)"}</p>
+                          <p className="text-black">{r?.userName} {r?.userId === loggedInUserId && "(Me)"}</p>
                           <p>{reactionIcons[r.react]}</p>
                         </div>
                         </>

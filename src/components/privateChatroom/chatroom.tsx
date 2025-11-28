@@ -239,7 +239,6 @@ export default function ChatRoom({
     socket.emit("join", { userId: loginUser.user.id });
 
     const handleIncomingMessage = (msg: PrivateIncomingMessage) => {
-      //console.log("handleIncomingMessage called with:", msg);
 
       //  Extract the actual message
       const messageData = msg;

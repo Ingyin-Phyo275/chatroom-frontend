@@ -294,7 +294,7 @@ export default function GroupMessages({
                                   <p className="text-black">
                                     {r?.userName ? r?.userName : r?.userId}{" "}
                                     {r?.userId === loggedInUserId &&
-                                      `- (You)`}
+                                      `(Me)`}
                                   </p>
                                   <p>{reactionIcons[r.emoji]}</p>
                                 </div>
@@ -362,7 +362,7 @@ export default function GroupMessages({
                                 <div className="flex flex-row justify-between items-center gap-1">
                                   <p className="text-black">
                                     {r?.userName ? r?.userName : r?.userId}{" "}
-                                    {r?.userId === loggedInUserId && "(You)"}
+                                    {r?.userId === loggedInUserId && "(Me)"}
                                   </p>
                                   <p>{reactionIcons[r.emoji]}</p>
                                 </div>
