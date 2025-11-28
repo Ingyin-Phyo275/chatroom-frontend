@@ -47,7 +47,7 @@ export default function MessageBubble({ m, isOwn, handleToggleTime, onEditMessag
                             {m.forwarded_from_id && (
                                 <p className="text-xs text-gray-300 italic">Forward from {m.forwarded_from_id}</p>
                             )}
-                            {m.content && <p className="mb-1">{m.content}</p>}
+                            {m.content && <p className="mb-1 no-copy">{m.content}</p>}
                             {/* Attachments */}
                             {Array.isArray(m.attachment_url)
                                 ? m.attachment_url.map((url, i) => (

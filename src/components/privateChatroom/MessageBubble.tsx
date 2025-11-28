@@ -59,7 +59,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
       }`}
     >
       <ContextMenu>
-        <ContextMenuTrigger>
+        <ContextMenuTrigger className="no-copy">
           {message?.content}
           {message.duration && (
             <p

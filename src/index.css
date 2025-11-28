@@ -119,3 +119,9 @@
     @apply bg-background text-foreground;
   }
 }
+
+.no-copy {
+   -webkit-user-select: none; /* Safari */
+  -ms-user-select: none;     /* IE 10+ */
+  user-select: none;         /* Standard */
+}
