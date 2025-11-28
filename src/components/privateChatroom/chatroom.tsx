@@ -233,8 +233,6 @@ export default function ChatRoom({
     return () => container.removeEventListener("scroll", handleScroll);
   }, [loginUser.user.id, user.id]);
 
-
-
   // Socket join & listeners
   useEffect(() => {
     if (!socket) return;

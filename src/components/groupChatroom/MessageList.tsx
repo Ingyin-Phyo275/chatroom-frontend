@@ -1,16 +1,8 @@
 import * as React from "react";
 import * as Avatar from "@radix-ui/react-avatar";
-import { CornerUpLeft, Pen, Pin, Trash } from "lucide-react";
 import { formatMessageDate } from "../../hooks/helper";
 import type { GetAllMessage } from "../../dto/response/GetAllMessage";
 import type { loginResponse } from "../../dto/response/LoginResponse";
-import AttachmentPreview from "./AttachmentPreview";
-import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuTrigger,
-} from "@/components/ui/context-menu";
 import { userListQuery } from "../../composables/Queries/userListQuery";
 import type { ChatUserType } from "../../dto/UserTypes";
 import type { UserListResponse } from "../../dto/response/UserListResponse";
@@ -27,6 +19,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Separator } from "../ui/separator";
+import MessageBubble from "./MessageBubble";
 
 type Props = {
   groupedMessages: Record<string, GetAllMessage[]>;
@@ -50,15 +43,7 @@ type ReactionResponse = {
   }[];
 };
 
-// Reaction choices
-const Reactions = [
-  { icon: "❤️", label: "love" },
-  { icon: "😂", label: "haha" },
-  { icon: "👍", label: "like" },
-  { icon: "😮", label: "wow" },
-  { icon: "😢", label: "sad" },
-  { icon: "😡", label: "angry" },
-];
+
 const reactionIcons: Record<string, React.JSX.Element> = {
   love: <span>❤️</span>,
   haha: <span>😂</span>,
@@ -137,6 +122,7 @@ export default function GroupMessages({
   const renderReactions = (m: GetAllMessage) => {
     const reactions = reactionMap[m?.id] || [];
 
+    console.log("reaction data from api", reactionMap)
     if (reactions.length === 0) return null;
     const myReaction = reactions.find(
       (r: any) => Number(r.userId) === loggedInUserId
@@ -216,8 +202,24 @@ export default function GroupMessages({
   };
 
   React.useEffect(() => {
-    const reactions = messages.flatMap((msg) => msg.reactions || []);
+  const map: Record<string, any[]> = {};
 
+  messages.forEach((msg) => {
+    if (msg.reactions && msg.reactions.length > 0) {
+      map[msg.id] = msg.reactions.map((r) => ({
+        userId: r.userId,
+        emoji: r.react,
+        userName: r.userName,
+      }));
+    }
+  });
+
+  setReactionMap(map);
+}, [messages]);
+
+  React.useEffect(() => {
+    const reactions = messages.flatMap((msg) => msg.reactions || []);
+    console.log("reaction in useEffect", reactions)
     if (reactions.length > 0) {
       setIsReacted(true);
       setEmoji(reactions[0].react);
@@ -275,11 +277,11 @@ export default function GroupMessages({
                       onClick={(e) => {
                         e.stopPropagation();
                       }}
-                      className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition flex items-center gap-1"
+                      className="p-1  dark:hover:bg-gray-700 rounded-full transition flex items-center gap-1"
                     >
                       <Dialog>
                         <DialogTrigger>{renderReactions(m)}</DialogTrigger>
-                        <DialogContent>
+                        <DialogContent className="max-w-sm w-sm">
                           <DialogHeader>
                             <DialogTitle className="text-start">
                               Reactions
@@ -292,9 +294,9 @@ export default function GroupMessages({
                                   <p className="text-black">
                                     {r?.userName ? r?.userName : r?.userId}{" "}
                                     {r?.userId === loggedInUserId &&
-                                      `${loggedInUserId} - (You)`}
+                                      `- (You)`}
                                   </p>
-                                  <p>{reactionIcons[r.react]}</p>
+                                  <p>{reactionIcons[r.emoji]}</p>
                                 </div>
                               </>
                             ))}
@@ -309,107 +311,18 @@ export default function GroupMessages({
                       isOwn ? "items-end" : "items-start"
                     } gap-1`}
                   >
-                    <ContextMenu>
-                      <div
-                        onClick={() => handleToggleTime(String(m.id))}
-                        className={`max-w-[100%] p-2 rounded-lg cursor-pointer transition ${
-                          isOwn
-                            ? "bg-primary text-white rounded-br-none hover:bg-primary/90"
-                            : "bg-slate-200 text-slate-900 dark:bg-slate-700 dark:text-slate-100 rounded-bl-none hover:bg-slate-300/80"
-                        }`}
-                      >
-                        <ContextMenuTrigger>
-                          <div>
-                            {m.forwarded_from_id && (
-                              <p>Forward from {m.forwarded_from_id}</p>
-                            )}
-                            {m.content && <p className="mb-1">{m.content}</p>}
-                            {/* Attachments */}
-                            {Array.isArray(m.attachment_url)
-                              ? m.attachment_url.map((url, i) => (
-                                  <AttachmentPreview key={i} urls={url} />
-                                ))
-                              : m.attachment_url && (
-                                  <AttachmentPreview urls={m.attachment_url} />
-                                )}
-                          </div>
-                        </ContextMenuTrigger>
-
-                        {/* Edited + status */}
-                        <div className="flex justify-between items-center mt-1 text-xs text-slate-300 gap-2">
-                          {m.is_edit && (
-                            <span className="italic text-gray-400">Edited</span>
-                          )}
-
-                          {isOwn && (
-                            <>
-                              {m?.is_delivered && !m?.isRead && (
-                                <span className="italic text-slate-300">
-                                  Delivered
-                                </span>
-                              )}
-                              {m?.isRead && (
-                                <span className="italic text-slate-300">
-                                  Seen
-                                </span>
-                              )}
-                            </>
-                          )}
-                        </div>
-                      </div>
-                      {/* CONTEXT MENU */}
-                      <ContextMenuContent>
-                        {/* REACTION BAR */}
-                        <div className="flex gap-2 px-2 py-1 border-b border-slate-200 dark:border-slate-600">
-                          {Reactions.map((emoji) => (
-                            <button
-                              key={emoji?.label}
-                              onClick={() =>
-                                handleSendReaction(String(m?.id), emoji?.label)
-                              }
-                              className="text-xl hover:scale-125 transition"
-                            >
-                              {emoji?.icon}
-                            </button>
-                          ))}
-                        </div>
-
-                        {/* Pin */}
-                        <ContextMenuItem onClick={() => onPin(Number(m.id))}>
-                          <Pin className="w-4 h-4 mr-2" /> Pin
-                        </ContextMenuItem>
-
-                        {/* Edit */}
-                        {isOwn && (
-                          <ContextMenuItem
-                            onClick={() =>
-                              onEditMessage(String(m.id), m.content || "")
-                            }
-                          >
-                            <Pen className="w-4 h-4 mr-2" /> Edit
-                          </ContextMenuItem>
-                        )}
-
-                        {/* Delete */}
-                        {isOwn && (
-                          <ContextMenuItem
-                            onClick={() => onDelete(Number(m.id))}
-                          >
-                            <Trash className="w-4 h-4 mr-2" /> Delete
-                          </ContextMenuItem>
-                        )}
-
-                        {/* Forward */}
-                        <ContextMenuItem
-                          onClick={() => {
-                            setForwardMessageId(Number(m.id));
-                            setShowForwardDialog(true);
-                          }}
-                        >
-                          <CornerUpLeft className="w-4 h-4 mr-2" /> Forward
-                        </ContextMenuItem>
-                      </ContextMenuContent>
-                    </ContextMenu>
+                      <MessageBubble
+                        m={m}
+                        isOwn={isOwn}
+                        handleToggleTime={handleToggleTime}
+                        onEditMessage={onEditMessage}
+                        onPin={onPin}
+                        onDelete={onDelete}
+                        onForward={onForward}
+                        handleSendReaction={handleSendReaction}
+                        setForwardMessageId={setForwardMessageId}
+                        setShowForwardDialog={setShowForwardDialog}
+                      />
 
                     {/* Time display */}
                     {isSelected && (
@@ -433,11 +346,11 @@ export default function GroupMessages({
                       onClick={(e) => {
                         e.stopPropagation();
                       }}
-                      className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition flex items-center gap-1"
+                      className="p-1 dark:hover:bg-gray-700 rounded-full transition flex items-center gap-1"
                     >
                       <Dialog>
                         <DialogTrigger>{renderReactions(m)}</DialogTrigger>
-                        <DialogContent>
+                        <DialogContent className="max-w-sm w-sm">
                           <DialogHeader>
                             <DialogTitle className="text-start">
                               Reactions
@@ -451,7 +364,7 @@ export default function GroupMessages({
                                     {r?.userName ? r?.userName : r?.userId}{" "}
                                     {r?.userId === loggedInUserId && "(You)"}
                                   </p>
-                                  <p>{reactionIcons[r?.react]}</p>
+                                  <p>{reactionIcons[r.emoji]}</p>
                                 </div>
                               </>
                             ))}
