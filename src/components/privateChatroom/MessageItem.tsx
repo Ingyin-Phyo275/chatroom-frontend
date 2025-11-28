@@ -241,7 +241,7 @@ export default function MessageItem({
             >
               <Dialog>
                 <DialogTrigger>{renderReactions()}</DialogTrigger>
-                <DialogContent>
+                <DialogContent className="max-w-sm w-sm">
                   <DialogHeader>
                     <DialogTitle className="text-start">Reactions</DialogTitle>
                     <Separator/>
@@ -292,7 +292,7 @@ export default function MessageItem({
             >
               <Dialog>
                 <DialogTrigger>{renderReactions()}</DialogTrigger>
-                <DialogContent>
+                <DialogContent className="max-w-sm w-sm">
                   <DialogHeader>
                     <DialogTitle className="text-start">Reactions</DialogTitle>
                     <Separator/>
