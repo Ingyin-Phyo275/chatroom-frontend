@@ -45,9 +45,9 @@ export default function ChatInput({
   setShowAttachmentMenu,
 }: ChatInputProps) {
   return (
-    <div className="border-t p-2 bg-white relative">
+    <div className="border-t p-2 bg-white dark:bg-[#09090B] relative">
       {editingMessageId && (
-        <div className="flex justify-between items-center mb-2 bg-yellow-100 p-2 rounded">
+        <div className="flex justify-between items-center mb-2 bg-yellow-100 dark:text-black p-2 rounded">
           <span>Editing message...</span>
           <button onClick={cancelEdit}>
             <X size={16} />
@@ -59,7 +59,7 @@ export default function ChatInput({
         {/* Attachment Button */}
         <button
           onClick={() => setShowAttachmentMenu((prev) => !prev)}
-          className="p-2 rounded hover:bg-gray-200"
+          className="p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700"
         >
           <Paperclip />
         </button>
@@ -121,27 +121,27 @@ export default function ChatInput({
 
       {/*  Attachment Menu  */}
       {showAttachmentMenu && (
-        <div className="absolute bottom-16 left-2 bg-white border rounded shadow-lg p-2">
+        <div className="absolute bottom-16 left-2 bg-white dark:bg-[#09090B] border rounded shadow-lg p-2">
           <button
-            className="flex items-center gap-2 px-3 py-2 hover:bg-slate-100"
+            className="flex items-center gap-2 px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 w-full"
             onClick={() => handleAttachmentClick("image")}
           >
             <ImageIcon className="w-4 h-4" /> Image
           </button>
           <button
-            className="flex items-center gap-2 px-3 py-2 hover:bg-slate-100"
+            className="flex items-center gap-2 px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 w-full"
             onClick={() => handleAttachmentClick("video")}
           >
             <VideoIcon className="w-4 h-4" /> Video
           </button>
           <button
-            className="flex items-center gap-2 px-3 py-2 hover:bg-slate-100"
+            className="flex items-center gap-2 px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 w-full"
             onClick={() => handleAttachmentClick("audio")}
           >
             <AudioLinesIcon className="w-4 h-4" /> Audio
           </button>
           <button
-            className="flex items-center gap-2 px-3 py-2 hover:bg-slate-100"
+            className="flex items-center gap-2 px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 w-full"
             onClick={() => handleAttachmentClick("file")}
           >
             <FileIcon className="w-4 h-4" /> File

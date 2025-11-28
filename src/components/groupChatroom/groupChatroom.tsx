@@ -525,7 +525,7 @@ export default function GroupChatRoom({ user, loginUser }: Props) {
 
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)] relative">
-      <div ref={listRef} className="flex-1 overflow-auto p-4 space-y-3 bg-white">
+      <div ref={listRef} className="flex-1 overflow-auto p-4 space-y-3 bg-white dark:bg-[#09090B]">
         <GroupMessages
           groupedMessages={groupedMessages}
           loginUser={loginUser}

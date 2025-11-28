@@ -24,6 +24,7 @@ import {
 import type { PrivateCallResponse } from "../dto/response/PrivateCallResponse";
 import PrivateChat from "../features/PrivateChat/PrivateChat";
 import GroupChat from "../features/GroupChat/GroupChat";
+import { ModeToggle } from "./Common/Themes/mode-toggle";
 
 type chatroomPageProps = {
   selectedUser: ChatUserType;
@@ -152,6 +153,7 @@ export default function ChatroomPage({ selectedUser, loginUser }: chatroomPagePr
       <header className="flex sticky top-0 z-50 h-16 items-center justify-between px-4 border-b dark:border-slate-700 bg-white dark:bg-slate-900">
         <div className="flex items-center gap-2">
           <SidebarTrigger />
+          <ModeToggle/>
         </div>
 
         {selectedUser && (

@@ -15,9 +15,9 @@ export default function ChatInput({
   isSending, // isSending prop to control sending state
 }: any) {
   return (
-    <div className="border-t p-2 bg-white relative">
+    <div className="border-t p-2 bg-white dark:bg-[#09090B] relative">
       {editingMessageId && (
-        <div className="flex justify-between items-center mb-2 bg-yellow-100 p-2 rounded">
+        <div className="flex justify-between items-center mb-2 bg-yellow-100 dark:text-black p-2 rounded">
           <span>Editing message...</span>
           <button onClick={cancelEdit}>
             <X size={16} />
@@ -29,7 +29,7 @@ export default function ChatInput({
         {/* Attachment Button */}
         <button
           onClick={() => setShowAttachmentMenu((prev: boolean) => !prev)}
-          className={`p-2 rounded hover:bg-gray-200 ${isSending ? "opacity-50 cursor-not-allowed" : ""}`}
+          className={`p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 ${isSending ? "opacity-50 cursor-not-allowed" : ""}`}
           disabled={isSending} // Disable attachment button while sending
         >
           <Paperclip />
@@ -99,9 +99,9 @@ export default function ChatInput({
 
       {/* Attachment Menu */}
       {showAttachmentMenu && (
-        <div className="absolute bottom-16 left-2 bg-white border rounded shadow-lg p-2">
+        <div className="absolute bottom-16 left-2 bg-white dark:bg-[#09090B] border rounded shadow-lg p-2">
           <button
-            className={`flex items-center gap-2 px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 ${isSending ? "opacity-50 cursor-not-allowed" : ""}`}
+            className={`flex items-center gap-2 px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-700  ${isSending ? "opacity-50 cursor-not-allowed" : ""}`}
             onClick={() => handleAttachmentClick("image")}
             disabled={isSending} // Disable attachment options while sending
           >
@@ -122,7 +122,7 @@ export default function ChatInput({
             <AudioLinesIcon className="w-4 h-4" /> Audio
           </button>
           <button
-            className={`flex items-center gap-2 px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 ${isSending ? "opacity-50 cursor-not-allowed" : ""}`}
+            className={`flex items-center gap-2 px-3 py-2 w-full hover:bg-slate-100 dark:hover:bg-slate-700 ${isSending ? "opacity-50 cursor-not-allowed" : ""}`}
             onClick={() => handleAttachmentClick("file")}
             disabled={isSending} // Disable attachment options while sending
           >
