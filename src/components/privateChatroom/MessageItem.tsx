@@ -1,18 +1,29 @@
 import * as React from "react";
 import type { PrivateChatMessage } from "@/dto/response/PrivateChatMessage";
 import type { ChatUserType } from "@/dto/UserTypes";
+import type { UserListResponse } from "@/dto/response/UserListResponse";
 import * as Avatar from "@radix-ui/react-avatar";
-import { File, Pen, Pin, Trash } from "lucide-react";
+import { socket } from "../../socket/socket";
+import { userListQuery } from "../../composables/Queries/userListQuery";
+import ForwardDialog from "./ForwardDialog";
+import MessageBubble from "./MessageBubble";
 import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuSub,
-  ContextMenuSubContent,
-  ContextMenuSubTrigger,
-  ContextMenuTrigger,
-} from "@/components/ui/context-menu";
-import { DropdownMenuSeparator } from "../ui/dropdown-menu";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { Separator } from "../ui/separator";
+
+type ReactionResponse = {
+  messageId: string;
+  reactions: {
+    userId: string;
+    emoji: string;
+  }[];
+};
 
 export default function MessageItem({
   message,
@@ -23,6 +34,9 @@ export default function MessageItem({
   setPreviewModal,
   onDelete,
   onPin,
+  onForward,
+  activeReactionMessageId,
+  setActiveReactionMessageId,
 }: {
   message: PrivateChatMessage;
   isOwn: boolean;
@@ -32,17 +46,169 @@ export default function MessageItem({
   setPreviewModal: (preview: any) => void;
   onDelete: (messageId: number, is_everyone: boolean) => void;
   onPin: (messageId: number) => void;
+  onForward: (messageId: number, receiverIds: number[]) => void;
+  activeReactionMessageId: string | null;
+  setActiveReactionMessageId: (id: string | null) => void;
 }) {
   const sender = user;
 
-  //  Track time visibility
   const [showTime, setShowTime] = React.useState(false);
+  const [showForwardDialog, setShowForwardDialog] = React.useState(false);
+  const [forwardMessageId, setForwardMessageId] = React.useState<number | null>(
+    null
+  );
+  const [selectedUsers, setSelectedUsers] = React.useState<number[]>([]);
 
   const toggleTime = () => setShowTime((prev) => !prev);
 
+  const isReactionActive = activeReactionMessageId === message.id;
+
+  const loginUser = JSON.parse(localStorage.getItem("user") || "{}");
+  const loggedInUserId = loginUser?.user?.id;
+  const [messageReactions, setMessageReactions] = React.useState(
+    message.reactions || []
+  );
+
+  const [isReacted, setIsReacted] = React.useState(false);
+  const [emoji, setEmoji] = React.useState("");
+
+  const reactionIcons: Record<string, React.JSX.Element> = {
+    love: <span>❤️</span>,
+    haha: <span>😂</span>,
+    like: <span>👍</span>,
+    wow: <span>😮</span>,
+    sad: <span>😢</span>,
+    angry: <span>😡</span>,
+  };
+  // React.useEffect(() => {
+  //   const outgoing = (event: any, ...args: any[]) =>
+  //     console.log("📤 Outgoing event:", event, "Payload:", args);
+
+  //   const incoming = (event: any, ...args: any[]) =>
+  //     console.log("📥 Incoming event:", event, "Payload:", args);
+
+  //   socket.onAnyOutgoing(outgoing);
+  //   socket.onAny(incoming);
+
+  //   return () => {
+  //     socket.offAnyOutgoing(outgoing);
+  //     socket.offAny(incoming);
+  //   };
+  // }, []);
+
+  React.useEffect(() => {
+    if (showForwardDialog) setSelectedUsers([]);
+  }, [showForwardDialog]);
+
+  React.useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (!(e.target as HTMLElement).closest(".message-item")) {
+        setActiveReactionMessageId(null);
+      }
+    };
+
+    document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
+  }, []);
+
+  const handleReactMessageUI = React.useCallback(
+    (data: ReactionResponse) => {
+      if (data.messageId === message.id) {
+        setMessageReactions(
+          data?.reactions?.map((reaction) => ({
+            ...reaction,
+            react: reaction.emoji, // Assuming 'emoji' is the value for 'react'
+          })) || []
+        );
+        const myReaction = data.reactions?.find(
+          (r) => r.userId === loggedInUserId
+        );
+        setIsReacted(!!myReaction);
+        setEmoji(myReaction?.emoji || "");
+      }
+    },
+    [message.id, loggedInUserId]
+  );
+
+  React.useEffect(() => {
+    socket.on("private-message-reacted", handleReactMessageUI);
+    return () => {
+      socket.off("private-message-reacted", handleReactMessageUI);
+    };
+  }, [message.id]);
+
+  const { userListData } = userListQuery();
+
+  const chatUsers: ChatUserType[] =
+    userListData?.map((u: UserListResponse) => ({
+      id: u.id,
+      username: u.username,
+      avatar_url: u.avatar_url,
+      status: typeof u.status === "string" ? u.status : "",
+    })) || [];
+
+  const toggleUserSelection = (userId: number) => {
+    setSelectedUsers((prev) =>
+      prev.includes(userId)
+        ? prev.filter((id) => id !== userId)
+        : [...prev, userId]
+    );
+  };
+  const renderReactions = () => {
+    const reactions = messageReactions;
+    if (!reactions || reactions.length === 0) return null;
+    // Current user's reaction
+    const myReaction = reactions.find((r) => r.userId === loggedInUserId);
+    // Other reactions (excluding current user)
+    const otherReactions = reactions.filter((r) => r.userId !== loggedInUserId);
+
+    return (
+      <div className="flex items-center gap-1 bg-gray-300 rounded-lg p-0.5">
+        {/* Show my reaction if I reacted, else show default icon */}
+        {myReaction && (
+          <button className="bg-blue-400 rounded-full  p-0">
+            {reactionIcons[myReaction.react]}
+          </button>
+        )}
+
+        {/* Show first other user's reaction if exists */}
+        {otherReactions[0] && (
+          <button  className="">
+            {reactionIcons[otherReactions[0].react]}
+          </button>
+        )}
+      </div>
+    );
+  };
+  const handleSendReaction = (react: string) => {
+    try {
+      if (isReacted && emoji === react) {
+        socket.emit("private-message-unreact", { messageId: message?.id });
+        setIsReacted(false);
+        setEmoji("");
+      } else {
+        socket.emit("private-message-react", {
+          messageId: message?.id,
+          emoji: react,
+        });
+        setIsReacted(true);
+        setEmoji(react);
+      }
+      setActiveReactionMessageId(null);
+    } catch (error) {
+      console.log("Error handling reaction");
+    }
+  };
+
+  React.useEffect(() => {
+    if (message.reactions && message.reactions.length > 0) {
+      setIsReacted(true);
+      setEmoji(message.reactions[0].react);
+    }
+  }, [message.reactions]);
+
   return (
     <div className={`flex ${isOwn ? "justify-end" : "justify-start"} gap-3`}>
-      {/* Avatar (only for other user) */}
       {!isOwn && (
         <Avatar.Root className="w-10 h-10 rounded-full overflow-hidden">
           <Avatar.Image
@@ -56,158 +222,103 @@ export default function MessageItem({
         </Avatar.Root>
       )}
 
-      {/* Message bubble */}
       <div
-        className={`message-item flex flex-col ${
-          isOwn ? "items-end" : "items-start"
-        } gap-1`}
+        className={`relative message-item flex flex-col ${isOwn ? "items-end" : "items-start"
+          } gap-1`}
         data-id={message.id}
-        data-sender-id={
-          typeof message.sender === "object"
-            ? message.sender.id
-            : message.sender
-        }
       >
-        <ContextMenu>
-          <div
-            onClick={toggleTime} //toggle time on click
-            className={`max-w-[100%] p-2 rounded-lg cursor-pointer transition ${
-              isOwn
-                ? "bg-primary text-white rounded-br-none hover:bg-primary/90"
-                : "bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-100 rounded-bl-none hover:bg-slate-300/80"
-            }`}
-          >
-            <ContextMenuTrigger>
-              {/* Message text */}
-              {message?.content && message?.content}
+        <div className="relative flex items-center gap-1">
+          {/* Sender side reactions */}
+          {isOwn && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setActiveReactionMessageId(
+                  isReactionActive ? null : message.id
+                );
+              }}
+              className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition flex items-center gap-1"
+            >
+              <Dialog>
+                <DialogTrigger>{renderReactions()}</DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle className="text-start">Reactions</DialogTitle>
+                    <Separator/>
+                    <DialogDescription>
+                    </DialogDescription>
+                    {
+                      messageReactions?.map((r) => (
+                        <>
+                          <div className="flex flex-row justify-between items-center gap-1">
+                          <p className="text-black">{r?.userName} {r?.userId === loggedInUserId && "(You)"}</p>
+                          <p>{reactionIcons[r.react]}</p>
+                        </div>
+                        </>
+                      ))
+                    }
+                  </DialogHeader>
+                </DialogContent>
+              </Dialog>
+            </button>
+          )}
 
-              {/* Duration (for media) */}
-              {message.duration && (
-                <p
-                  className={`text-xs ${
-                    isOwn ? "text-slate-200" : "text-slate-400"
-                  }`}
-                >
-                  Duration: {message.duration}
-                </p>
-              )}
+          <MessageBubble
+            message={message}
+            isOwn={isOwn}
+            toggleTime={toggleTime}
+            filePath={filePath}
+            setPreviewModal={setPreviewModal}
+            onEdit={onEdit}
+            onDelete={onDelete}
+            onPin={onPin}
+            setForwardMessageId={setForwardMessageId}
+            setShowForwardDialog={setShowForwardDialog}
+            setIsReacted={setIsReacted}
+            setEmoji={setEmoji}
+            handleSendReaction={handleSendReaction}
+          />
 
-              {/* Attachments */}
-              {message.attachment_url && (
-                <div>
-                  {filePath?.match(/\.(jpeg|jpg|png|gif)$/i) && (
-                    <img
-                      src={message.attachment_url}
-                      alt="attachment"
-                      className="max-w-full max-h-60 rounded-lg cursor-pointer"
-                      onClick={() =>
-                        setPreviewModal({
-                          type: "image",
-                          url: message.attachment_url,
-                        })
-                      }
-                    />
-                  )}
+          {/* Receiver side reactions */}
+          {!isOwn && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setActiveReactionMessageId(
+                  isReactionActive ? null : message.id
+                );
+              }}
+              className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition flex items-center gap-1"
+            >
+              <Dialog>
+                <DialogTrigger>{renderReactions()}</DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle className="text-start">Reactions</DialogTitle>
+                    <Separator/>
+                    <DialogDescription>
+                    </DialogDescription>
+                    {
+                      messageReactions?.map((r) => (
+                        <>
+                          <div className="flex flex-row justify-between items-center gap-1">
+                          <p className="text-black">{r?.userName} {r?.userId === loggedInUserId && "(You)"}</p>
+                          <p>{reactionIcons[r.react]}</p>
+                        </div>
+                        </>
+                      ))
+                    }
+                  </DialogHeader>
+                </DialogContent>
+              </Dialog>
+            </button>
+          )}
+        </div>
 
-                  {filePath?.match(/\.(mp4|webm)$/i) && (
-                    <video
-                      src={message.attachment_url}
-                      controls
-                      className="max-w-full max-h-60 rounded-lg"
-                    />
-                  )}
-
-                  {filePath?.match(/\.(mp3|wav)$/i) && (
-                    <audio controls src={message.attachment_url} />
-                  )}
-
-                  {!filePath?.match(
-                    /\.(jpeg|jpg|png|gif|mp4|webm|mp3|wav)$/i
-                  ) && (
-                    <div className="relative flex flex-col items-center justify-center w-[200px] h-[200px] bg-gray-100 rounded-lg shadow-md p-4 hover:shadow-lg transition-shadow">
-                      <File
-                        className="w-12 h-12 text-slate-500 mb-2"
-                        onClick={() =>
-                          setPreviewModal({
-                            type: "file",
-                            url: message.attachment_url,
-                          })
-                        }
-                      />
-                    </div>
-                  )}
-                </div>
-              )}
-            </ContextMenuTrigger>
-
-            {/* Footer inside bubble */}
-            <div className="flex justify-between items-center mt-1 text-xs text-slate-300 gap-2">
-              {message?.is_edit === true && (
-                <span className="text-grey-500 italic">Edited</span>
-              )}
-
-              {isOwn && (
-                <span className="ml-2 flex items-center gap-1">
-                  {message?.is_delivered && !message?.isRead && (
-                    <span className="italic text-slate-300">Delivered</span>
-                  )}
-                  {message?.isRead && (
-                    <span className="italic text-slate-300">Seen</span>
-                  )}
-                </span>
-              )}
-            </div>
-
-            {/* Context Menu Items */}
-            <ContextMenuContent>
-              {/* Edit */}
-              {isOwn &&
-                !filePath?.match(
-                  /\.(jpeg|jpg|png|gif|mp4|webm|mp3|wav)$/i
-                ) && (
-                  <ContextMenuItem
-                    onClick={() => onEdit(message.id, message.content || "")}
-                  >
-                    <Pen className="w-4 h-4 mr-2" /> Edit
-                  </ContextMenuItem>
-                )}
-
-              {/* Delete submenu */}
-              {isOwn && (
-                <ContextMenuSub>
-                  <ContextMenuSubTrigger>
-                    <Trash className="w-4 h-4 mr-auto" /> Delete
-                  </ContextMenuSubTrigger>
-                  <ContextMenuSubContent className="w-44">
-                    <ContextMenuItem
-                      onClick={() => onDelete(Number(message.id), false)}
-                    >
-                      Delete For Me
-                    </ContextMenuItem>
-                    <DropdownMenuSeparator />
-                    <ContextMenuItem
-                      onClick={() => onDelete(Number(message.id), true)}
-                    >
-                      Delete For Everyone
-                    </ContextMenuItem>
-                  </ContextMenuSubContent>
-                </ContextMenuSub>
-              )}
-
-              {/* Pin */}
-              <ContextMenuItem onClick={() => onPin(Number(message.id))}>
-                <Pin className="w-4 h-4 mr-2" /> Pin
-              </ContextMenuItem>
-            </ContextMenuContent>
-          </div>
-        </ContextMenu>
-
-        {/* Time BELOW the bubble — only when clicked */}
         {showTime && (
           <span
-            className={`text-[11px] mt-1 transition-opacity ${
-              isOwn ? "text-slate-400 pr-2" : "text-slate-500 pl-2"
-            }`}
+            className={`text-[11px] mt-1 ${isOwn ? "text-slate-400 pr-2" : "text-slate-500 pl-2"
+              }`}
           >
             {new Date(message.created_at).toLocaleTimeString([], {
               hour: "2-digit",
@@ -217,6 +328,18 @@ export default function MessageItem({
           </span>
         )}
       </div>
+
+      {showForwardDialog && forwardMessageId !== null && (
+        <ForwardDialog
+          open={showForwardDialog}
+          onClose={() => setShowForwardDialog(false)}
+          chatUsers={chatUsers}
+          selectedUsers={selectedUsers}
+          toggleUserSelection={toggleUserSelection}
+          sendForward={onForward}
+          messageId={forwardMessageId}
+        />
+      )}
     </div>
   );
 }

@@ -14,7 +14,14 @@ export interface GetAllMessage {
   is_pinned?: boolean;
   is_group?: boolean;
   is_edit?: boolean;
+  forwarded_from?: string | null;
+  forwarded_from_id?: string | null;
   unreadCount?: { userId: number; unreadCount: number }[];
   isRead?: boolean;
   chatroom_id?: number;
+  reactions?: {
+    userId:  string;
+    userName?: string
+    react: string;
+  }[];
 }

@@ -26,4 +26,9 @@ export interface PrivateChatMessage {
     type?: string;
     duration?: string;
   }
+  reactions?: {
+    userId: string;
+    userName?: string
+    react: string;
+  }[]
 }

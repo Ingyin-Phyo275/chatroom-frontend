@@ -48,6 +48,8 @@ export default function ChatRoom({
   const audioInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [loadingInitial, setLoadingInitial] = useState(false);
+
   const { setValue } = useCounterStore();
 
   //Pagination
@@ -92,6 +94,7 @@ export default function ChatRoom({
     isRead: m.isRead ?? false,
     pagination: m.pagination,
     duration: m?.call?.duration,
+    reactions: m.reactions,
   });
 
   // Scroll helper
@@ -113,6 +116,7 @@ export default function ChatRoom({
   // Fetch messages with pagination
   const fetchMessages = async (pageToFetch: number) => {
     try {
+      if (pageToFetch === 1) setLoadingInitial(true);
       const res = await GetAllMessage({
         receiverId: Number(user.id),
         page: pageToFetch,
@@ -131,6 +135,8 @@ export default function ChatRoom({
       setHasMore(newMsgs.length === pageSize);
     } catch (err) {
       console.error("Fetch messages failed:", err);
+    } finally {
+      if (pageToFetch === 1) setLoadingInitial(false); // hide loader after initial load
     }
   };
 
@@ -163,71 +169,69 @@ export default function ChatRoom({
 
   // Infinite scroll
   //handles the initial or non-scroll read
-useEffect(() => {
-  if (!chatContainerRef.current) return;
+  useEffect(() => {
+    if (!chatContainerRef.current) return;
 
-  const container = chatContainerRef.current;
-  const messageEls = Array.from(container.querySelectorAll<HTMLDivElement>(".message-item"));
-  messageEls.forEach((el) => {
-    const msgId = el.dataset.id;
-    const senderId = el.dataset.senderId;
-    if (!msgId) return;
+    const container = chatContainerRef.current;
+    const messageEls = Array.from(container.querySelectorAll<HTMLDivElement>(".message-item"));
+    messageEls.forEach((el) => {
+      const msgId = el.dataset.id;
+      const senderId = el.dataset.senderId;
+      if (!msgId) return;
 
-    if (String(senderId) !== String(loginUser.user.id)) {
-      socket.emit("message-read-private", {
-        messageId: Number(msgId),
-        readerId: Number(loginUser.user.id),
-        senderId: Number(user.id),
-      });
-      setValue(user.id, 0, "Personal");
-    }
-  });
-}, [messages, loginUser.user.id, user.id]);
-
-//  Keep your scroll-based logic for dynamic reading
-useEffect(() => {
-  if (!chatContainerRef.current) return;
-  const readMessagesRef = new Set<string>();
-
-  const handleScroll = () => {
-    const container = chatContainerRef.current!;
-    const atBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 50;
-    setIsAtBottom(atBottom);
-    if (atBottom) setNewMessageCount(0);
-
-    if (container.scrollTop < 50 && hasMore) {
-      const nextPage = pageRef.current + 1;
-      fetchMessages(nextPage);
-      pageRef.current = nextPage;
-    }
-
-    requestAnimationFrame(() => {
-      const messageEls = Array.from(container.querySelectorAll<HTMLDivElement>(".message-item"));
-      messageEls.forEach((el) => {
-        const msgId = el.dataset.id;
-        const senderId = el.dataset.senderId;
-        if (!msgId || readMessagesRef.has(msgId)) return;
-
-        if (String(senderId) !== String(loginUser.user.id)) {
-          socket.emit("message-read-private", {
-            messageId: Number(msgId),
-            readerId: Number(loginUser.user.id),
-            senderId: Number(user.id),
-          });
-          setValue(user.id, 0, "Personal");
-          readMessagesRef.add(msgId);
-        }
-      });
+      if (String(senderId) !== String(loginUser.user.id)) {
+        socket.emit("message-read-private", {
+          messageId: Number(msgId),
+          readerId: Number(loginUser.user.id),
+          senderId: Number(user.id),
+        });
+        setValue(user.id, 0, "Personal");
+      }
     });
-  };
+  }, [messages, loginUser.user.id, user.id]);
 
-  const container = chatContainerRef.current;
-  container.addEventListener("scroll", handleScroll);
-  handleScroll(); // initial run
-  return () => container.removeEventListener("scroll", handleScroll);
-}, [loginUser.user.id, user.id]);
+  //  Keep your scroll-based logic for dynamic reading
+  useEffect(() => {
+    if (!chatContainerRef.current) return;
+    const readMessagesRef = new Set<string>();
 
+    const handleScroll = () => {
+      const container = chatContainerRef.current!;
+      const atBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 50;
+      setIsAtBottom(atBottom);
+      if (atBottom) setNewMessageCount(0);
 
+      if (container.scrollTop < 50 && hasMore) {
+        const nextPage = pageRef.current + 1;
+        fetchMessages(nextPage);
+        pageRef.current = nextPage;
+      }
+
+      requestAnimationFrame(() => {
+        const messageEls = Array.from(container.querySelectorAll<HTMLDivElement>(".message-item"));
+        messageEls.forEach((el) => {
+          const msgId = el.dataset.id;
+          const senderId = el.dataset.senderId;
+          if (!msgId || readMessagesRef.has(msgId)) return;
+
+          if (String(senderId) !== String(loginUser.user.id)) {
+            socket.emit("message-read-private", {
+              messageId: Number(msgId),
+              readerId: Number(loginUser.user.id),
+              senderId: Number(user.id),
+            });
+            setValue(user.id, 0, "Personal");
+            readMessagesRef.add(msgId);
+          }
+        });
+      });
+    };
+
+    const container = chatContainerRef.current;
+    container.addEventListener("scroll", handleScroll);
+    handleScroll(); // initial run
+    return () => container.removeEventListener("scroll", handleScroll);
+  }, [loginUser.user.id, user.id]);
 
   // Socket join & listeners
   useEffect(() => {
@@ -238,7 +242,7 @@ useEffect(() => {
       //console.log("handleIncomingMessage called with:", msg);
 
       //  Extract the actual message
-      const messageData =  msg;
+      const messageData = msg;
       const newMsg = transformMessageFromApi(messageData);
 
       //  Check if this message belongs to current chat
@@ -519,6 +523,17 @@ useEffect(() => {
     }
   }
 
+  const handleForward = async (messageId: number, receiverIds: number[]) => {
+    try {
+      socket.emit("private-forward-message", {
+        messageId,
+        receiverIds
+      })
+    } catch (error) {
+      toast.error("Failed to forward message");
+    }
+  }
+
   //console.log("chatroom message", messages)
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)] relative">
@@ -533,6 +548,8 @@ useEffect(() => {
         setIsAtBottom={setIsAtBottom}
         onDelete={handleDeleteMessage}
         onPin={handlePinMessage}
+        onForward={handleForward}
+        loading={loadingInitial}
       />
 
       {!isAtBottom && newMessageCount > 0 && (

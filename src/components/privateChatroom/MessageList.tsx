@@ -1,5 +1,5 @@
 // MessageList.tsx
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import MessageItem from "./MessageItem";
 import { groupMessagesByDay } from "@/utils/helper";
 import type { PrivateChatMessage } from "@/dto/response/PrivateChatMessage";
@@ -18,7 +18,9 @@ export default function MessageList({
   chatContainerRef,
   setIsAtBottom,
   onDelete,
-  onPin
+  onPin,
+  onForward,
+  loading,
 }: {
   messages: PrivateChatMessage[];
   loginUser: loginResponse;
@@ -30,9 +32,9 @@ export default function MessageList({
   setIsAtBottom: (atBottom: boolean) => void;
   onDelete: (messageId: number, is_everyone: boolean) => void;
   onPin: (messageId: number) => void;
+  onForward: (messageId: number, receiverIds: number[]) => void;
+  loading: boolean; // optional
 }) {
-    // console.log("Private messge", messages)
-
   // Track if user is at bottom
   useEffect(() => {
     const container = chatContainerRef.current;
@@ -62,17 +64,22 @@ export default function MessageList({
     }
   };
 
-// console.log("private message list", messages)
+  const [activeReactionMessageId, setActiveReactionMessageId] = useState<string | null>(null);
+
   return (
-    <div
-      ref={chatContainerRef}
-      className="flex-1 overflow-y-auto p-4 space-y-3 "
-    >
-      {Object.keys(groupedMessages).length === 0 && (
+    
+    <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-4 space-y-3">
+
+      {/* Show loader if loading */}
+      {loading ? (
+        <div className="flex justify-center items-center h-full">
+          <p className="text-primary">Loading messages....</p>
+        </div>
+      ) : Object.keys(groupedMessages).length === 0 ? (
         <div className="text-center text-sm text-slate-400 mt-6">
           No messages yet. Say hello
         </div>
-      )}
+      ) : null}
 
       {sortedDays.map((day) => (
         <div key={day} className="space-y-3">
@@ -84,7 +91,6 @@ export default function MessageList({
 
           {groupedMessages[day].map((msg: PrivateChatMessage) => {
             const filePath = filePathFromUrl(msg.attachment_url ?? null);
-            // console.log("filePath", filePath);
             return (
               <MessageItem
                 key={msg.id}
@@ -99,6 +105,9 @@ export default function MessageList({
                 setPreviewModal={setPreviewModal}
                 onDelete={onDelete}
                 onPin={onPin}
+                onForward={onForward}
+                activeReactionMessageId={activeReactionMessageId}
+                setActiveReactionMessageId={setActiveReactionMessageId}
               />
             );
           })}

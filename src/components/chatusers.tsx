@@ -164,8 +164,8 @@ export default function ChatUsers({ tabs, onSelectUser }: ChatUsersProps) {
               {!user.is_group && (
                 <span
                   className={`text-xs ${user.status === "online"
-                      ? "text-green-500"
-                      : "text-gray-400 dark:text-gray-300"
+                    ? "text-green-500"
+                    : "text-gray-400 dark:text-gray-300"
                     }`}
                 >
                   {user.status === "online"
