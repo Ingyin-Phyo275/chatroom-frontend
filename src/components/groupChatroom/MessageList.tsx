@@ -291,7 +291,7 @@ export default function GroupMessages({
                             {reactionMap[m.id]?.map((r) => (
                               <>
                                 <div className="flex flex-row justify-between items-center gap-1">
-                                  <p className="text-black">
+                                  <p className="text-black dark:text-white">
                                     {r?.userName ? r?.userName : r?.userId}{" "}
                                     {r?.userId === loggedInUserId &&
                                       `(Me)`}
@@ -360,7 +360,7 @@ export default function GroupMessages({
                             {reactionMap[m?.id]?.map((r) => (
                               <>
                                 <div className="flex flex-row justify-between items-center gap-1">
-                                  <p className="text-black">
+                                  <p className="text-black dark:text-white">
                                     {r?.userName ? r?.userName : r?.userId}{" "}
                                     {r?.userId === loggedInUserId && "(Me)"}
                                   </p>

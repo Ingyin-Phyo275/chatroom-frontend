@@ -45,7 +45,7 @@ export default function MessageBubble({ m, isOwn, handleToggleTime, onEditMessag
                     <ContextMenuTrigger>
                         <div>
                             {m.forwarded_from_id && (
-                                <p className="text-xs text-gray-300 italic">Forward from {m.forwarded_from_id}</p>
+                                <p className="text-xs text-gray-300 italic">Forward from {m.forwarded_from}</p>
                             )}
                             {m.content && <p className="mb-1 no-copy">{m.content}</p>}
                             {/* Attachments */}

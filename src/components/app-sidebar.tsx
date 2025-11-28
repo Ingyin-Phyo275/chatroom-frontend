@@ -71,7 +71,7 @@ export function AppSidebar({
 
       {/* Modal/Dialog for MemberAddForm */}
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="w-full max-w-md sm:max-w-lg max-h-[90vh] overflow-auto rounded-lg p-6 bg-white">
+        <DialogContent className="w-full max-w-md sm:max-w-lg max-h-[90vh] overflow-auto rounded-lg p-6 bg-white dark:bg-[#090909]">
           <DialogHeader>
             <DialogTitle>Add Members</DialogTitle>
           </DialogHeader>
@@ -81,7 +81,7 @@ export function AppSidebar({
           </div>
 
           <div className="mt-4 flex justify-end">
-            <DialogClose className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 transition">
+            <DialogClose className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 transition">
               Close
             </DialogClose>
           </div>

@@ -122,7 +122,7 @@ export default function MemberAddForm({ action = "create", chatroomId, onClose }
           {selectedContacts.map(contact => (
             <div
               key={contact.id}
-              className="flex items-center gap-1 bg-blue-100 text-blue-700 px-2 py-1 rounded-full text-sm"
+              className="flex items-center gap-1 bg-blue-100 text-blue-700  px-2 py-1 rounded-full text-sm"
             >
               <span>{contact.username}</span>
               <button onClick={() => removeContact(contact.id)} className="hover:text-red-600">
@@ -141,7 +141,7 @@ export default function MemberAddForm({ action = "create", chatroomId, onClose }
             return (
               <label
                 key={contact.id}
-                className="flex items-center justify-between p-2 rounded hover:bg-gray-100 cursor-pointer"
+                className="flex items-center justify-between p-2 rounded hover:bg-gray-100  dark:hover:bg-slate-700 cursor-pointer"
               >
                 <div className="flex flex-row gap-4 items-center">
                   <Avatar.Root className="w-10 h-10 rounded-full overflow-hidden">
@@ -160,7 +160,7 @@ export default function MemberAddForm({ action = "create", chatroomId, onClose }
                   type="checkbox"
                   checked={isSelected}
                   onChange={() => toggleContact(contact)}
-                  className="w-4 h-4 accent-blue-500"
+                  className="w-4 h-4 accent-blue-500 dark:accent-slate-700"
                 />
               </label>
             );
