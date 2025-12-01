@@ -134,7 +134,7 @@ export default function MemberAddForm({ action = "create", chatroomId, onClose }
       )}
 
       {/* Contact List */}
-      <div className="flex flex-col space-y-2 overflow-y-auto max-h-64 border border-gray-200 rounded p-2">
+      <div className="flex flex-col space-y-2 overflow-y-auto max-h-64 border border-gray-200 dark:border-gray-700 rounded p-2">
         {filteredContacts.length > 0 ? (
           filteredContacts.map((contact: UserListResponse) => {
             const isSelected = selectedContacts.some(c => c.id === contact.id);

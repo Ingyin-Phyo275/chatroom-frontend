@@ -103,7 +103,7 @@ export default function ChatInfoViewMedia({ media }: ChatInfoViewMediaProps) {
       {/* Modal for All Media */}
       {modalOpen && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 overflow-auto">
-          <div className="relative w-full max-w-3xl bg-white rounded-lg p-4">
+          <div className="relative w-full max-w-3xl bg-white dark:bg-[#090909] rounded-lg p-4">
             <button
               onClick={() => setModalOpen(false)}
               className="absolute top-4 right-4 p-2 rounded-full bg-gray-200 hover:bg-gray-300"

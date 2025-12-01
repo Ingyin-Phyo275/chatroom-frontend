@@ -109,14 +109,14 @@ export default function ChatInfoPanel({ selectedUser }: ChatInfoProps) {
 
                 {/* Add Member Dialog */}
                 <Dialog open={isOpen} onOpenChange={setIsOpen}>
-                  <DialogContent className="w-full max-w-md sm:max-w-lg max-h-[90vh] overflow-auto rounded-lg p-6 bg-white">
+                  <DialogContent className="w-full max-w-md sm:max-w-lg max-h-[90vh] overflow-auto rounded-lg p-6 bg-white dark:bg-[#090909]">
                     <DialogHeader title="Add Members" />
                     <DialogTitle></DialogTitle>
                     <div className="mt-4">
                       <MemberAddForm action="add" chatroomId={selectedUser?.id} />
                     </div>
                     <div className="mt-4 flex justify-end">
-                      <DialogClose className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 transition">
+                      <DialogClose className="px-4 py-2 dark:bg-gray-700 bg-gray-200 rounded hover:bg-gray-300 transition">
                         Close
                       </DialogClose>
                     </div>

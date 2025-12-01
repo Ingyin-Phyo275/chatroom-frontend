@@ -94,7 +94,7 @@ export default function ChatMembersCard({ chatMembers, chatroomId }: ChatMembers
             {chatMembers.map((member) => (
               <div
                 key={member.id}
-                className="flex items-center justify-between px-3 py-2 border-b dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md cursor-pointer"
+                className="flex items-center justify-between px-3 py-2 border-b  dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md cursor-pointer"
               >
                 {/* Left: Avatar + Name/Status */}
                 <div className="flex items-center gap-3">
@@ -113,7 +113,7 @@ export default function ChatMembersCard({ chatMembers, chatroomId }: ChatMembers
                 {/* Right: Dropdown Menu */}
                 <div className="flex items-center">
                   <DropdownMenu>
-                    <DropdownMenuTrigger className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition">
+                    <DropdownMenuTrigger className="p-1  hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition">
                       <EllipsisVertical className="w-5 h-5 text-gray-500 dark:text-gray-400" />
                     </DropdownMenuTrigger>
                     <DropdownMenuContent className="w-40">
@@ -143,7 +143,7 @@ export default function ChatMembersCard({ chatMembers, chatroomId }: ChatMembers
             {adminMembers.map((member) => (
               <div
                 key={member.id}
-                className="flex items-center gap-3 p-2 border-b dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md cursor-pointer"
+                className="flex items-center gap-3 p-2 border-b  dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md cursor-pointer"
               >
                 {/* Avatar */}
                 <MemberAvatar member={member} />
